@@ -16,6 +16,7 @@ import {
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { reportsService } from '../services/reports'
 import { formatCurrency } from '../utils/formatCurrency'
+import { useSettings } from '../hooks/useSettings'
 
 const PIE_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#0891B2']
 
@@ -45,6 +46,7 @@ function KpiCard({ title, value, subtitle, icon, color }) {
 }
 
 export default function DashboardPage() {
+  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
   const today = new Date().toISOString().split('T')[0]
 
   const [summary, setSummary] = useState(null)
@@ -198,7 +200,7 @@ export default function DashboardPage() {
                 <LineChart data={dailySales} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis dataKey="label" tick={{ fontSize: 12 }} tickLine={false} />
-                  <YAxis tickFormatter={(v) => `GH₵${v}`} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={70} />
+                  <YAxis tickFormatter={(v) => `${currencySymbol}${v}`} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={70} />
                   <Tooltip formatter={(v) => [formatCurrency(v), 'Revenue']} />
                   <Line type="monotone" dataKey="value" stroke="#2563EB" strokeWidth={2.5} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>

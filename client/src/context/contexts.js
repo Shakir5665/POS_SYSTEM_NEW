@@ -9,10 +9,13 @@ export const DEFAULT_SETTINGS = {
   store_phone: '030-200-0000',
   tax_rate: '0',
   loyalty_points_rate: '10',
-  currency_symbol: 'GH₵',
+  currency_symbol: 'LKR',
   receipt_footer: 'Thank you for your business!',
 }
 
 export const AuthContext = createContext(null)
 export const CartContext = createContext(null)
-export const SettingsContext = createContext(DEFAULT_SETTINGS)
+export const SettingsContext = createContext({
+  ...DEFAULT_SETTINGS,
+  updateSettings: () => {},
+})

@@ -13,9 +13,11 @@ import { Modal } from '../components/Modal'
 import { Badge } from '../components/Badge'
 import { Receipt } from '../components/Receipt'
 import { useAuth } from '../hooks/useAuth'
+import { useSettings } from '../hooks/useSettings'
 
 // ─── Payment Modal ─────────────────────────────────────────────────────────────
 function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading, customer }) {
+  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
   const [method, setMethod] = useState('CASH')
   const [amountPaid, setAmountPaid] = useState('')
   // The parent mounts this modal only while it is open, so state starts fresh each time
@@ -139,13 +141,13 @@ function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading, customer }
         {method === 'CASH' && (
           <div className="space-y-2">
             <Input
-              label="Amount Paid (GH₵)"
+              label={`Amount Paid (${currencySymbol})`}
               type="number"
               min={total}
               step="0.01"
               value={amountPaid}
               onChange={(e) => { setAmountPaid(e.target.value); setErrors({}) }}
-              placeholder={formatCurrency(total).replace('GH₵ ', '')}
+              placeholder={Number(total || 0).toFixed(2)}
               error={errors.amountPaid}
             />
             {paidEnough && (

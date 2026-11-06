@@ -5,8 +5,10 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { productsService } from '../services/products'
+import { useSettings } from '../hooks/useSettings'
 
 export default function ProductFormPage() {
+  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
   const navigate = useNavigate()
   const { id } = useParams()
   const isEditing = Boolean(id)
@@ -242,7 +244,7 @@ export default function ProductFormPage() {
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Pricing</h2>
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Selling Price (GH₵) *"
+                label={`Selling Price (${currencySymbol}) *`}
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -252,7 +254,7 @@ export default function ProductFormPage() {
                 error={errors.price}
               />
               <Input
-                label="Cost Price (GH₵)"
+                label={`Cost Price (${currencySymbol})`}
                 type="number"
                 min="0"
                 step="0.01"

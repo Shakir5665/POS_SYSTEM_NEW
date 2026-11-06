@@ -3,6 +3,7 @@ const generateTransactionId = require('../utils/generateTransactionId')
 const { toMoney, roundMoney, toPesewas } = require('../utils/money')
 const { NotFoundError, ValidationError, AppError } = require('../utils/errors')
 const { verifyTransaction, createRefund } = require('./paystackService')
+const { getSettingValue } = require('./settingsService')
 
 async function createSale({ items, customer_id, payment_method, amount_paid, discount_amount = 0, notes, reference }, userId) {
   // Step 1: Validate all items exist and have sufficient stock
@@ -105,8 +106,9 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     // Paystack reports whole pesewas, so the amounts must match exactly
     if (paystackData.amount !== toPesewas(totalAmount)) {
       const paid = toMoney(paystackData.amount).div(100)
+      const currencySymbol = await getSettingValue('currency_symbol', 'LKR')
       throw new ValidationError('Payment amount mismatch', [
-        { field: 'amount_paid', message: `Paystack amount (GH₵ ${paid.toFixed(2)}) does not match sale total (GH₵ ${totalAmount.toFixed(2)})` },
+        { field: 'amount_paid', message: `Paystack amount (${currencySymbol} ${paid.toFixed(2)}) does not match sale total (${currencySymbol} ${totalAmount.toFixed(2)})` },
       ])
     }
   }
@@ -439,17 +441,6 @@ async function getReceiptData(saleId) {
   return {
     store: { name: storeName, address: storeAddress, phone: storePhone },
     sale,
-  }
-}
-
-async function getSettingValue(key, defaultValue) {
-  try {
-    const setting = await prisma.settings.findUnique({ where: { key } })
-    if (!setting) return defaultValue
-    const val = parseFloat(setting.value)
-    return isNaN(val) ? setting.value : val
-  } catch {
-    return defaultValue
   }
 }
 

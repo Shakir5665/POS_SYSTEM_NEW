@@ -17,6 +17,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
 import { reportsService } from '../services/reports'
 import { formatCurrency } from '../utils/formatCurrency'
+import { useSettings } from '../hooks/useSettings'
 
 const PIE_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#0891B2']
 
@@ -67,6 +68,7 @@ function exportCsv(filename, headers, rows) {
 }
 
 export default function ReportsPage() {
+  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
   const [activeTab, setActiveTab] = useState('summary')
   const [startDate, setStartDate] = useState(formatDate(-29))
   const [endDate, setEndDate] = useState(formatDate(0))
@@ -274,7 +276,7 @@ export default function ReportsPage() {
                     <BarChart data={dailyData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                       <XAxis dataKey="label" tick={{ fontSize: 12 }} tickLine={false} />
-                      <YAxis tickFormatter={(v) => `GH₵${v}`} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={72} />
+                      <YAxis tickFormatter={(v) => `${currencySymbol}${v}`} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={72} />
                       <Tooltip formatter={(v) => [formatCurrency(v), 'Revenue']} />
                       <Bar dataKey="value" fill="#2563EB" radius={[4, 4, 0, 0]} />
                     </BarChart>

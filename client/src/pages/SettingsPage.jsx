@@ -4,6 +4,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { settingsService } from '../services/settings'
+import { useSettings } from '../hooks/useSettings'
 
 function SkeletonField() {
   return (
@@ -14,17 +15,18 @@ function SkeletonField() {
   )
 }
 
-const FIELDS = [
+const getFields = (symbol = 'LKR') => [
   { key: 'store_name', label: 'Store Name', type: 'text', placeholder: 'My POS Store' },
   { key: 'store_address', label: 'Store Address', type: 'text', placeholder: '123 Main St, Accra, Ghana' },
   { key: 'store_phone', label: 'Store Phone', type: 'text', placeholder: '0XX-XXX-XXXX' },
-  { key: 'currency_symbol', label: 'Currency Symbol', type: 'text', placeholder: 'GH₵' },
+  { key: 'currency_symbol', label: 'Currency Symbol', type: 'text', placeholder: symbol || 'LKR' },
   { key: 'tax_rate', label: 'Tax Rate (%)', type: 'number', placeholder: '0', min: 0, max: 100, step: 0.01 },
-  { key: 'loyalty_points_rate', label: 'Loyalty Points Rate (GHS per 1 point)', type: 'number', placeholder: '10', min: 1, step: 1 },
+  { key: 'loyalty_points_rate', label: `Loyalty Points Rate (${symbol || 'GHS'} per 1 point)`, type: 'number', placeholder: '10', min: 1, step: 1 },
   { key: 'receipt_footer', label: 'Receipt Footer Message', type: 'text', placeholder: 'Thank you for your business!' },
 ]
 
 export default function SettingsPage() {
+  const { updateSettings } = useSettings()
   const [settings, setSettings] = useState({})
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -32,10 +34,14 @@ export default function SettingsPage() {
 
   useEffect(() => {
     settingsService.get()
-      .then((res) => setSettings(res.data?.data || {}))
+      .then((res) => {
+        const data = res.data?.data || {}
+        setSettings(data)
+        if (updateSettings) updateSettings(data)
+      })
       .catch(() => toast.error('Failed to load settings'))
       .finally(() => setIsLoading(false))
-  }, [])
+  }, [updateSettings])
 
   function validate() {
     const errs = {}
@@ -67,7 +73,9 @@ export default function SettingsPage() {
     setIsSaving(true)
     try {
       const res = await settingsService.update(settings)
-      setSettings(res.data?.data || settings)
+      const updated = res.data?.data || settings
+      setSettings(updated)
+      if (updateSettings) updateSettings(updated)
       toast.success('Settings saved successfully')
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Failed to save settings')
@@ -80,6 +88,8 @@ export default function SettingsPage() {
     setSettings((prev) => ({ ...prev, [key]: value }))
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }))
   }
+
+  const fields = getFields(settings.currency_symbol)
 
   return (
     <DashboardLayout>
@@ -94,9 +104,9 @@ export default function SettingsPage() {
             <h2 className="text-base font-semibold text-gray-800 border-b pb-3">Store Information</h2>
 
             {isLoading ? (
-              FIELDS.map((f) => <SkeletonField key={f.key} />)
+              fields.map((f) => <SkeletonField key={f.key} />)
             ) : (
-              FIELDS.map((field) => (
+              fields.map((field) => (
                 <div key={field.key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     {field.label}
