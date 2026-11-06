@@ -1,5 +1,6 @@
 const prisma = require('../utils/prismaClient')
 const { NotFoundError, ConflictError, ValidationError } = require('../utils/errors')
+const { getBaseUnit, getDefaultPricingUnit, isValidCategory, isValidUnitForCategory } = require('../utils/uom')
 const path = require('path')
 const fs = require('fs')
 
@@ -65,12 +66,29 @@ async function createProduct(data) {
   const category = await prisma.category.findUnique({ where: { id: data.category_id } })
   if (!category) throw new NotFoundError('Category not found')
 
+  const unit_category = data.unit_category || 'COUNT'
+  const base_unit = data.base_unit || getBaseUnit(unit_category)
+  const pricing_unit = data.pricing_unit || getDefaultPricingUnit(unit_category)
+
+  if (!isValidCategory(unit_category)) {
+    throw new ValidationError(`Invalid unit category "${unit_category}"`)
+  }
+  if (!isValidUnitForCategory(unit_category, base_unit)) {
+    throw new ValidationError(`Invalid base unit "${base_unit}" for category "${unit_category}"`)
+  }
+  if (!isValidUnitForCategory(unit_category, pricing_unit)) {
+    throw new ValidationError(`Invalid pricing unit "${pricing_unit}" for category "${unit_category}"`)
+  }
+
   const product = await prisma.product.create({
     data: {
       name: data.name,
       sku: data.sku,
       barcode: data.barcode || null,
       category_id: data.category_id,
+      unit_category,
+      base_unit,
+      pricing_unit,
       price: data.price,
       cost_price: data.cost_price || null,
       quantity: data.quantity ?? 0,
@@ -101,6 +119,20 @@ async function updateProduct(id, data) {
     if (!category) throw new NotFoundError('Category not found')
   }
 
+  const targetCategory = data.unit_category !== undefined ? data.unit_category : existing.unit_category
+  const targetBase = data.base_unit !== undefined ? data.base_unit : existing.base_unit
+  const targetPricing = data.pricing_unit !== undefined ? data.pricing_unit : existing.pricing_unit
+
+  if (data.unit_category !== undefined && !isValidCategory(targetCategory)) {
+    throw new ValidationError(`Invalid unit category "${targetCategory}"`)
+  }
+  if (data.base_unit !== undefined && !isValidUnitForCategory(targetCategory, targetBase)) {
+    throw new ValidationError(`Invalid base unit "${targetBase}" for category "${targetCategory}"`)
+  }
+  if (data.pricing_unit !== undefined && !isValidUnitForCategory(targetCategory, targetPricing)) {
+    throw new ValidationError(`Invalid pricing unit "${targetPricing}" for category "${targetCategory}"`)
+  }
+
   const product = await prisma.product.update({
     where: { id },
     data: {
@@ -108,6 +140,9 @@ async function updateProduct(id, data) {
       ...(data.sku !== undefined && { sku: data.sku }),
       ...(data.barcode !== undefined && { barcode: data.barcode || null }),
       ...(data.category_id !== undefined && { category_id: data.category_id }),
+      ...(data.unit_category !== undefined && { unit_category: data.unit_category }),
+      ...(data.base_unit !== undefined && { base_unit: data.base_unit }),
+      ...(data.pricing_unit !== undefined && { pricing_unit: data.pricing_unit }),
       ...(data.price !== undefined && { price: data.price }),
       ...(data.cost_price !== undefined && { cost_price: data.cost_price || null }),
       ...(data.quantity !== undefined && { quantity: data.quantity }),

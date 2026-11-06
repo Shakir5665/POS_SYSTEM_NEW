@@ -101,7 +101,7 @@ async function main() {
     // Beverages (10)
     { name: 'Coca-Cola 500ml', sku: 'BEV-001', barcode: '5449000000996', category: 'Beverages', price: 5.00, cost_price: 3.50, quantity: 120, low_stock_threshold: 20 },
     { name: 'Malt Drink 330ml', sku: 'BEV-002', barcode: '6001240005982', category: 'Beverages', price: 4.50, cost_price: 3.00, quantity: 96, low_stock_threshold: 20 },
-    { name: 'Voltic Water 1.5L', sku: 'BEV-003', barcode: '6009521300018', category: 'Beverages', price: 6.00, cost_price: 4.00, quantity: 150, low_stock_threshold: 30 },
+    { name: 'Voltic Water 1.5L', sku: 'BEV-003', barcode: '6009521300018', category: 'Beverages', price: 4.00, cost_price: 2.67, quantity: 216000, low_stock_threshold: 45000, unit_category: 'VOLUME', base_unit: 'ml', pricing_unit: 'L' },
     { name: 'Alvaro Pineapple 330ml', sku: 'BEV-004', barcode: '6001240009102', category: 'Beverages', price: 4.00, cost_price: 2.80, quantity: 72, low_stock_threshold: 15 },
     { name: 'Malta Guinness 330ml', sku: 'BEV-005', barcode: '6001240018104', category: 'Beverages', price: 5.50, cost_price: 3.80, quantity: 84, low_stock_threshold: 15 },
     { name: 'Club Beer 330ml', sku: 'BEV-006', barcode: '6009703030019', category: 'Beverages', price: 7.00, cost_price: 5.00, quantity: 60, low_stock_threshold: 12 },
@@ -123,18 +123,18 @@ async function main() {
     { name: 'Supermalt 330ml', sku: 'SNK-010', barcode: '5010394225512', category: 'Snacks', price: 6.00, cost_price: 4.00, quantity: 5, low_stock_threshold: 10 },
 
     // Dairy (8)
-    { name: 'Peak Milk Powder 400g', sku: 'DAI-001', barcode: '6001240001267', category: 'Dairy', price: 32.00, cost_price: 24.00, quantity: 35, low_stock_threshold: 8 },
+    { name: 'Peak Milk Powder 400g', sku: 'DAI-001', barcode: '6001240001267', category: 'Dairy', price: 80.00, cost_price: 60.00, quantity: 14000, low_stock_threshold: 3200, unit_category: 'WEIGHT', base_unit: 'g', pricing_unit: 'kg' },
     { name: 'Cowbell Milk Tin 400g', sku: 'DAI-002', barcode: '6001240010109', category: 'Dairy', price: 28.00, cost_price: 20.00, quantity: 40, low_stock_threshold: 8 },
     { name: 'Vitamilk 250ml', sku: 'DAI-003', barcode: '8850718100085', category: 'Dairy', price: 5.00, cost_price: 3.50, quantity: 60, low_stock_threshold: 12 },
     { name: 'Hollandia Yoghurt 500ml', sku: 'DAI-004', barcode: '6001240018897', category: 'Dairy', price: 12.00, cost_price: 8.50, quantity: 25, low_stock_threshold: 6 },
     { name: 'Cowbella Milk 500ml', sku: 'DAI-005', barcode: '6001240009119', category: 'Dairy', price: 8.50, cost_price: 6.00, quantity: 48, low_stock_threshold: 10 },
     { name: 'Friesland Cheese 200g', sku: 'DAI-006', barcode: '8710398520097', category: 'Dairy', price: 25.00, cost_price: 18.00, quantity: 20, low_stock_threshold: 5 },
     { name: 'Fan Milk Ice Pop', sku: 'DAI-007', barcode: '6001240003599', category: 'Dairy', price: 2.50, cost_price: 1.50, quantity: 0, low_stock_threshold: 10 },
-    { name: 'Peak UHT Milk 1L', sku: 'DAI-008', barcode: '6001240001274', category: 'Dairy', price: 18.00, cost_price: 13.00, quantity: 30, low_stock_threshold: 8 },
+    { name: 'Peak UHT Milk 1L', sku: 'DAI-008', barcode: '6001240001274', category: 'Dairy', price: 18.00, cost_price: 13.00, quantity: 30000, low_stock_threshold: 8000, unit_category: 'VOLUME', base_unit: 'ml', pricing_unit: 'L' },
 
     // Household (10)
-    { name: 'Omo Detergent 500g', sku: 'HOU-001', barcode: '8717163571965', category: 'Household', price: 12.00, cost_price: 8.50, quantity: 80, low_stock_threshold: 15 },
-    { name: 'Ariel Powder 1kg', sku: 'HOU-002', barcode: '8001841390413', category: 'Household', price: 22.00, cost_price: 16.00, quantity: 45, low_stock_threshold: 10 },
+    { name: 'Omo Detergent 500g', sku: 'HOU-001', barcode: '8717163571965', category: 'Household', price: 24.00, cost_price: 17.00, quantity: 40000, low_stock_threshold: 7500, unit_category: 'WEIGHT', base_unit: 'g', pricing_unit: 'kg' },
+    { name: 'Ariel Powder 1kg', sku: 'HOU-002', barcode: '8001841390413', category: 'Household', price: 22.00, cost_price: 16.00, quantity: 45000, low_stock_threshold: 10000, unit_category: 'WEIGHT', base_unit: 'g', pricing_unit: 'kg' },
     { name: 'Sunlight Dish Liquid 500ml', sku: 'HOU-003', barcode: '6001087019665', category: 'Household', price: 8.00, cost_price: 5.50, quantity: 60, low_stock_threshold: 12 },
     { name: 'Dettol Antiseptic 500ml', sku: 'HOU-004', barcode: '6001087023891', category: 'Household', price: 18.00, cost_price: 13.00, quantity: 35, low_stock_threshold: 8 },
     { name: 'Morning Fresh 500ml', sku: 'HOU-005', barcode: '6001087024898', category: 'Household', price: 10.00, cost_price: 7.00, quantity: 50, low_stock_threshold: 10 },
@@ -171,6 +171,9 @@ async function main() {
         sku: p.sku,
         barcode: p.barcode,
         category_id: categories[p.category].id,
+        unit_category: p.unit_category || 'COUNT',
+        base_unit: p.base_unit || 'pcs',
+        pricing_unit: p.pricing_unit || 'pcs',
         price: p.price,
         cost_price: p.cost_price,
         quantity: p.quantity,

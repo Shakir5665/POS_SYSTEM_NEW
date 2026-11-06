@@ -23,7 +23,19 @@ function divideRoundHalfUp(numerator, denominator) {
 
 /** Line total in pesewas: price × quantity − line discount. */
 export function lineTotalPesewas(item) {
-  return toPesewas(item.price) * item.quantity - toPesewas(item.discount)
+  const pricePesewas = toPesewas(item.price)
+  const discountPesewas = toPesewas(item.discount)
+
+  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
+    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
+    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+    const pricingQty = (Number(item.quantity || 0) * factorSelling) / factorPricing
+    const lineGross = Math.round(pricingQty * pricePesewas)
+    return Math.max(0, lineGross - discountPesewas)
+  }
+
+  const lineGross = Math.round(pricePesewas * Number(item.quantity || 0))
+  return Math.max(0, lineGross - discountPesewas)
 }
 
 /**

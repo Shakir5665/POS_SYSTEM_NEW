@@ -48,7 +48,7 @@ async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue'
   if (by === 'quantity') {
     results = await prisma.$queryRaw`
       SELECT p.id, p.name, p.sku,
-        SUM(si.quantity)::int as total_quantity,
+        ROUND(SUM(si.quantity)::numeric, 3)::float as total_quantity,
         SUM(si.total)::float as total_revenue
       FROM "SaleItem" si
       JOIN "Product" p ON p.id = si.product_id
@@ -62,7 +62,7 @@ async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue'
   } else {
     results = await prisma.$queryRaw`
       SELECT p.id, p.name, p.sku,
-        SUM(si.quantity)::int as total_quantity,
+        ROUND(SUM(si.quantity)::numeric, 3)::float as total_quantity,
         SUM(si.total)::float as total_revenue
       FROM "SaleItem" si
       JOIN "Product" p ON p.id = si.product_id
@@ -89,7 +89,7 @@ async function getCategoryPerformance({ start_date, end_date }) {
     SELECT
       c.id,
       c.name as label,
-      SUM(si.quantity)::int as total_quantity,
+      ROUND(SUM(si.quantity)::numeric, 3)::float as total_quantity,
       SUM(si.total)::float as value
     FROM "SaleItem" si
     JOIN "Product" p ON p.id = si.product_id
@@ -166,8 +166,8 @@ async function getProfitReport({ start_date, end_date }) {
       p.name,
       p.sku,
       SUM(si.total)::float as revenue,
-      SUM(si.quantity * COALESCE(p.cost_price, 0))::float as cost,
-      SUM(si.total - si.quantity * COALESCE(p.cost_price, 0))::float as profit
+      SUM(COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0)))::float as cost,
+      SUM(si.total - COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0)))::float as profit
     FROM "SaleItem" si
     JOIN "Product" p ON p.id = si.product_id
     JOIN "Sale" s ON s.id = si.sale_id
@@ -206,7 +206,7 @@ async function getDashboardSummary() {
     }),
     prisma.$queryRaw`SELECT COUNT(*)::int as cnt FROM "Product" WHERE is_active = true AND quantity > 0 AND quantity <= low_stock_threshold`,
     prisma.$queryRaw`
-      SELECT p.name, SUM(si.total)::float as revenue, SUM(si.quantity)::int as quantity
+      SELECT p.name, SUM(si.total)::float as revenue, ROUND(SUM(si.quantity)::numeric, 3)::float as quantity
       FROM "SaleItem" si
       JOIN "Product" p ON p.id = si.product_id
       JOIN "Sale" s ON s.id = si.sale_id

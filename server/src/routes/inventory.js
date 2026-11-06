@@ -21,9 +21,10 @@ router.post(
   [
     body('product_id').isUUID().withMessage('Valid product ID required'),
     body('quantity_change')
-      .isInt()
+      .isFloat()
       .custom((value) => Number(value) !== 0)
-      .withMessage('Quantity change must be a non-zero integer'),
+      .withMessage('Quantity change must be a non-zero number'),
+    body('unit').optional().isString().trim(),
   ],
   validate,
   inventoryController.adjustStock
@@ -33,7 +34,8 @@ router.post(
   authorize(['ADMIN', 'MANAGER']),
   [
     body('product_id').isUUID().withMessage('Valid product ID required'),
-    body('quantity').isInt({ min: 1 }).withMessage('Quantity must be >= 1'),
+    body('quantity').isFloat({ gt: 0 }).withMessage('Quantity must be > 0'),
+    body('unit').optional().isString().trim(),
   ],
   validate,
   inventoryController.restockProduct

@@ -6,9 +6,10 @@ import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { productsService } from '../services/products'
 import { useSettings } from '../hooks/useSettings'
+import { UOM_CONFIG, getUnitsForCategory, getBaseUnit, getDefaultPricingUnit } from '../utils/uom'
 
 export default function ProductFormPage() {
-  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
+  const { currency_symbol: currencySymbol = 'GH₵' } = useSettings()
   const navigate = useNavigate()
   const { id } = useParams()
   const isEditing = Boolean(id)
@@ -24,6 +25,9 @@ export default function ProductFormPage() {
     sku: '',
     barcode: '',
     category_id: '',
+    unit_category: 'COUNT',
+    base_unit: 'pcs',
+    pricing_unit: 'pcs',
     price: '',
     cost_price: '',
     quantity: '0',
@@ -52,6 +56,9 @@ export default function ProductFormPage() {
           sku: p.sku || '',
           barcode: p.barcode || '',
           category_id: p.category_id || '',
+          unit_category: p.unit_category || 'COUNT',
+          base_unit: p.base_unit || 'pcs',
+          pricing_unit: p.pricing_unit || 'pcs',
           price: p.price?.toString() || '',
           cost_price: p.cost_price?.toString() || '',
           quantity: p.quantity?.toString() || '0',
@@ -67,6 +74,17 @@ export default function ProductFormPage() {
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }))
     if (errors[key]) setErrors((prev) => { const e = { ...prev }; delete e[key]; return e })
+  }
+
+  function handleUnitCategoryChange(newCat) {
+    const base = getBaseUnit(newCat)
+    const pricing = getDefaultPricingUnit(newCat)
+    setForm((prev) => ({
+      ...prev,
+      unit_category: newCat,
+      base_unit: base,
+      pricing_unit: pricing,
+    }))
   }
 
   function handleImageChange(e) {
@@ -92,8 +110,12 @@ export default function ProductFormPage() {
     if (!form.category_id) errs.category_id = 'Category is required'
     if (!form.price || parseFloat(form.price) <= 0) errs.price = 'Price must be greater than 0'
     if (form.cost_price && parseFloat(form.cost_price) < 0) errs.cost_price = 'Cost price cannot be negative'
-    if (form.quantity === '' || parseInt(form.quantity) < 0) errs.quantity = 'Quantity must be 0 or more'
-    if (form.low_stock_threshold === '' || parseInt(form.low_stock_threshold) < 0) errs.low_stock_threshold = 'Threshold must be 0 or more'
+    if (form.quantity === '' || parseFloat(form.quantity) < 0) errs.quantity = 'Quantity must be 0 or more'
+    if (form.low_stock_threshold === '' || parseFloat(form.low_stock_threshold) < 0) errs.low_stock_threshold = 'Threshold must be 0 or more'
+    if (form.unit_category === 'COUNT') {
+      if (!Number.isInteger(Number(form.quantity))) errs.quantity = 'Count products must have integer quantities'
+      if (!Number.isInteger(Number(form.low_stock_threshold))) errs.low_stock_threshold = 'Count products must have integer thresholds'
+    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -113,6 +135,9 @@ export default function ProductFormPage() {
         payload.append('sku', form.sku.trim())
         if (form.barcode.trim()) payload.append('barcode', form.barcode.trim())
         payload.append('category_id', form.category_id)
+        payload.append('unit_category', form.unit_category)
+        payload.append('base_unit', form.base_unit)
+        payload.append('pricing_unit', form.pricing_unit)
         payload.append('price', form.price)
         if (form.cost_price) payload.append('cost_price', form.cost_price)
         payload.append('quantity', form.quantity)
@@ -125,10 +150,13 @@ export default function ProductFormPage() {
           sku: form.sku.trim(),
           barcode: form.barcode.trim() || null,
           category_id: form.category_id,
+          unit_category: form.unit_category,
+          base_unit: form.base_unit,
+          pricing_unit: form.pricing_unit,
           price: parseFloat(form.price),
           cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
-          quantity: parseInt(form.quantity),
-          low_stock_threshold: parseInt(form.low_stock_threshold),
+          quantity: form.unit_category === 'COUNT' ? parseInt(form.quantity) : parseFloat(form.quantity),
+          low_stock_threshold: form.unit_category === 'COUNT' ? parseInt(form.low_stock_threshold) : parseFloat(form.low_stock_threshold),
           is_active: form.is_active,
         }
       }
@@ -239,12 +267,57 @@ export default function ProductFormPage() {
             </div>
           </div>
 
+          {/* Unit of Measure */}
+          <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 mt-4">
+            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Unit of Measure (UOM)</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Quantity Type *</label>
+                <select
+                  value={form.unit_category}
+                  onChange={(e) => handleUnitCategoryChange(e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
+                >
+                  <option value="COUNT">Count (Pieces, Units)</option>
+                  <option value="WEIGHT">Weight (g, kg)</option>
+                  <option value="VOLUME">Volume (ml, L)</option>
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Select whether item is sold by count, weight, or volume</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Base Inventory Unit</label>
+                <input
+                  type="text"
+                  value={form.base_unit}
+                  readOnly
+                  className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 font-mono cursor-not-allowed"
+                />
+                <p className="text-xs text-gray-400 mt-1">Stock is tracked in {form.base_unit}</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Pricing Unit *</label>
+                <select
+                  value={form.pricing_unit}
+                  onChange={(e) => setField('pricing_unit', e.target.value)}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
+                >
+                  {getUnitsForCategory(form.unit_category).map((u) => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-400 mt-1">Price is set per {form.pricing_unit}</p>
+              </div>
+            </div>
+          </div>
+
           {/* Pricing */}
           <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 mt-4">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Pricing</h2>
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label={`Selling Price (${currencySymbol}) *`}
+                label={`Selling Price (${currencySymbol} per ${form.pricing_unit}) *`}
                 type="number"
                 min="0.01"
                 step="0.01"
@@ -254,7 +327,7 @@ export default function ProductFormPage() {
                 error={errors.price}
               />
               <Input
-                label={`Cost Price (${currencySymbol})`}
+                label={`Cost Price (${currencySymbol} per ${form.pricing_unit})`}
                 type="number"
                 min="0"
                 step="0.01"
@@ -271,10 +344,10 @@ export default function ProductFormPage() {
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Inventory</h2>
             <div className="grid grid-cols-2 gap-4">
               <Input
-                label="Current Quantity"
+                label={`Current Quantity (${form.base_unit})`}
                 type="number"
                 min="0"
-                step="1"
+                step={form.unit_category === 'COUNT' ? '1' : '0.001'}
                 value={form.quantity}
                 onChange={(e) => setField('quantity', e.target.value)}
                 placeholder="0"
@@ -282,10 +355,10 @@ export default function ProductFormPage() {
                 disabled={isEditing}
               />
               <Input
-                label="Low Stock Threshold"
+                label={`Low Stock Threshold (${form.base_unit})`}
                 type="number"
                 min="0"
-                step="1"
+                step={form.unit_category === 'COUNT' ? '1' : '0.001'}
                 value={form.low_stock_threshold}
                 onChange={(e) => setField('low_stock_threshold', e.target.value)}
                 placeholder="10"

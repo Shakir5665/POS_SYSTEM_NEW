@@ -6,6 +6,7 @@ const fs = require('fs')
 const productController = require('../controllers/productController')
 const { authenticate, authorize } = require('../middleware/auth')
 const validate = require('../middleware/validate')
+const { isValidCategory, isValidUnitForCategory, getBaseUnit, getDefaultPricingUnit } = require('../utils/uom')
 
 const router = express.Router()
 
@@ -35,10 +36,27 @@ const productValidation = [
   body('name').notEmpty().trim().withMessage('Name is required'),
   body('sku').notEmpty().trim().withMessage('SKU is required'),
   body('category_id').notEmpty().isUUID().withMessage('Valid category ID is required'),
+  body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME']).withMessage('Unit category must be COUNT, WEIGHT, or VOLUME'),
+  body('base_unit').optional().isString().trim(),
+  body('pricing_unit').optional().isString().trim(),
   body('price').isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
   body('cost_price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Cost price must be >= 0'),
-  body('quantity').optional().isInt({ min: 0 }).withMessage('Quantity must be >= 0'),
-  body('low_stock_threshold').optional().isInt({ min: 0 }).withMessage('Threshold must be >= 0'),
+  body('quantity').optional().isFloat({ min: 0 }).withMessage('Quantity must be >= 0')
+    .custom((val, { req }) => {
+      const cat = req.body.unit_category || 'COUNT'
+      if (cat === 'COUNT' && !Number.isInteger(Number(val))) {
+        throw new Error('Quantity must be an integer for count products')
+      }
+      return true
+    }),
+  body('low_stock_threshold').optional().isFloat({ min: 0 }).withMessage('Threshold must be >= 0')
+    .custom((val, { req }) => {
+      const cat = req.body.unit_category || 'COUNT'
+      if (cat === 'COUNT' && !Number.isInteger(Number(val))) {
+        throw new Error('Threshold must be an integer for count products')
+      }
+      return true
+    }),
 ]
 
 const categoryValidation = [
@@ -71,10 +89,13 @@ function listProductsValidation() {
 function updateProductValidation() {
   return [
     param('id').isUUID().withMessage('Invalid product ID'),
+    body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME']).withMessage('Unit category must be COUNT, WEIGHT, or VOLUME'),
+    body('base_unit').optional().isString().trim(),
+    body('pricing_unit').optional().isString().trim(),
     body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be > 0'),
     body('cost_price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Cost price must be >= 0'),
-    body('quantity').optional().isInt({ min: 0 }).withMessage('Quantity must be >= 0'),
-    body('low_stock_threshold').optional().isInt({ min: 0 }).withMessage('Threshold must be >= 0'),
+    body('quantity').optional().isFloat({ min: 0 }).withMessage('Quantity must be >= 0'),
+    body('low_stock_threshold').optional().isFloat({ min: 0 }).withMessage('Threshold must be >= 0'),
   ]
 }
 

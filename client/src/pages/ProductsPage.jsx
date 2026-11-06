@@ -10,6 +10,7 @@ import { Badge } from '../components/Badge'
 import { Modal } from '../components/Modal'
 import { productsService } from '../services/products'
 import { formatCurrency } from '../utils/formatCurrency'
+import { formatQuantityWithUnit } from '../utils/uom'
 import { useAuth } from '../hooks/useAuth'
 
 export default function ProductsPage() {
@@ -107,23 +108,35 @@ export default function ProductsPage() {
     {
       key: 'price',
       label: 'Price',
-      render: (val) => <span className="font-semibold text-gray-900">{formatCurrency(val)}</span>,
+      render: (val, row) => (
+        <span className="font-semibold text-gray-900">
+          {formatCurrency(val)}
+          {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
+        </span>
+      ),
     },
     {
       key: 'cost_price',
       label: 'Cost Price',
-      render: (val) => val ? formatCurrency(val) : <span className="text-gray-400">—</span>,
+      render: (val, row) => (
+        val ? (
+          <span>
+            {formatCurrency(val)}
+            {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
+          </span>
+        ) : <span className="text-gray-400">—</span>
+      ),
     },
     {
       key: 'quantity',
       label: 'Stock',
       render: (val, row) => {
-        const isOut = val === 0
-        const isLow = !isOut && val <= row.low_stock_threshold
+        const isOut = Number(val) === 0
+        const isLow = !isOut && Number(val) <= Number(row.low_stock_threshold)
         return (
           <div className="flex items-center gap-1.5">
             <span className={`font-semibold ${isOut ? 'text-danger-600' : isLow ? 'text-warning-600' : 'text-gray-900'}`}>
-              {val}
+              {formatQuantityWithUnit(val, row.base_unit)}
             </span>
             {isOut && <Badge variant="danger">Out</Badge>}
             {isLow && <Badge variant="warning">Low</Badge>}

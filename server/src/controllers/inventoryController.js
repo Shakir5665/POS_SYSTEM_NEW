@@ -29,13 +29,14 @@ async function getLowStock(req, res, next) {
 
 async function adjustStock(req, res, next) {
   try {
-    const { product_id, quantity_change, notes } = req.body
+    const { product_id, quantity_change, notes, unit } = req.body
     const result = await inventoryService.adjustStock(
       product_id,
       quantity_change,
       'ADJUSTMENT',
       req.user.id,
-      notes
+      notes,
+      unit
     )
     res.json({ success: true, data: result, message: 'Stock adjusted successfully' })
   } catch (err) {
@@ -45,8 +46,8 @@ async function adjustStock(req, res, next) {
 
 async function restockProduct(req, res, next) {
   try {
-    const { product_id, quantity, notes } = req.body
-    const result = await inventoryService.restockProduct(product_id, quantity, req.user.id, notes)
+    const { product_id, quantity, notes, unit } = req.body
+    const result = await inventoryService.restockProduct(product_id, quantity, req.user.id, notes, unit)
     res.json({ success: true, data: result, message: 'Product restocked successfully' })
   } catch (err) {
     next(err)

@@ -101,7 +101,7 @@ describe('GET /api/inventory/low-stock', () => {
     expect(Array.isArray(res.body.data)).toBe(true)
     const found = res.body.data.find((p) => p.id === testProduct.id)
     expect(found).toBeDefined()
-    expect(found.quantity).toBeLessThanOrEqual(found.low_stock_threshold)
+    expect(Number(found.quantity)).toBeLessThanOrEqual(Number(found.low_stock_threshold))
 
     // Restore quantity
     await prisma.product.update({
@@ -124,16 +124,16 @@ describe('POST /api/inventory/restock', () => {
     expect(res.body.success).toBe(true)
 
     const after = await prisma.product.findUnique({ where: { id: testProduct.id } })
-    expect(after.quantity).toBe(before.quantity + 20)
+    expect(Number(after.quantity)).toBe(Number(before.quantity) + 20)
 
     const log = await prisma.inventoryLog.findFirst({
       where: { product_id: testProduct.id, change_type: 'RESTOCK' },
       orderBy: { created_at: 'desc' },
     })
     expect(log).not.toBeNull()
-    expect(log.quantity_change).toBe(20)
-    expect(log.previous_quantity).toBe(before.quantity)
-    expect(log.new_quantity).toBe(before.quantity + 20)
+    expect(Number(log.quantity_change)).toBe(20)
+    expect(Number(log.previous_quantity)).toBe(Number(before.quantity))
+    expect(Number(log.new_quantity)).toBe(Number(before.quantity) + 20)
   })
 
   it('returns 422 for restock quantity <= 0', async () => {
@@ -176,7 +176,7 @@ describe('POST /api/inventory/adjust', () => {
     expect(res.status).toBe(200)
 
     const after = await prisma.product.findUnique({ where: { id: testProduct.id } })
-    expect(after.quantity).toBe(before.quantity + 5)
+    expect(Number(after.quantity)).toBe(Number(before.quantity) + 5)
   })
 
   it('adjusts stock down with negative quantity_change', async () => {
@@ -190,7 +190,7 @@ describe('POST /api/inventory/adjust', () => {
     expect(res.status).toBe(200)
 
     const after = await prisma.product.findUnique({ where: { id: testProduct.id } })
-    expect(after.quantity).toBe(before.quantity - 5)
+    expect(Number(after.quantity)).toBe(Number(before.quantity) - 5)
   })
 
   it('rejects adjustment that would result in negative stock', async () => {
@@ -199,7 +199,7 @@ describe('POST /api/inventory/adjust', () => {
     const res = await request(app)
       .post('/api/inventory/adjust')
       .set('Authorization', `Bearer ${managerToken}`)
-      .send({ product_id: testProduct.id, quantity_change: -(before.quantity + 1) })
+      .send({ product_id: testProduct.id, quantity_change: -(Number(before.quantity) + 1) })
 
     expect(res.status).toBe(422)
     expect(res.body.error.message).toMatch(/negative stock/i)

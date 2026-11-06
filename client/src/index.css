@@ -21,3 +21,42 @@
     display: none;
   }
 }
+
+/* ── Thermal Receipt Printing (80mm) ────────────────────────────── */
+@media screen {
+  #print-root {
+    display: none !important;
+  }
+}
+
+@media print {
+  @page {
+    size: 80mm auto;
+    margin: 2mm 3mm;
+  }
+
+  /* Hide the normal application view */
+  body > #root {
+    display: none !important;
+  }
+
+  /* Display only the dedicated printable receipt container */
+  body > #print-root {
+    display: block !important;
+    width: 80mm;
+    margin: 0 auto;
+    padding: 0;
+    background: #ffffff !important;
+    color: #000000 !important;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 11px;
+    line-height: 1.25;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .receipt-table-row {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}

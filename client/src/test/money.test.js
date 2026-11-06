@@ -54,4 +54,30 @@ describe('cartTotals matches the server', () => {
   it('charges 0.02 tax on GH₵ 0.30 at 5% (0.015 rounds up), like the server test', () => {
     expect(cartTotals([{ price: '0.30', quantity: 1 }], 0, '5')).toEqual({ subtotal: 0.3, discount: 0, tax: 0.02, total: 0.32 })
   })
+
+  it('calculates weight items: 500g at 20.00/kg gives 10.00 subtotal', () => {
+    const items = [
+      {
+        price: 20.0,
+        quantity: 500,
+        unit: 'g',
+        pricing_unit: 'kg',
+        unit_category: 'WEIGHT',
+      },
+    ]
+    expect(cartTotals(items, 0, 0)).toEqual({ subtotal: 10, discount: 0, tax: 0, total: 10 })
+  })
+
+  it('calculates volume items: 250ml at 5.00/L gives 1.25 subtotal', () => {
+    const items = [
+      {
+        price: 5.0,
+        quantity: 250,
+        unit: 'ml',
+        pricing_unit: 'L',
+        unit_category: 'VOLUME',
+      },
+    ]
+    expect(cartTotals(items, 0, 0)).toEqual({ subtotal: 1.25, discount: 0, tax: 0, total: 1.25 })
+  })
 })

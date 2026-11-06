@@ -1,7 +1,8 @@
 const prisma = require('../utils/prismaClient')
 const generateTransactionId = require('../utils/generateTransactionId')
-const { toMoney, roundMoney, toPesewas } = require('../utils/money')
+const { Decimal, toMoney, roundMoney, toPesewas } = require('../utils/money')
 const { NotFoundError, ValidationError, AppError } = require('../utils/errors')
+const { toBaseUnitQuantity, calculateLineGross, calculateLineCost, validateQuantity, isValidUnitForCategory } = require('../utils/uom')
 const { verifyTransaction, createRefund } = require('./paystackService')
 const { getSettingValue } = require('./settingsService')
 
@@ -19,11 +20,22 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     if (!product) {
       throw new NotFoundError(`Product ${item.product_id} not found or inactive`)
     }
-    if (product.quantity < item.quantity) {
+
+    const sellingUnit = item.unit || product.pricing_unit || product.base_unit || 'pcs'
+    if (!isValidUnitForCategory(product.unit_category, sellingUnit)) {
+      throw new ValidationError(`Invalid unit "${sellingUnit}" for product "${product.name}"`)
+    }
+
+    validateQuantity(item.quantity, sellingUnit, product.unit_category)
+
+    const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category)
+    const availableStock = new Decimal(product.quantity)
+
+    if (availableStock.lt(baseQuantity)) {
       throw new ValidationError('Insufficient stock', [
         {
           field: 'items',
-          message: `Insufficient stock for "${product.name}". Available: ${product.quantity}, requested: ${item.quantity}`,
+          message: `Insufficient stock for "${product.name}". Available: ${availableStock} ${product.base_unit}, requested: ${item.quantity} ${sellingUnit} (${baseQuantity} ${product.base_unit})`,
         },
       ])
     }
@@ -34,9 +46,15 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
   let subtotal = toMoney(0)
   const saleItems = items.map((item) => {
     const product = productMap.get(item.product_id)
-    const unit_price = toMoney(product.price)
+    const sellingUnit = item.unit || product.pricing_unit || product.base_unit || 'pcs'
+    const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category)
+    const unitPrice = toMoney(product.price)
+    const unitCost = toMoney(product.cost_price || 0)
     const itemDiscount = toMoney(item.discount)
-    const lineGross = unit_price.mul(item.quantity)
+
+    const lineGross = calculateLineGross(item.quantity, sellingUnit, product.pricing_unit, unitPrice, product.unit_category)
+    const lineCost = calculateLineCost(item.quantity, sellingUnit, product.pricing_unit, unitCost, product.unit_category)
+
     if (itemDiscount.gt(lineGross)) {
       throw new ValidationError('Discount too large', [
         {
@@ -49,11 +67,18 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     subtotal = subtotal.plus(lineTotal)
     return {
       product_id: item.product_id,
-      quantity: item.quantity,
-      unit_price,
+      product_name: product.name,
+      product_sku: product.sku,
+      unit: sellingUnit,
+      quantity: new Decimal(item.quantity),
+      base_quantity: baseQuantity,
+      base_unit: product.base_unit,
+      pricing_unit: product.pricing_unit,
+      unit_price: unitPrice,
+      unit_cost_snapshot: unitCost,
+      line_cost: lineCost,
       discount: itemDiscount,
       total: lineTotal,
-      product_name: product.name, // for receipt
     }
   })
 
@@ -148,8 +173,16 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
       data: saleItems.map((si) => ({
         sale_id: newSale.id,
         product_id: si.product_id,
+        product_name: si.product_name,
+        product_sku: si.product_sku,
+        unit: si.unit,
         quantity: si.quantity,
+        base_quantity: si.base_quantity,
+        base_unit: si.base_unit,
+        pricing_unit: si.pricing_unit,
         unit_price: si.unit_price,
+        unit_cost_snapshot: si.unit_cost_snapshot,
+        line_cost: si.line_cost,
         discount: si.discount,
         total: si.total,
       })),
@@ -175,8 +208,8 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     // there still being enough stock, so concurrent sales cannot oversell.
     for (const item of saleItems) {
       const { count } = await tx.product.updateMany({
-        where: { id: item.product_id, quantity: { gte: item.quantity } },
-        data: { quantity: { decrement: item.quantity } },
+        where: { id: item.product_id, quantity: { gte: item.base_quantity } },
+        data: { quantity: { decrement: item.base_quantity } },
       })
 
       if (count === 0) {
@@ -193,12 +226,15 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
         select: { quantity: true },
       })
 
+      const prevQty = newQty.plus(item.base_quantity)
+
       await tx.inventoryLog.create({
         data: {
           product_id: item.product_id,
           change_type: 'SALE',
-          quantity_change: -item.quantity,
-          previous_quantity: newQty + item.quantity,
+          unit: item.base_unit,
+          quantity_change: item.base_quantity.negated(),
+          previous_quantity: prevQty,
           new_quantity: newQty,
           user_id: userId,
           notes: `Sale ${transaction_id}`,
@@ -243,13 +279,20 @@ async function getSaleById(id) {
       customer: { select: { id: true, name: true, phone: true } },
       sale_items: {
         include: {
-          product: { select: { id: true, name: true, sku: true } },
+          product: { select: { id: true, name: true, sku: true, unit_category: true, base_unit: true, pricing_unit: true } },
         },
       },
       payments: true,
     },
   })
   if (!sale) throw new NotFoundError('Sale not found')
+  if (sale.sale_items) {
+    sale.sale_items = sale.sale_items.map((item) => ({
+      ...item,
+      product_name: item.product_name || item.product?.name || '',
+      product_sku: item.product_sku || item.product?.sku || '',
+    }))
+  }
   return sale
 }
 
@@ -394,18 +437,22 @@ async function completeRefund(tx, sale, userId) {
 
   // Restore stock and create return inventory logs
   for (const item of sale.sale_items) {
+    const restoreQty = item.base_quantity != null ? new Decimal(item.base_quantity) : new Decimal(item.quantity)
     const { quantity: newQty } = await tx.product.update({
       where: { id: item.product_id },
-      data: { quantity: { increment: item.quantity } },
+      data: { quantity: { increment: restoreQty } },
       select: { quantity: true },
     })
+
+    const prevQty = newQty.minus(restoreQty)
 
     await tx.inventoryLog.create({
       data: {
         product_id: item.product_id,
         change_type: 'RETURN',
-        quantity_change: item.quantity,
-        previous_quantity: newQty - item.quantity,
+        unit: item.base_unit || 'pcs',
+        quantity_change: restoreQty,
+        previous_quantity: prevQty,
         new_quantity: newQty,
         user_id: userId,
         notes: `Refund for sale ${sale.transaction_id}`,

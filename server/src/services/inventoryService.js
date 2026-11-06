@@ -1,5 +1,7 @@
 const prisma = require('../utils/prismaClient')
 const { NotFoundError, ValidationError } = require('../utils/errors')
+const { toBaseUnitQuantity, validateQuantity } = require('../utils/uom')
+const { Decimal } = require('../utils/money')
 
 async function listInventory({ page = 1, per_page = 20, search, status } = {}) {
   const skip = (page - 1) * per_page
@@ -78,12 +80,16 @@ async function getLowStock() {
   `
 }
 
-async function adjustStock(productId, quantityChange, changeType, userId, notes) {
+async function adjustStock(productId, quantityChange, changeType, userId, notes, unit) {
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product) throw new NotFoundError('Product not found')
 
-  const newQty = product.quantity + quantityChange
-  if (newQty < 0) {
+  const effectiveUnit = unit || product.base_unit
+  const changeInBase = toBaseUnitQuantity(quantityChange, effectiveUnit, product.unit_category)
+  const currentQty = new Decimal(product.quantity)
+  const newQty = currentQty.plus(changeInBase)
+
+  if (newQty.lt(0)) {
     throw new ValidationError('Adjustment would result in negative stock', [
       { field: 'quantity_change', message: `Cannot reduce below 0. Current stock: ${product.quantity}` },
     ])
@@ -98,8 +104,9 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes)
       data: {
         product_id: productId,
         change_type: changeType,
-        quantity_change: quantityChange,
-        previous_quantity: product.quantity,
+        unit: product.base_unit,
+        quantity_change: changeInBase,
+        previous_quantity: currentQty,
         new_quantity: newQty,
         user_id: userId,
         notes: notes || null,
@@ -110,30 +117,34 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes)
   return { product: updatedProduct, log }
 }
 
-async function restockProduct(productId, quantity, userId, notes) {
+async function restockProduct(productId, quantity, userId, notes, unit) {
   if (quantity <= 0) {
     throw new ValidationError('Restock quantity must be positive', [
       { field: 'quantity', message: 'Must be greater than 0' },
     ])
   }
-  return adjustStock(productId, quantity, 'RESTOCK', userId, notes)
+  return adjustStock(productId, quantity, 'RESTOCK', userId, notes, unit)
 }
 
-async function manualAdjust(productId, newQuantity, userId, notes) {
+async function manualAdjust(productId, newQuantity, userId, notes, unit) {
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product) throw new NotFoundError('Product not found')
 
-  const change = newQuantity - product.quantity
+  const effectiveUnit = unit || product.base_unit
+  const targetQtyInBase = toBaseUnitQuantity(newQuantity, effectiveUnit, product.unit_category)
+  const currentQty = new Decimal(product.quantity)
+  const change = targetQtyInBase.minus(currentQty)
 
   const [updatedProduct, log] = await prisma.$transaction([
-    prisma.product.update({ where: { id: productId }, data: { quantity: newQuantity } }),
+    prisma.product.update({ where: { id: productId }, data: { quantity: targetQtyInBase } }),
     prisma.inventoryLog.create({
       data: {
         product_id: productId,
         change_type: 'ADJUSTMENT',
+        unit: product.base_unit,
         quantity_change: change,
-        previous_quantity: product.quantity,
-        new_quantity: newQuantity,
+        previous_quantity: currentQty,
+        new_quantity: targetQtyInBase,
         user_id: userId,
         notes: notes || null,
       },

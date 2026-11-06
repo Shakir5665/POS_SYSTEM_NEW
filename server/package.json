@@ -9,6 +9,8 @@
     "test": "jest --coverage --forceExit",
     "test:watch": "jest --watch",
     "db:migrate": "npx prisma migrate dev",
+    "db:deploy": "npx prisma migrate deploy",
+    "prisma:generate": "npx prisma generate",
     "db:seed": "npx prisma db seed",
     "db:studio": "npx prisma studio",
     "db:backup": "node scripts/backup.js",

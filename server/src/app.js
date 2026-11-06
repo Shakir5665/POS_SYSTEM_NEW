@@ -5,6 +5,7 @@ const helmet = require('helmet')
 const cookieParser = require('cookie-parser')
 const morgan = require('morgan')
 const path = require('path')
+const fs = require('fs')
 
 const { logger, morganStream } = require('./middleware/logger')
 const errorHandler = require('./middleware/errorHandler')
@@ -69,6 +70,18 @@ app.use('/api/reports', reportRoutes)
 app.use('/api/users', userRoutes)
 app.use('/api/settings', settingsRoutes)
 app.use('/api/payments', paymentRoutes)
+
+// Serve frontend SPA in production when client/dist exists
+const clientDist = path.join(__dirname, '..', '..', 'client', 'dist')
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist))
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+      return next()
+    }
+    res.sendFile(path.join(clientDist, 'index.html'))
+  })
+}
 
 // 404 handler
 app.use((req, res) => {

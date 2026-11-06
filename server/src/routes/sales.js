@@ -11,7 +11,8 @@ router.use(authenticate)
 const saleValidation = [
   body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
   body('items.*.product_id').isUUID().withMessage('Each item must have a valid product ID'),
-  body('items.*.quantity').isInt({ min: 1 }).withMessage('Each item quantity must be >= 1'),
+  body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Each item quantity must be > 0'),
+  body('items.*.unit').optional().isString().trim(),
   body('items.*.discount').optional().isFloat({ min: 0 }).withMessage('Item discount must be >= 0'),
   body('payment_method')
     .isIn(['CASH', 'MOBILE_MONEY', 'CARD'])

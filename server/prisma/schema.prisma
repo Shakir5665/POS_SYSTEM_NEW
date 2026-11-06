@@ -32,6 +32,12 @@ enum InventoryChangeType {
   RETURN
 }
 
+enum UnitCategory {
+  COUNT
+  WEIGHT
+  VOLUME
+}
+
 model User {
   id                    String    @id @default(uuid())
   username              String    @unique
@@ -61,19 +67,22 @@ model Category {
 }
 
 model Product {
-  id                  String   @id @default(uuid())
+  id                  String       @id @default(uuid())
   name                String
-  sku                 String   @unique
-  barcode             String?  @unique
+  sku                 String       @unique
+  barcode             String?      @unique
   category_id         String
-  price               Decimal  @db.Decimal(10, 2)
-  cost_price          Decimal? @db.Decimal(10, 2)
-  quantity            Int      @default(0)
-  low_stock_threshold Int      @default(10)
+  unit_category       UnitCategory @default(COUNT)
+  base_unit           String       @default("pcs")
+  pricing_unit        String       @default("pcs")
+  price               Decimal      @db.Decimal(10, 2)
+  cost_price          Decimal?     @db.Decimal(10, 2)
+  quantity            Decimal      @default(0) @db.Decimal(14, 3)
+  low_stock_threshold Decimal      @default(10) @db.Decimal(14, 3)
   image_url           String?
-  is_active           Boolean  @default(true)
-  created_at          DateTime @default(now())
-  updated_at          DateTime @updatedAt
+  is_active           Boolean      @default(true)
+  created_at          DateTime     @default(now())
+  updated_at          DateTime     @updatedAt
 
   category       Category       @relation(fields: [category_id], references: [id])
   sale_items     SaleItem[]
@@ -129,15 +138,23 @@ model Sale {
 }
 
 model SaleItem {
-  id         String   @id @default(uuid())
-  sale_id    String
-  product_id String
-  quantity   Int
-  unit_price Decimal  @db.Decimal(10, 2)
-  discount   Decimal  @default(0) @db.Decimal(10, 2)
-  total      Decimal  @db.Decimal(10, 2)
-  created_at DateTime @default(now())
-  updated_at DateTime @updatedAt
+  id                 String   @id @default(uuid())
+  sale_id            String
+  product_id         String
+  product_name       String   @default("")
+  product_sku        String   @default("")
+  unit               String   @default("pcs")
+  quantity           Decimal  @db.Decimal(10, 3)
+  base_quantity      Decimal  @default(1) @db.Decimal(14, 3)
+  base_unit          String   @default("pcs")
+  pricing_unit       String   @default("pcs")
+  unit_price         Decimal  @db.Decimal(10, 2)
+  unit_cost_snapshot Decimal  @default(0) @db.Decimal(10, 2)
+  line_cost          Decimal  @default(0) @db.Decimal(10, 2)
+  discount           Decimal  @default(0) @db.Decimal(10, 2)
+  total              Decimal  @db.Decimal(10, 2)
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
 
   sale    Sale    @relation(fields: [sale_id], references: [id], onDelete: Cascade)
   product Product @relation(fields: [product_id], references: [id], onDelete: Restrict)
@@ -160,9 +177,10 @@ model InventoryLog {
   id                String              @id @default(uuid())
   product_id        String
   change_type       InventoryChangeType
-  quantity_change   Int
-  previous_quantity Int
-  new_quantity      Int
+  unit              String              @default("pcs")
+  quantity_change   Decimal             @db.Decimal(14, 3)
+  previous_quantity Decimal             @db.Decimal(14, 3)
+  new_quantity      Decimal             @db.Decimal(14, 3)
   user_id           String
   notes             String?
   created_at        DateTime            @default(now())

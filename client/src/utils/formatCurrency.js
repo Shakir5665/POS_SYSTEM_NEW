@@ -1,4 +1,4 @@
-let activeCurrencySymbol = 'LKR'
+let activeCurrencySymbol = 'GH₵'
 
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
@@ -36,16 +36,28 @@ export function getActiveCurrencySymbol() {
 
 /**
  * Format a number as currency using the active or provided currency symbol.
+ * If symbol is empty string (''), returns only the formatted amount without any currency prefix.
  * @param {number|string} amount
  * @param {string} [symbol] - Currency symbol (defaults to active currency symbol configured by admin)
  * @returns {string}
  */
 export function formatCurrency(amount, symbol = activeCurrencySymbol) {
-  const sym = symbol ?? activeCurrencySymbol
+  const sym = symbol !== undefined && symbol !== null ? symbol : activeCurrencySymbol
   const num = parseFloat(amount)
-  if (isNaN(num)) return `${sym} 0.00`
-  return `${sym} ${num.toLocaleString('en-GH', {
+  if (isNaN(num)) return sym ? `${sym} 0.00` : '0.00'
+  const formatted = num.toLocaleString('en-GH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`
+  })
+  return sym ? `${sym} ${formatted}` : formatted
+}
+
+/**
+ * Format a numeric amount without any currency symbol.
+ * E.g., 1200 -> "1,200.00"
+ * @param {number|string} amount
+ * @returns {string}
+ */
+export function formatAmount(amount) {
+  return formatCurrency(amount, '')
 }

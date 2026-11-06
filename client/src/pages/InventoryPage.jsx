@@ -9,6 +9,7 @@ import { Badge } from '../components/Badge'
 import { Modal } from '../components/Modal'
 import { inventoryService } from '../services/inventory'
 import { formatCurrency } from '../utils/formatCurrency'
+import { formatQuantityWithUnit, getUnitsForCategory, toBaseQuantity } from '../utils/uom'
 
 const TABS = [
   { key: 'all', label: 'All Products' },
@@ -17,8 +18,10 @@ const TABS = [
 ]
 
 function StockStatusBadge({ quantity, threshold }) {
-  if (quantity === 0) return <Badge variant="danger">Out of Stock</Badge>
-  if (quantity <= threshold) return <Badge variant="warning">Low Stock</Badge>
+  const q = Number(quantity || 0)
+  const t = Number(threshold || 0)
+  if (q === 0) return <Badge variant="danger">Out of Stock</Badge>
+  if (q <= t) return <Badge variant="warning">Low Stock</Badge>
   return <Badge variant="success">OK</Badge>
 }
 
@@ -87,19 +90,26 @@ export default function InventoryPage() {
 
   function openAdjustModal(product) {
     setAdjustTarget(product)
-    setAdjustForm({ type: 'RESTOCK', quantity: '', notes: '' })
+    setAdjustForm({
+      type: 'RESTOCK',
+      quantity: '',
+      unit: product.base_unit || 'pcs',
+      notes: '',
+    })
     setAdjustErrors({})
   }
 
   function validateAdjustForm() {
     const errs = {}
-    const qty = parseInt(adjustForm.quantity)
+    const qty = parseFloat(adjustForm.quantity)
     if (adjustForm.quantity === '' || isNaN(qty)) {
       errs.quantity = 'Quantity is required'
     } else if (adjustForm.type === 'RESTOCK' && qty <= 0) {
       errs.quantity = 'Restock quantity must be positive'
     } else if (adjustForm.type === 'ADJUSTMENT' && qty === 0) {
       errs.quantity = 'Adjustment cannot be zero'
+    } else if (adjustTarget?.unit_category === 'COUNT' && !Number.isInteger(Number(adjustForm.quantity))) {
+      errs.quantity = 'Count products must have integer quantities'
     }
     setAdjustErrors(errs)
     return Object.keys(errs).length === 0
@@ -109,13 +119,23 @@ export default function InventoryPage() {
     if (!validateAdjustForm()) return
     setIsAdjusting(true)
     try {
-      const qty = parseInt(adjustForm.quantity)
+      const qty = parseFloat(adjustForm.quantity)
 
       if (adjustForm.type === 'RESTOCK') {
-        await inventoryService.restock({ product_id: adjustTarget.id, quantity: qty, notes: adjustForm.notes || undefined })
-        toast.success(`Restocked ${adjustTarget.name} by ${qty}`)
+        await inventoryService.restock({
+          product_id: adjustTarget.id,
+          quantity: qty,
+          unit: adjustForm.unit,
+          notes: adjustForm.notes || undefined,
+        })
+        toast.success(`Restocked ${adjustTarget.name} by ${qty} ${adjustForm.unit}`)
       } else {
-        await inventoryService.adjust({ product_id: adjustTarget.id, quantity_change: qty, notes: adjustForm.notes || undefined })
+        await inventoryService.adjust({
+          product_id: adjustTarget.id,
+          quantity_change: qty,
+          unit: adjustForm.unit,
+          notes: adjustForm.notes || undefined,
+        })
         toast.success(`Stock adjusted for ${adjustTarget.name}`)
       }
 
@@ -150,22 +170,21 @@ export default function InventoryPage() {
       label: 'Current Stock',
       render: (val, row) => (
         <div className="flex items-center gap-2">
-          <span className={`text-lg font-bold ${val === 0 ? 'text-danger-600' : val <= row.low_stock_threshold ? 'text-warning-600' : 'text-gray-900'}`}>
-            {val}
+          <span className={`text-lg font-bold ${Number(val) === 0 ? 'text-danger-600' : Number(val) <= Number(row.low_stock_threshold) ? 'text-warning-600' : 'text-gray-900'}`}>
+            {formatQuantityWithUnit(val, row.base_unit)}
           </span>
-          <span className="text-xs text-gray-400">units</span>
         </div>
       ),
     },
     {
       key: 'low_stock_threshold',
       label: 'Threshold',
-      render: (val) => <span className="text-sm text-gray-600">{val}</span>,
+      render: (val, row) => <span className="text-sm text-gray-600">{formatQuantityWithUnit(val, row.base_unit)}</span>,
     },
     {
       key: 'price',
       label: 'Unit Price',
-      render: (val) => formatCurrency(val),
+      render: (val, row) => `${formatCurrency(val)}${row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}`,
     },
     {
       key: 'quantity',
@@ -274,7 +293,7 @@ export default function InventoryPage() {
               <p className="text-sm font-semibold text-gray-900">{adjustTarget.name}</p>
               <p className="text-xs text-gray-500">{adjustTarget.sku}</p>
               <p className="text-sm mt-1">
-                Current stock: <span className="font-bold text-gray-900">{adjustTarget.quantity} units</span>
+                Current stock: <span className="font-bold text-gray-900">{formatQuantityWithUnit(adjustTarget.quantity, adjustTarget.base_unit)}</span>
               </p>
             </div>
 
@@ -303,16 +322,33 @@ export default function InventoryPage() {
               </div>
             </div>
 
+            {/* Unit selector (if applicable) */}
+            {getUnitsForCategory(adjustTarget.unit_category).length > 1 && (
+              <div>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Unit</label>
+                <select
+                  value={adjustForm.unit}
+                  onChange={(e) => setAdjustForm((f) => ({ ...f, unit: e.target.value }))}
+                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                >
+                  {getUnitsForCategory(adjustTarget.unit_category).map((u) => (
+                    <option key={u.value} value={u.value}>{u.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             {/* Quantity */}
             <div>
               <Input
-                label={adjustForm.type === 'RESTOCK' ? 'Quantity to Add' : 'Quantity Change (use negative to remove)'}
+                label={adjustForm.type === 'RESTOCK' ? `Quantity to Add (${adjustForm.unit})` : `Quantity Change (${adjustForm.unit}, use negative to remove)`}
                 type="number"
+                step={adjustTarget.unit_category === 'COUNT' ? '1' : '0.001'}
                 value={adjustForm.quantity}
                 onChange={(e) => { setAdjustForm((f) => ({ ...f, quantity: e.target.value })); setAdjustErrors({}) }}
                 placeholder={adjustForm.type === 'RESTOCK' ? 'e.g. 50' : 'e.g. 10 or -5'}
                 error={adjustErrors.quantity}
-                {...(adjustForm.type === 'RESTOCK' ? { min: 1 } : {})}
+                {...(adjustForm.type === 'RESTOCK' ? { min: adjustTarget.unit_category === 'COUNT' ? 1 : 0.001 } : {})}
               />
             </div>
 
@@ -329,14 +365,16 @@ export default function InventoryPage() {
             </div>
 
             {/* New quantity preview */}
-            {adjustForm.quantity !== '' && !isNaN(parseInt(adjustForm.quantity)) && (
+            {adjustForm.quantity !== '' && !isNaN(parseFloat(adjustForm.quantity)) && (
               (() => {
-                const newQty = adjustTarget.quantity + parseInt(adjustForm.quantity)
+                const addedInBase = toBaseQuantity(parseFloat(adjustForm.quantity), adjustForm.unit, adjustTarget.unit_category)
+                const currentInBase = Number(adjustTarget.quantity)
+                const newQty = currentInBase + addedInBase
                 return (
                   <div className={`border rounded-lg px-3 py-2 text-sm ${newQty < 0 ? 'bg-danger-50 border-danger-100' : 'bg-blue-50 border-blue-100'}`}>
                     New quantity will be:{' '}
                     <span className={`font-bold ${newQty < 0 ? 'text-danger-700' : 'text-primary-700'}`}>
-                      {newQty} units
+                      {formatQuantityWithUnit(newQty, adjustTarget.base_unit)}
                     </span>
                     {newQty < 0 && <span className="text-danger-600 ml-2">(Cannot go below 0)</span>}
                   </div>

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
-import { formatCurrency, setActiveCurrencySymbol, getActiveCurrencySymbol } from '../utils/formatCurrency'
+import { formatCurrency, formatAmount, setActiveCurrencySymbol, getActiveCurrencySymbol } from '../utils/formatCurrency'
 
 describe('formatCurrency', () => {
   beforeEach(() => {
@@ -7,7 +7,7 @@ describe('formatCurrency', () => {
   })
 
   afterEach(() => {
-    setActiveCurrencySymbol('LKR')
+    setActiveCurrencySymbol('GH₵')
   })
 
   it('formats a whole number correctly with default currency', () => {
@@ -51,6 +51,21 @@ describe('formatCurrency', () => {
   it('allows explicit currency symbol override', () => {
     expect(formatCurrency(100, '$')).toBe('$ 100.00')
     expect(formatCurrency(25.5, 'EUR')).toBe('EUR 25.50')
+  })
+
+  it('formats without currency symbol when symbol is empty string', () => {
+    expect(formatCurrency(100, '')).toBe('100.00')
+    expect(formatCurrency(1234.56, '')).toBe('1,234.56')
+    expect(formatCurrency(0, '')).toBe('0.00')
+    expect(formatCurrency('not-a-number', '')).toBe('0.00')
+  })
+
+  it('formatAmount formats amounts without any currency prefix', () => {
+    expect(formatAmount(1200)).toBe('1,200.00')
+    expect(formatAmount('2000.00')).toBe('2,000.00')
+    expect(formatAmount(800)).toBe('800.00')
+    expect(formatAmount(0)).toBe('0.00')
+    expect(formatAmount(null)).toBe('0.00')
   })
 
   it('dynamically formats with updated active currency symbol', () => {

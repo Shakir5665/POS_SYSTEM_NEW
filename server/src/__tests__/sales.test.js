@@ -151,7 +151,7 @@ describe('POST /api/sales — create sale', () => {
 
     // Verify stock was deducted
     const updatedProduct = await prisma.product.findUnique({ where: { id: testProduct.id } })
-    expect(updatedProduct.quantity).toBe(initialQty - 2)
+    expect(Number(updatedProduct.quantity)).toBe(Number(initialQty) - 2)
 
     // Verify inventory log was created
     const log = await prisma.inventoryLog.findFirst({
@@ -159,7 +159,7 @@ describe('POST /api/sales — create sale', () => {
       orderBy: { created_at: 'desc' },
     })
     expect(log).not.toBeNull()
-    expect(log.quantity_change).toBe(-2)
+    expect(Number(log.quantity_change)).toBe(-2)
   })
 
   it('creates a MOBILE_MONEY sale with reference', async () => {
@@ -386,7 +386,7 @@ describe('POST /api/sales/:id/refund', () => {
 
     // Verify stock was restored
     const updatedProduct = await prisma.product.findUnique({ where: { id: testProduct.id } })
-    expect(updatedProduct.quantity).toBe(productQtyBeforeRefund + 2)
+    expect(Number(updatedProduct.quantity)).toBe(Number(productQtyBeforeRefund) + 2)
 
     // Verify RETURN inventory log was created
     const log = await prisma.inventoryLog.findFirst({
@@ -394,7 +394,7 @@ describe('POST /api/sales/:id/refund', () => {
       orderBy: { created_at: 'desc' },
     })
     expect(log).not.toBeNull()
-    expect(log.quantity_change).toBe(2)
+    expect(Number(log.quantity_change)).toBe(2)
   })
 
   it('rejects double refund', async () => {
@@ -460,7 +460,7 @@ describe('POST /api/sales — concurrency and payment reuse', () => {
     expect(statuses).toEqual([201, 422])
 
     const product = await prisma.product.findUnique({ where: { id: lastUnit.id } })
-    expect(product.quantity).toBe(0)
+    expect(Number(product.quantity)).toBe(0)
 
     const saleCount = await prisma.saleItem.count({ where: { product_id: lastUnit.id } })
     expect(saleCount).toBe(1)
@@ -510,7 +510,7 @@ describe('POST /api/sales — concurrency and payment reuse', () => {
 
     // Stock comes back once, not twice
     const stockAfter = (await prisma.product.findUnique({ where: { id: testProduct.id } })).quantity
-    expect(stockAfter).toBe(stockBefore + 3)
+    expect(Number(stockAfter)).toBe(Number(stockBefore) + 3)
 
     const returnLogs = await prisma.inventoryLog.count({
       where: { change_type: 'RETURN', notes: `Refund for sale ${transaction_id}` },
@@ -544,7 +544,7 @@ describe('POST /api/sales — concurrency and payment reuse', () => {
 
     // The rejected sale must not have touched stock
     const stockAfterSecond = (await prisma.product.findUnique({ where: { id: testProduct.id } })).quantity
-    expect(stockAfterSecond).toBe(stockAfterFirst)
+    expect(Number(stockAfterSecond)).toBe(Number(stockAfterFirst))
   })
 })
 
@@ -564,7 +564,7 @@ describe('POST /api/sales — discount limits', () => {
     expect(res.body.error.details[0].field).toBe('items')
 
     const after = (await prisma.product.findUnique({ where: { id: testProduct.id } })).quantity
-    expect(after).toBe(before)
+    expect(Number(after)).toBe(Number(before))
   })
 
   it('rejects a cart discount larger than the subtotal', async () => {
@@ -635,7 +635,7 @@ describe('Paystack refunds (card and mobile money)', () => {
     expect(createRefund).toHaveBeenCalledWith(reference)
     expect(res.body.data.payment_status).toBe('COMPLETED')
     expect(res.body.data.refund_requested_at).not.toBeNull()
-    expect(await stockOf(testProduct.id)).toBe(stockBefore)
+    expect(Number(await stockOf(testProduct.id))).toBe(Number(stockBefore))
   })
 
   it('rejects a second refund request while one is pending', async () => {
@@ -663,7 +663,7 @@ describe('Paystack refunds (card and mobile money)', () => {
     const sale = await prisma.sale.findUnique({ where: { id: saleId } })
     expect(sale.payment_status).toBe('REFUNDED')
     expect(sale.refund_requested_at).toBeNull()
-    expect(await stockOf(testProduct.id)).toBe(stockBefore + 2)
+    expect(Number(await stockOf(testProduct.id))).toBe(Number(stockBefore) + 2)
 
     const returnLogs = await prisma.inventoryLog.findMany({
       where: { change_type: 'RETURN', notes: `Refund for sale ${transactionId}` },

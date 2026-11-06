@@ -1,4 +1,5 @@
-import { useState, useEffect, useEffectEvent, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useCart } from '../hooks/useCart'
 import { productsService } from '../services/products'
@@ -7,6 +8,7 @@ import { customersService } from '../services/customers'
 import { paymentsService } from '../services/payments'
 import { formatCurrency } from '../utils/formatCurrency'
 import { toPesewas, fromPesewas, lineTotalPesewas } from '../utils/money'
+import { formatQuantityWithUnit } from '../utils/uom'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
@@ -14,10 +16,12 @@ import { Badge } from '../components/Badge'
 import { Receipt } from '../components/Receipt'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
+import { useBarcodeScanner } from '../hooks/useBarcodeScanner'
+import { usePOSKeyboard } from '../hooks/usePOSKeyboard'
 
 // ─── Payment Modal ─────────────────────────────────────────────────────────────
 function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading, customer }) {
-  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
+  const { currency_symbol: currencySymbol = 'GH₵' } = useSettings()
   const [method, setMethod] = useState('CASH')
   const [amountPaid, setAmountPaid] = useState('')
   // The parent mounts this modal only while it is open, so state starts fresh each time
@@ -50,6 +54,21 @@ function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading, customer }
     if (!validateCash()) return
     onConfirm({ payment_method: 'CASH', amount_paid: parseFloat(amountPaid) })
   }
+
+  useEffect(() => {
+    function onKeyDown(e) {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault()
+        if (method === 'CASH') {
+          handleCashConfirm()
+        } else {
+          handlePaystackPay()
+        }
+      }
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [method, amountPaid, email, total])
 
   async function handlePaystackPay() {
     if (!validateEmail()) return
@@ -261,19 +280,25 @@ function CustomerModal({ isOpen, onClose, onSelect }) {
 }
 
 // ─── Cart Item Row ─────────────────────────────────────────────────────────────
-function CartItem({ item, onUpdate, onRemove, onDiscountChange }) {
-  const lineGross = fromPesewas(toPesewas(item.price) * item.quantity)
+function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, isSelected }) {
+  const isDecimal = item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME'
+  const step = isDecimal ? (item.unit === 'g' || item.unit === 'ml' ? 100 : 0.5) : 1
+  const min = isDecimal ? 0.001 : 1
 
   return (
-    <div className="py-2.5 border-b border-gray-100 last:border-0">
+    <div className={`py-2.5 px-2.5 rounded-lg border transition ${
+      isSelected ? 'border-primary-500 bg-primary-50/40 shadow-sm' : 'border-transparent border-b-gray-100 last:border-b-0'
+    }`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-          <p className="text-xs text-gray-400">{formatCurrency(item.price)} each</p>
+          <p className="text-xs text-gray-400">
+            {formatCurrency(item.price)} / {item.pricing_unit || 'pcs'}
+          </p>
         </div>
         <button
           onClick={() => onRemove(item.product_id)}
-          className="text-gray-300 hover:text-danger-500 transition flex-shrink-0 p-0.5"
+          className="text-gray-300 hover:text-danger-500 transition flex-shrink-0 p-1 rounded hover:bg-danger-50"
           title="Remove item"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -282,50 +307,98 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange }) {
         </button>
       </div>
 
-      <div className="flex items-center justify-between mt-1.5 gap-2">
+      <div className="flex items-center justify-between mt-2.5 gap-2">
         {/* Quantity controls */}
         <div className="flex items-center gap-1">
           <button
-            onClick={() => onUpdate(item.product_id, item.quantity - 1)}
-            className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-sm"
+            onClick={() => onUpdate(item.product_id, Math.max(min, Number((Number(item.quantity) - step).toFixed(3))))}
+            className="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-sm font-semibold"
           >
             −
           </button>
           <input
             type="number"
-            min={1}
-            max={item.quantity_available}
+            min={min}
+            step={isDecimal ? 'any' : '1'}
             value={item.quantity}
-            onChange={(e) => onUpdate(item.product_id, parseInt(e.target.value) || 1)}
-            className="w-10 text-center text-sm border border-gray-200 rounded py-0.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+            onChange={(e) => {
+              if (e.target.value === '') return
+              const raw = parseFloat(e.target.value)
+              if (isNaN(raw) || raw <= 0) return
+              const val = isDecimal ? raw : Math.floor(raw)
+              onUpdate(item.product_id, val)
+            }}
+            className="w-16 text-center text-sm border border-gray-200 rounded py-1 focus:outline-none focus:ring-1 focus:ring-primary-400 font-medium"
           />
           <button
-            onClick={() => onUpdate(item.product_id, item.quantity + 1)}
-            disabled={item.quantity >= item.quantity_available}
-            className="w-6 h-6 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-sm disabled:opacity-40"
+            onClick={() => onUpdate(item.product_id, Number((Number(item.quantity) + step).toFixed(3)))}
+            className="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-sm font-semibold"
           >
             +
           </button>
+
+          {/* Unit pill switchers for Weight / Volume */}
+          {item.unit_category === 'WEIGHT' && (
+            <div className="flex rounded border border-gray-200 overflow-hidden text-xs ml-1.5">
+              <button
+                type="button"
+                onClick={() => onUnitChange(item.product_id, 'g')}
+                className={`px-2 py-1 font-medium transition ${item.unit === 'g' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                g
+              </button>
+              <button
+                type="button"
+                onClick={() => onUnitChange(item.product_id, 'kg')}
+                className={`px-2 py-1 font-medium transition ${item.unit === 'kg' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                kg
+              </button>
+            </div>
+          )}
+
+          {item.unit_category === 'VOLUME' && (
+            <div className="flex rounded border border-gray-200 overflow-hidden text-xs ml-1.5">
+              <button
+                type="button"
+                onClick={() => onUnitChange(item.product_id, 'ml')}
+                className={`px-2 py-1 font-medium transition ${item.unit === 'ml' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                ml
+              </button>
+              <button
+                type="button"
+                onClick={() => onUnitChange(item.product_id, 'L')}
+                className={`px-2 py-1 font-medium transition ${item.unit === 'L' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+              >
+                L
+              </button>
+            </div>
+          )}
+
+          {item.unit_category === 'COUNT' && (
+            <span className="text-xs text-gray-400 font-medium ml-1.5">pcs</span>
+          )}
         </div>
 
-        {/* Item discount */}
-        <div className="flex items-center gap-1">
-          <span className="text-xs text-gray-400">disc:</span>
-          <input
-            type="number"
-            min={0}
-            max={lineGross}
-            step="0.01"
-            value={item.discount || 0}
-            onChange={(e) => onDiscountChange(item.product_id, Math.min(parseFloat(e.target.value) || 0, lineGross))}
-            className="w-16 text-right text-xs border border-gray-200 rounded py-0.5 px-1 focus:outline-none focus:ring-1 focus:ring-primary-400"
-          />
-        </div>
+        {/* Item discount & Line total */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-1">
+            <span className="text-xs text-gray-400">disc:</span>
+            <input
+              type="number"
+              min={0}
+              step="0.01"
+              value={item.discount || 0}
+              onChange={(e) => onDiscountChange(item.product_id, Math.max(0, parseFloat(e.target.value) || 0))}
+              className="w-16 text-right text-xs border border-gray-200 rounded py-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+            />
+          </div>
 
-        {/* Line total */}
-        <p className="text-sm font-semibold text-gray-900 min-w-[70px] text-right">
-          {formatCurrency(fromPesewas(lineTotalPesewas(item)))}
-        </p>
+          <p className="text-sm font-bold text-gray-900 min-w-[70px] text-right">
+            {formatCurrency(fromPesewas(lineTotalPesewas(item)))}
+          </p>
+        </div>
       </div>
     </div>
   )
@@ -333,8 +406,15 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange }) {
 
 // ─── Main POSPage ──────────────────────────────────────────────────────────────
 export default function POSPage() {
-  const { user } = useAuth()
-  const { items, cartDiscount, customer, subtotal, tax, total, addItem, removeItem, updateQuantity, updateDiscount, setCartDiscount, setCustomer, clearCart } = useCart()
+  const { user, logout } = useAuth()
+  const navigate = useNavigate()
+
+  async function handleLogout() {
+    await logout()
+    navigate('/login')
+    toast.success('Logged out successfully')
+  }
+  const { items, cartDiscount, customer, subtotal, tax, total, addItem, removeItem, updateQuantity, updateUnit, updateDiscount, setCartDiscount, setCustomer, clearCart } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [allProducts, setAllProducts] = useState([])
@@ -349,8 +429,6 @@ export default function POSPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const searchRef = useRef(null)
-  const barcodeBufferRef = useRef('')
-  const barcodeTimerRef = useRef(null)
 
   // Load all products and categories on mount
   useEffect(() => {
@@ -387,49 +465,16 @@ export default function POSPage() {
     )
   })
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key === 'F1') { e.preventDefault(); searchRef.current?.focus() }
-      if (e.key === 'F2') { e.preventDefault(); if (items.length > 0) setShowPaymentModal(true) }
-      if (e.key === 'F4') { e.preventDefault(); if (items.length > 0) setShowClearConfirm(true) }
-    }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [items.length])
-
-  // Barcode scanner detection: rapid keystrokes ending with Enter.
-  // useEffectEvent lets the once-registered listener always call the latest handler.
-  const onBarcodeScanned = useEffectEvent((barcode) => handleBarcodeSearch(barcode))
-
-  useEffect(() => {
-    function onKeyDown(e) {
-      // Only intercept if search input is NOT focused (or it is focused)
-      if (e.key === 'Enter' && barcodeBufferRef.current.length >= 8) {
-        const barcode = barcodeBufferRef.current
-        barcodeBufferRef.current = ''
-        clearTimeout(barcodeTimerRef.current)
-        onBarcodeScanned(barcode)
-        return
-      }
-      if (e.key.length === 1) {
-        barcodeBufferRef.current += e.key
-        clearTimeout(barcodeTimerRef.current)
-        barcodeTimerRef.current = setTimeout(() => { barcodeBufferRef.current = '' }, 100)
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => { document.removeEventListener('keydown', onKeyDown); clearTimeout(barcodeTimerRef.current) }
-  }, [])
-
   async function handleBarcodeSearch(barcode) {
     try {
       const res = await productsService.byBarcode(barcode)
       const product = res.data?.data
       if (product) {
-        if (product.quantity === 0) { toast.error(`${product.name} is out of stock`); return }
-        addItem(product)
-        toast.success(`${product.name} added to cart`)
+        if (Number(product.quantity) <= 0) {
+          toast.error(`${product.name} is out of stock`)
+          return
+        }
+        handleAddProduct(product)
       } else {
         toast.error('Product not found for barcode: ' + barcode)
       }
@@ -438,15 +483,48 @@ export default function POSPage() {
     }
   }
 
+  // Hardware barcode scanner
+  useBarcodeScanner((barcode) => {
+    handleBarcodeSearch(barcode)
+  })
+
   function handleAddProduct(product) {
-    if (product.quantity === 0) { toast.error(`${product.name} is out of stock`); return }
+    if (Number(product.quantity) <= 0) {
+      toast.error(`${product.name} is out of stock`)
+      return
+    }
     addItem(product)
-    // Update local stock count so the grid reflects it immediately
-    setAllProducts((prev) =>
-      prev.map((p) => p.id === product.id ? { ...p, quantity: p.quantity - 1 } : p)
-    )
+    toast.success(`${product.name} added to cart`, { duration: 1500 })
     searchRef.current?.focus()
   }
+
+  const isAnyModalOpen = showPaymentModal || showReceiptModal || showCustomerModal || showClearConfirm
+
+  const {
+    selectedProductIndex,
+    selectedCartIndex,
+    activeZone,
+  } = usePOSKeyboard({
+    products,
+    cartItems: items,
+    onAddProduct: handleAddProduct,
+    onUpdateCartQuantity: updateQuantity,
+    onRemoveCartItem: removeItem,
+    onToggleCartUnit: (productId) => {
+      const item = items.find((i) => i.product_id === productId)
+      if (!item) return
+      if (item.unit_category === 'WEIGHT') {
+        updateUnit(productId, item.unit === 'g' ? 'kg' : 'g')
+      } else if (item.unit_category === 'VOLUME') {
+        updateUnit(productId, item.unit === 'ml' ? 'L' : 'ml')
+      }
+    },
+    onOpenPayment: () => setShowPaymentModal(true),
+    onOpenClearConfirm: () => setShowClearConfirm(true),
+    onOpenCustomerModal: () => setShowCustomerModal(true),
+    isModalOpen: isAnyModalOpen,
+    searchRef,
+  })
 
   async function handlePaymentConfirm({ payment_method, amount_paid, reference }) {
     setIsSubmitting(true)
@@ -455,6 +533,7 @@ export default function POSPage() {
         items: items.map((i) => ({
           product_id: i.product_id,
           quantity: i.quantity,
+          unit: i.unit,
           discount: i.discount || 0,
         })),
         customer_id: customer?.id || null,
@@ -478,7 +557,7 @@ export default function POSPage() {
     }
   }
 
-  const itemCount = items.reduce((sum, i) => sum + i.quantity, 0)
+  const itemCount = items.length
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
@@ -494,9 +573,34 @@ export default function POSPage() {
               <kbd className="bg-gray-200 px-1 rounded text-xs">F4</kbd> Clear
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-gray-400">Cashier</p>
-            <p className="text-sm font-semibold text-gray-700">{user?.full_name}</p>
+          <div className="flex items-center gap-3">
+            {['ADMIN', 'MANAGER'].includes(user?.role) && (
+              <button
+                onClick={() => navigate('/dashboard')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-primary-300 hover:bg-primary-50 text-gray-700 hover:text-primary-700 transition text-xs font-medium shadow-sm"
+              >
+                <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+                </svg>
+                <span>Dashboard</span>
+              </button>
+            )}
+
+            <div className="text-right">
+              <p className="text-xs text-gray-400 leading-tight">{user?.role === 'CASHIER' ? 'Cashier' : user?.role}</p>
+              <p className="text-sm font-semibold text-gray-700 leading-tight">{user?.full_name}</p>
+            </div>
+
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-danger-300 hover:bg-danger-50 text-gray-600 hover:text-danger-600 transition text-xs font-medium shadow-sm"
+              title="Sign out of POS"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+              <span>Logout</span>
+            </button>
           </div>
         </div>
 
@@ -581,41 +685,52 @@ export default function POSPage() {
 
           {!isLoadingProducts && products.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-              {products.map((product) => (
-                <button
-                  key={product.id}
-                  onClick={() => handleAddProduct(product)}
-                  disabled={product.quantity === 0}
-                  className={`bg-white rounded-xl p-3 text-left shadow-sm border transition hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
-                    product.quantity === 0 ? 'border-gray-100' : 'border-gray-100 hover:border-primary-200'
-                  }`}
-                >
-                  {product.image_url ? (
-                    <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover rounded-lg mb-2" />
-                  ) : (
-                    <div className="w-full h-20 bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
-                      <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                      </svg>
+              {products.map((product, idx) => {
+                const isSelected = activeZone === 'PRODUCTS' && selectedProductIndex === idx
+                const isOut = Number(product.quantity) <= 0
+                return (
+                  <button
+                    key={product.id}
+                    onClick={() => handleAddProduct(product)}
+                    disabled={isOut}
+                    className={`bg-white rounded-xl p-3 text-left shadow-sm border transition hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                      isSelected
+                        ? 'border-primary-500 ring-2 ring-primary-500 ring-offset-2'
+                        : isOut
+                        ? 'border-gray-100'
+                        : 'border-gray-100 hover:border-primary-200'
+                    }`}
+                  >
+                    {product.image_url ? (
+                      <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover rounded-lg mb-2" />
+                    ) : (
+                      <div className="w-full h-20 bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
+                        <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                        </svg>
+                      </div>
+                    )}
+                    <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
+                    <p className="text-xs text-gray-400 mb-1">{product.sku}</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-sm font-bold text-primary-600">
+                        {formatCurrency(product.price)}
+                        {product.pricing_unit && product.pricing_unit !== 'pcs' ? ` / ${product.pricing_unit}` : ''}
+                      </span>
+                      <Badge variant={isOut ? 'danger' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'warning' : 'success'}>
+                        {isOut ? 'Out' : formatQuantityWithUnit(product.quantity, product.base_unit)}
+                      </Badge>
                     </div>
-                  )}
-                  <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
-                  <p className="text-xs text-gray-400 mb-1">{product.sku}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className="text-sm font-bold text-primary-600">{formatCurrency(product.price)}</span>
-                    <Badge variant={product.quantity === 0 ? 'danger' : product.quantity <= product.low_stock_threshold ? 'warning' : 'success'}>
-                      {product.quantity === 0 ? 'Out' : `${product.quantity}`}
-                    </Badge>
-                  </div>
-                </button>
-              ))}
+                  </button>
+                )
+              })}
             </div>
           )}
         </div>
       </div>
 
       {/* ── RIGHT PANEL: Cart + Payment ── */}
-      <div className="w-96 flex-shrink-0 bg-white border-l border-gray-200 flex flex-col shadow-xl">
+      <div className="w-[460px] xl:w-[500px] flex-shrink-0 bg-white border-l border-gray-200 flex flex-col shadow-xl">
         {/* Cart header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
           <div className="flex items-center gap-2">
@@ -653,7 +768,7 @@ export default function POSPage() {
                 <p className="text-xs text-gray-400">{customer.loyalty_points} loyalty points</p>
               </div>
             ) : (
-              <span className="text-sm text-gray-400">Add customer (optional)</span>
+              <span className="text-sm text-gray-400">Add customer (optional, F5)</span>
             )}
           </button>
         </div>
@@ -670,13 +785,15 @@ export default function POSPage() {
             </div>
           ) : (
             <div>
-              {items.map((item) => (
+              {items.map((item, idx) => (
                 <CartItem
                   key={item.product_id}
                   item={item}
+                  isSelected={activeZone === 'CART' && selectedCartIndex === idx}
                   onUpdate={updateQuantity}
                   onRemove={removeItem}
                   onDiscountChange={updateDiscount}
+                  onUnitChange={(pid, unit) => updateUnit(pid, unit)}
                 />
               ))}
             </div>
