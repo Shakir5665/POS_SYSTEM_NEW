@@ -32,7 +32,7 @@ async function main() {
   // Settings
   await prisma.settings.createMany({
     data: [
-      { key: 'store_name', value: 'GhanaShop POS' },
+      { key: 'store_name', value: 'NexTill Store' },
       { key: 'store_address', value: '14 Liberation Road, Accra, Ghana' },
       { key: 'store_phone', value: '030-200-0000' },
       { key: 'tax_rate', value: '0' },

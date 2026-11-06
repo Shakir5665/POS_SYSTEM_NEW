@@ -1,6 +1,6 @@
-# DASHPOS System
+# NexTill — Point of Sale & Retail Management System
 
-A full-featured, web-based Point of Sale system for retail businesses, built as a capstone project. Supports multi-role access (Admin, Manager, Cashier), real-time inventory tracking, sales processing, customer loyalty, receipt printing, and business analytics.
+A full-featured, modern web-based Point of Sale and retail management system. Supports multi-role access (Admin, Manager, Cashier), real-time inventory tracking, sales processing, customer loyalty, receipt printing, and business analytics.
 
 ---
 

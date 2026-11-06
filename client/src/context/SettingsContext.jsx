@@ -6,7 +6,7 @@ import { setActiveCurrencySymbol } from '../utils/formatCurrency'
 function getInitialSettings() {
   try {
     if (typeof window !== 'undefined' && window.localStorage) {
-      const cached = localStorage.getItem('dashpos_settings')
+      const cached = localStorage.getItem('nextill_settings') || localStorage.getItem('dashpos_settings')
       if (cached) {
         const parsed = JSON.parse(cached)
         if (parsed && typeof parsed === 'object') {
@@ -37,7 +37,7 @@ export function SettingsProvider({ children }) {
       }
       try {
         if (typeof window !== 'undefined' && window.localStorage) {
-          localStorage.setItem('dashpos_settings', JSON.stringify(merged))
+          localStorage.setItem('nextill_settings', JSON.stringify(merged))
         }
       } catch {
         // Ignore localStorage quota errors

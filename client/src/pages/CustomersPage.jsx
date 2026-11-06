@@ -164,7 +164,7 @@ export default function CustomersPage() {
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            Add Customer
+            Register Customer
           </Button>
         </div>
 
@@ -194,7 +194,7 @@ export default function CustomersPage() {
       <Modal
         isOpen={modalOpen}
         onClose={closeModal}
-        title={editTarget ? 'Edit Customer' : 'Add Customer'}
+        title={editTarget ? 'Edit Customer' : 'Register Customer'}
       >
         <form onSubmit={handleSubmit} className="space-y-4">
           <Input
@@ -203,7 +203,7 @@ export default function CustomersPage() {
             value={form.name}
             onChange={handleChange}
             error={errors.name}
-            placeholder="e.g. Kwame Asante"
+            placeholder="e.g. Customer Name"
             autoFocus
           />
           <Input
@@ -212,7 +212,7 @@ export default function CustomersPage() {
             value={form.phone}
             onChange={handleChange}
             error={errors.phone}
-            placeholder="e.g. 024-456-7890"
+            placeholder="e.g. 075 295 8134"
           />
           <Input
             label="Email"
@@ -221,7 +221,7 @@ export default function CustomersPage() {
             value={form.email}
             onChange={handleChange}
             error={errors.email}
-            placeholder="e.g. kwame@example.com"
+            placeholder="customer@example.com"
           />
           <Input
             label="Address"
@@ -229,7 +229,7 @@ export default function CustomersPage() {
             value={form.address}
             onChange={handleChange}
             error={errors.address}
-            placeholder="e.g. Accra, Ghana"
+            placeholder="e.g. Colombo, Kalmunai"
           />
           <div className="flex justify-end gap-3 pt-2">
             <Button type="button" variant="secondary" onClick={closeModal}>

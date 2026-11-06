@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../hooks/useAuth'
 import { AuthLayout } from '../layouts/AuthLayout'
@@ -54,17 +54,15 @@ export default function LoginPage() {
 
   return (
     <AuthLayout>
-      {/* Logo / Store Name */}
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-primary-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-          <svg className="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-              d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"
-            />
-          </svg>
-        </div>
-        <h1 className="text-2xl font-bold text-gray-900">GhanaShop POS</h1>
-        <p className="text-gray-500 text-sm mt-1">Sign in to your account</p>
+      {/* NexTill Logo & Header */}
+      <div className="text-center mb-6">
+        <img
+          src="/logo.png"
+          alt="NexTill Logo"
+          className="h-20 w-auto max-w-[200px] mx-auto object-contain mb-3"
+        />
+        <h1 className="text-xl font-bold text-gray-900">Sign in to NexTill</h1>
+        <p className="text-gray-500 text-xs mt-1">Enter your credentials to access the terminal</p>
       </div>
 
       {/* API Error */}
@@ -170,6 +168,16 @@ export default function LoginPage() {
           )}
         </button>
       </form>
+
+      {/* Register Link */}
+      <div className="mt-6 text-center border-t border-gray-100 pt-4">
+        <p className="text-xs text-gray-500">
+          Need a staff account?{' '}
+          <Link to="/register" className="font-semibold text-primary-600 hover:text-primary-700 hover:underline">
+            Register here
+          </Link>
+        </p>
+      </div>
     </AuthLayout>
   )
 }

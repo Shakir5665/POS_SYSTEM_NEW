@@ -1,12 +1,12 @@
-# Deploying DASHPOS to Render (render.com)
+# Deploying NexTill to Render (render.com)
 
-This guide walks you through deploying the complete DASHPOS application (React frontend + Express API + PostgreSQL database) to [Render](https://render.com).
+This guide walks you through deploying the complete NexTill application (React frontend + Express API + PostgreSQL database) to [Render](https://render.com).
 
 ---
 
 ## Architecture Overview
 
-DASHPOS is configured as a **unified production build**:
+NexTill is configured as a **unified production build**:
 - Express serves both the REST API (`/api/*`), product image uploads (`/uploads/*`), and the compiled React production single-page application (`client/dist`).
 - This guarantees:
   - **Zero CORS issues**.

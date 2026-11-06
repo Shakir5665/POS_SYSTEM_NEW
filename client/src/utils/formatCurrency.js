@@ -2,7 +2,7 @@ let activeCurrencySymbol = 'GH₵'
 
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
-    const saved = localStorage.getItem('dashpos_currency_symbol')
+    const saved = localStorage.getItem('nextill_currency_symbol') || localStorage.getItem('dashpos_currency_symbol')
     if (saved) activeCurrencySymbol = saved
   }
 } catch {
@@ -18,7 +18,7 @@ export function setActiveCurrencySymbol(symbol) {
     activeCurrencySymbol = symbol.trim()
     try {
       if (typeof window !== 'undefined' && window.localStorage) {
-        localStorage.setItem('dashpos_currency_symbol', activeCurrencySymbol)
+        localStorage.setItem('nextill_currency_symbol', activeCurrencySymbol)
       }
     } catch {
       // Ignore localStorage errors

@@ -1,8 +1,8 @@
 {
-  "name": "dashpos",
+  "name": "nextill",
   "version": "1.0.0",
   "private": true,
-  "description": "DASHPOS - Point of Sale System",
+  "description": "NexTill - Point of Sale & Retail Management System",
   "scripts": {
     "dev": "concurrently -n \"API,WEB\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
     "dev:server": "npm --prefix server run dev",

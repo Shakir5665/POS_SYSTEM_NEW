@@ -565,13 +565,16 @@ export default function POSPage() {
       <div className="flex flex-col flex-1 min-w-0 p-4 gap-3">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900">Point of Sale</h1>
-            <p className="text-xs text-gray-400">
-              <kbd className="bg-gray-200 px-1 rounded text-xs">F1</kbd> Search &nbsp;
-              <kbd className="bg-gray-200 px-1 rounded text-xs">F2</kbd> Pay &nbsp;
-              <kbd className="bg-gray-200 px-1 rounded text-xs">F4</kbd> Clear
-            </p>
+          <div className="flex items-center gap-3">
+            <img src="/logo.png" alt="NexTill" className="h-9 w-auto object-contain hidden sm:block" />
+            <div>
+              <h1 className="text-lg font-bold text-gray-900 leading-tight">Point of Sale</h1>
+              <p className="text-xs text-gray-400">
+                <kbd className="bg-gray-200 px-1 rounded text-xs">F1</kbd> Search &nbsp;
+                <kbd className="bg-gray-200 px-1 rounded text-xs">F2</kbd> Pay &nbsp;
+                <kbd className="bg-gray-200 px-1 rounded text-xs">F4</kbd> Clear
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             {['ADMIN', 'MANAGER'].includes(user?.role) && (

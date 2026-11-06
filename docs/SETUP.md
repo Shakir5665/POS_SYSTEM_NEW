@@ -1,4 +1,4 @@
-# Setup Guide — GhanaShop POS System
+# Setup Guide — NexTill POS System
 
 This guide covers everything needed to get the POS system running from scratch on a development machine.
 

@@ -31,7 +31,7 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
     <div className={`receipt-body font-mono text-gray-900 ${isPrint ? 'text-xs p-1' : 'text-sm'}`}>
       {/* Store Header */}
       <div className="text-center mb-3">
-        <p className="font-bold text-base">{settings.store_name || 'GhanaShop POS'}</p>
+        <p className="font-bold text-base">{settings.store_name || 'NexTill Store'}</p>
         {settings.store_address && <p className="text-xs text-gray-600">{settings.store_address}</p>}
         {settings.store_phone && <p className="text-xs text-gray-600">Tel: {settings.store_phone}</p>}
       </div>

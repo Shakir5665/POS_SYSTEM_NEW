@@ -1,4 +1,6 @@
 const authService = require('../services/authService')
+const userService = require('../services/userService')
+const prisma = require('../utils/prismaClient')
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -66,6 +68,29 @@ async function refresh(req, res, next) {
   }
 }
 
+async function register(req, res, next) {
+  try {
+    const { username, email, password, full_name, role } = req.body
+    const count = await prisma.user.count()
+    const assignedRole = count === 0 ? 'ADMIN' : (role && ['CASHIER', 'MANAGER', 'ADMIN'].includes(role) ? role : 'CASHIER')
+    const user = await userService.createUser({
+      username: username.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+      full_name: full_name.trim(),
+      role: assignedRole,
+    })
+
+    res.status(201).json({
+      success: true,
+      data: user,
+      message: 'Registration successful! You can now sign in.',
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
 async function getMe(req, res, next) {
   try {
     const user = await authService.getMe(req.user.id)
@@ -78,4 +103,4 @@ async function getMe(req, res, next) {
   }
 }
 
-module.exports = { login, logout, refresh, getMe }
+module.exports = { login, logout, refresh, getMe, register }

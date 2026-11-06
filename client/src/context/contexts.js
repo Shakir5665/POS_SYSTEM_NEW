@@ -4,7 +4,7 @@ import { createContext } from 'react'
 // *Context.jsx file exports only a component and Vite fast refresh works.
 
 export const DEFAULT_SETTINGS = {
-  store_name: 'GhanaShop POS',
+  store_name: 'NexTill Store',
   store_address: '14 Liberation Road, Accra, Ghana',
   store_phone: '030-200-0000',
   tax_rate: '0',

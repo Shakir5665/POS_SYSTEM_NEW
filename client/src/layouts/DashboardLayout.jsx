@@ -100,16 +100,8 @@ export function DashboardLayout({ children }) {
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Logo */}
-        <div className="flex items-center gap-3 px-4 py-5 border-b border-gray-100">
-          <div className="w-9 h-9 bg-primary-600 rounded-xl flex items-center justify-center flex-shrink-0">
-            <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-          </div>
-          <div>
-            <p className="text-sm font-bold text-gray-900">POS System</p>
-            <p className="text-xs text-gray-400">Retail Management</p>
-          </div>
+        <div className="flex items-center gap-3 px-4 py-4 border-b border-gray-100">
+          <img src="/logo.png" alt="NexTill Logo" className="h-10 w-auto max-w-[170px] object-contain" />
         </div>
 
         {/* Nav */}
@@ -175,13 +167,15 @@ export function DashboardLayout({ children }) {
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile topbar */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 bg-white border-b border-gray-200">
-          <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
-          <p className="font-semibold text-gray-900">POS System</p>
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <button onClick={() => setSidebarOpen(true)} className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <img src="/logo.png" alt="NexTill" className="h-7 w-auto object-contain" />
+          </div>
         </header>
 
         {/* Page content */}

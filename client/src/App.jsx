@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 import POSPage from './pages/POSPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductFormPage from './pages/ProductFormPage'
@@ -57,6 +58,14 @@ export default function App() {
         element={
           <PublicRoute>
             <LoginPage />
+          </PublicRoute>
+        }
+      />
+      <Route
+        path="/register"
+        element={
+          <PublicRoute>
+            <RegisterPage />
           </PublicRoute>
         }
       />

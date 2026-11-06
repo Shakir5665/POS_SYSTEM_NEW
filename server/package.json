@@ -1,7 +1,7 @@
 {
-  "name": "pos-server",
+  "name": "nextill-server",
   "version": "1.0.0",
-  "description": "POS System Backend API",
+  "description": "NexTill Backend POS Server",
   "main": "src/app.js",
   "scripts": {
     "start": "node src/app.js",
