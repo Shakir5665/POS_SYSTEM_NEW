@@ -108,6 +108,8 @@ export default function ProductFormPage() {
     if (!form.name.trim()) errs.name = 'Product name is required'
     if (!form.sku.trim()) errs.sku = 'SKU is required'
     if (!form.category_id) errs.category_id = 'Category is required'
+    if (!form.base_unit) errs.base_unit = 'Base inventory unit is required'
+    if (!form.pricing_unit) errs.pricing_unit = 'Pricing unit is required'
     if (!form.price || parseFloat(form.price) <= 0) errs.price = 'Price must be greater than 0'
     if (form.cost_price && parseFloat(form.cost_price) < 0) errs.cost_price = 'Cost price cannot be negative'
     if (form.quantity !== '' && parseFloat(form.quantity) < 0) errs.quantity = 'Quantity cannot be negative'
@@ -280,7 +282,7 @@ export default function ProductFormPage() {
                   onChange={(e) => handleUnitCategoryChange(e.target.value)}
                   className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
                 >
-                  <option value="COUNT">Count (Pieces, Units)</option>
+                  <option value="COUNT">Count (Pieces, Units, Packs…)</option>
                   <option value="WEIGHT">Weight (g, kg)</option>
                   <option value="VOLUME">Volume (ml, L)</option>
                 </select>
@@ -288,28 +290,98 @@ export default function ProductFormPage() {
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Base Inventory Unit</label>
-                <input
-                  type="text"
-                  value={form.base_unit}
-                  readOnly
-                  className="block w-full rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-600 font-mono cursor-not-allowed"
-                />
-                <p className="text-xs text-gray-400 mt-1">Stock is tracked in {form.base_unit}</p>
+                <label className="text-sm font-medium text-gray-700 block mb-1">Base Inventory Unit *</label>
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="base-unit-options"
+                    value={form.base_unit}
+                    onChange={(e) => {
+                      const newBase = e.target.value
+                      setForm((prev) => ({
+                        ...prev,
+                        base_unit: newBase,
+                        pricing_unit: prev.pricing_unit === prev.base_unit ? newBase : prev.pricing_unit,
+                      }))
+                      if (errors.base_unit) setErrors((prev) => { const err = { ...prev }; delete err.base_unit; return err })
+                    }}
+                    placeholder={form.unit_category === 'WEIGHT' ? 'e.g. g, kg' : form.unit_category === 'VOLUME' ? 'e.g. ml, L' : 'e.g. pcs, pack, box'}
+                    className={`block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white ${
+                      errors.base_unit ? 'border-danger-500 bg-danger-50' : 'border-gray-300'
+                    }`}
+                  />
+                  <datalist id="base-unit-options">
+                    {getUnitsForCategory(form.unit_category).map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </datalist>
+                </div>
+                {/* Quick-select pills */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
+                  {getUnitsForCategory(form.unit_category).map((u) => (
+                    <button
+                      key={u.value}
+                      type="button"
+                      onClick={() => {
+                        setForm((prev) => ({
+                          ...prev,
+                          base_unit: u.value,
+                          pricing_unit: prev.pricing_unit === prev.base_unit ? u.value : prev.pricing_unit,
+                        }))
+                        if (errors.base_unit) setErrors((prev) => { const err = { ...prev }; delete err.base_unit; return err })
+                      }}
+                      className={`px-2 py-0.5 text-xs rounded border transition ${
+                        form.base_unit === u.value
+                          ? 'bg-primary-50 border-primary-500 text-primary-700 font-semibold shadow-xs'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {u.value}
+                    </button>
+                  ))}
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Stock is tracked in {form.base_unit || 'base unit'}</p>
+                {errors.base_unit && <p className="text-xs text-danger-600 mt-1">{errors.base_unit}</p>}
               </div>
 
               <div>
                 <label className="text-sm font-medium text-gray-700 block mb-1">Pricing Unit *</label>
-                <select
-                  value={form.pricing_unit}
-                  onChange={(e) => setField('pricing_unit', e.target.value)}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
-                >
+                <div className="relative">
+                  <input
+                    type="text"
+                    list="pricing-unit-options"
+                    value={form.pricing_unit}
+                    onChange={(e) => setField('pricing_unit', e.target.value)}
+                    placeholder={form.unit_category === 'WEIGHT' ? 'e.g. kg, g' : form.unit_category === 'VOLUME' ? 'e.g. L, ml' : 'e.g. pcs, pack, box'}
+                    className={`block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white ${
+                      errors.pricing_unit ? 'border-danger-500 bg-danger-50' : 'border-gray-300'
+                    }`}
+                  />
+                  <datalist id="pricing-unit-options">
+                    {getUnitsForCategory(form.unit_category).map((u) => (
+                      <option key={u.value} value={u.value}>{u.label}</option>
+                    ))}
+                  </datalist>
+                </div>
+                {/* Quick-select pills */}
+                <div className="flex flex-wrap gap-1 mt-1.5">
                   {getUnitsForCategory(form.unit_category).map((u) => (
-                    <option key={u.value} value={u.value}>{u.label}</option>
+                    <button
+                      key={u.value}
+                      type="button"
+                      onClick={() => setField('pricing_unit', u.value)}
+                      className={`px-2 py-0.5 text-xs rounded border transition ${
+                        form.pricing_unit === u.value
+                          ? 'bg-primary-50 border-primary-500 text-primary-700 font-semibold shadow-xs'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {u.value}
+                    </button>
                   ))}
-                </select>
-                <p className="text-xs text-gray-400 mt-1">Price is set per {form.pricing_unit}</p>
+                </div>
+                <p className="text-xs text-gray-400 mt-1">Price is set per {form.pricing_unit || 'pricing unit'}</p>
+                {errors.pricing_unit && <p className="text-xs text-danger-600 mt-1">{errors.pricing_unit}</p>}
               </div>
             </div>
           </div>

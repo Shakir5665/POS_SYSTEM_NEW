@@ -1,10 +1,23 @@
 export const UOM_CONFIG = {
   COUNT: {
-    label: 'Count (Pieces)',
+    label: 'Count (Pieces, Units, Packs…)',
     baseUnit: 'pcs',
     defaultPricingUnit: 'pcs',
     units: [
       { value: 'pcs', label: 'Pieces (pcs)', factor: 1, step: 1, min: 1 },
+      { value: 'unit', label: 'Units (units)', factor: 1, step: 1, min: 1 },
+      { value: 'item', label: 'Items (items)', factor: 1, step: 1, min: 1 },
+      { value: 'pack', label: 'Packs (pack)', factor: 1, step: 1, min: 1 },
+      { value: 'box', label: 'Boxes (box)', factor: 1, step: 1, min: 1 },
+      { value: 'bottle', label: 'Bottles (bottle)', factor: 1, step: 1, min: 1 },
+      { value: 'can', label: 'Cans (can)', factor: 1, step: 1, min: 1 },
+      { value: 'carton', label: 'Cartons (carton)', factor: 1, step: 1, min: 1 },
+      { value: 'bag', label: 'Bags (bag)', factor: 1, step: 1, min: 1 },
+      { value: 'pair', label: 'Pairs (pair)', factor: 1, step: 1, min: 1 },
+      { value: 'set', label: 'Sets (set)', factor: 1, step: 1, min: 1 },
+      { value: 'roll', label: 'Rolls (roll)', factor: 1, step: 1, min: 1 },
+      { value: 'bundle', label: 'Bundles (bundle)', factor: 1, step: 1, min: 1 },
+      { value: 'doz', label: 'Dozens (doz)', factor: 12, step: 1, min: 1 },
     ],
   },
   WEIGHT: {
@@ -58,11 +71,14 @@ export function getUnitMin(category = 'COUNT', unit = 'pcs') {
 }
 
 /**
- * Convert quantity from selling unit to base unit
+ * Convert quantity from given unit to target base unit.
+ * If targetBaseUnit is omitted, defaults to category canonical baseUnit.
  */
-export function toBaseQuantity(quantity, unit, category = 'COUNT') {
-  const factor = getUnitFactor(category, unit)
-  return Number((Number(quantity || 0) * factor).toFixed(3))
+export function toBaseQuantity(quantity, unit, category = 'COUNT', targetBaseUnit = null) {
+  const target = targetBaseUnit || getBaseUnit(category)
+  const factorUnit = getUnitFactor(category, unit)
+  const factorTarget = getUnitFactor(category, target)
+  return Number(((Number(quantity || 0) * factorUnit) / factorTarget).toFixed(3))
 }
 
 /**

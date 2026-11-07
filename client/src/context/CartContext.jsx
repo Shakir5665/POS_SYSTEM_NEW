@@ -2,6 +2,7 @@ import { useReducer } from 'react'
 import { CartContext } from './contexts'
 import { useSettings } from '../hooks/useSettings'
 import { cartTotals } from '../utils/money'
+import { getUnitFactor } from '../utils/uom'
 
 function cartReducer(state, action) {
   switch (action.type) {
@@ -50,8 +51,8 @@ function cartReducer(state, action) {
         items: state.items.map((i) => {
           if (i.product_id !== product_id) return i
           if (i.unit === newUnit) return i
-          const factorOld = i.unit === 'g' || i.unit === 'ml' ? 1 : 1000
-          const factorNew = newUnit === 'g' || newUnit === 'ml' ? 1 : 1000
+          const factorOld = getUnitFactor(i.unit_category, i.unit)
+          const factorNew = getUnitFactor(i.unit_category, newUnit)
           const newQty = Number(((Number(i.quantity) * factorOld) / factorNew).toFixed(3))
           return {
             ...i,

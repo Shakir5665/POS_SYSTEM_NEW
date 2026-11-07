@@ -5,9 +5,37 @@ const UOM_CONFIG = {
   COUNT: {
     baseUnit: 'pcs',
     defaultPricingUnit: 'pcs',
-    allowedUnits: ['pcs'],
+    allowedUnits: [
+      'pcs',
+      'unit',
+      'item',
+      'pack',
+      'box',
+      'bottle',
+      'can',
+      'carton',
+      'bag',
+      'pair',
+      'set',
+      'roll',
+      'bundle',
+      'doz',
+    ],
     factors: {
       pcs: new Decimal(1),
+      unit: new Decimal(1),
+      item: new Decimal(1),
+      pack: new Decimal(1),
+      box: new Decimal(1),
+      bottle: new Decimal(1),
+      can: new Decimal(1),
+      carton: new Decimal(1),
+      bag: new Decimal(1),
+      pair: new Decimal(1),
+      set: new Decimal(1),
+      roll: new Decimal(1),
+      bundle: new Decimal(1),
+      doz: new Decimal(12),
     },
     decimals: 0,
   },
@@ -39,7 +67,10 @@ function isValidCategory(category) {
 
 function isValidUnitForCategory(category, unit) {
   const conf = UOM_CONFIG[category]
-  if (!conf) return false
+  if (!conf || !unit) return false
+  if (category === 'COUNT') {
+    return typeof unit === 'string' && unit.trim().length > 0
+  }
   return conf.allowedUnits.includes(unit)
 }
 
@@ -53,20 +84,29 @@ function getDefaultPricingUnit(category) {
 
 function getConversionFactorToBase(category, unit) {
   const conf = UOM_CONFIG[category]
-  if (!conf || !conf.factors[unit]) {
+  if (!conf) {
+    throw new ValidationError(`Invalid unit "${unit}" for category "${category}"`)
+  }
+  if (category === 'COUNT') {
+    return conf.factors[unit] || new Decimal(1)
+  }
+  if (!conf.factors[unit]) {
     throw new ValidationError(`Invalid unit "${unit}" for category "${category}"`)
   }
   return conf.factors[unit]
 }
 
 /**
- * Convert quantity from given unit to base inventory unit (pcs, g, ml).
+ * Convert quantity from given unit to product base inventory unit.
+ * If targetBaseUnit is omitted, converts relative to canonical baseUnit (pcs, g, ml).
  * Result is a Decimal with up to 3 decimal places.
  */
-function toBaseUnitQuantity(quantity, unit, category = 'COUNT') {
-  const factor = getConversionFactorToBase(category, unit)
+function toBaseUnitQuantity(quantity, unit, category = 'COUNT', targetBaseUnit = null) {
+  const target = targetBaseUnit || getBaseUnit(category)
+  const factorUnit = getConversionFactorToBase(category, unit)
+  const factorTarget = getConversionFactorToBase(category, target)
   const qty = new Decimal(quantity)
-  return qty.mul(factor).toDecimalPlaces(3, Decimal.ROUND_HALF_UP)
+  return qty.mul(factorUnit).div(factorTarget).toDecimalPlaces(3, Decimal.ROUND_HALF_UP)
 }
 
 /**

@@ -28,7 +28,7 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
 
     validateQuantity(item.quantity, sellingUnit, product.unit_category)
 
-    const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category)
+    const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category, product.base_unit)
     const availableStock = new Decimal(product.quantity)
 
     if (availableStock.lt(baseQuantity)) {
@@ -47,7 +47,7 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
   const saleItems = items.map((item) => {
     const product = productMap.get(item.product_id)
     const sellingUnit = item.unit || product.pricing_unit || product.base_unit || 'pcs'
-    const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category)
+    const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category, product.base_unit)
     const unitPrice = toMoney(product.price)
     const unitCost = toMoney(product.cost_price || 0)
     const itemDiscount = toMoney(item.discount)

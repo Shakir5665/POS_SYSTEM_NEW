@@ -1,6 +1,9 @@
-import { useId } from 'react'
+import { useId, forwardRef } from 'react'
 
-export function Input({ label, error, className = '', id, type, step, ...props }) {
+export const Input = forwardRef(function Input(
+  { label, error, className = '', id, type, step, ...props },
+  ref
+) {
   // Link the label to the input so clicking it focuses the field and screen readers announce it
   const generatedId = useId()
   const inputId = id ?? generatedId
@@ -9,6 +12,7 @@ export function Input({ label, error, className = '', id, type, step, ...props }
     <div className="flex flex-col gap-1">
       {label && <label htmlFor={inputId} className="text-sm font-medium text-gray-700">{label}</label>}
       <input
+        ref={ref}
         id={inputId}
         type={type}
         step={step ?? (type === 'number' ? 'any' : undefined)}
@@ -22,4 +26,4 @@ export function Input({ label, error, className = '', id, type, step, ...props }
       {error && <p className="text-xs text-danger-600">{error}</p>}
     </div>
   )
-}
+})

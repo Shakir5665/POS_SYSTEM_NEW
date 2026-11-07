@@ -85,7 +85,7 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes,
   if (!product) throw new NotFoundError('Product not found')
 
   const effectiveUnit = unit || product.base_unit
-  const changeInBase = toBaseUnitQuantity(quantityChange, effectiveUnit, product.unit_category)
+  const changeInBase = toBaseUnitQuantity(quantityChange, effectiveUnit, product.unit_category, product.base_unit)
   const currentQty = new Decimal(product.quantity)
   const newQty = currentQty.plus(changeInBase)
 
@@ -131,7 +131,7 @@ async function manualAdjust(productId, newQuantity, userId, notes, unit) {
   if (!product) throw new NotFoundError('Product not found')
 
   const effectiveUnit = unit || product.base_unit
-  const targetQtyInBase = toBaseUnitQuantity(newQuantity, effectiveUnit, product.unit_category)
+  const targetQtyInBase = toBaseUnitQuantity(newQuantity, effectiveUnit, product.unit_category, product.base_unit)
   const currentQty = new Decimal(product.quantity)
   const change = targetQtyInBase.minus(currentQty)
 

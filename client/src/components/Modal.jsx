@@ -3,16 +3,51 @@ import { useEffect, useRef } from 'react'
 export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
   const modalRef = useRef(null)
   const previousActiveElementRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  onCloseRef.current = onClose
 
+  const wasOpenRef = useRef(false)
+
+  // Manage focus ONLY on opening and closing transitions
+  useEffect(() => {
+    if (!isOpen) {
+      if (wasOpenRef.current) {
+        wasOpenRef.current = false
+        if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === 'function') {
+          previousActiveElementRef.current.focus()
+        }
+      }
+      return
+    }
+
+    if (!wasOpenRef.current) {
+      wasOpenRef.current = true
+      previousActiveElementRef.current = document.activeElement
+
+      const timer = setTimeout(() => {
+        const modal = modalRef.current
+        if (!modal) return
+        // Do not steal focus if user has already focused an element inside
+        if (!modal.contains(document.activeElement)) {
+          const autoFocusEl = modal.querySelector('[autofocus]') || modal.querySelector(
+            'input, select, textarea, button:not([title="Close"]):not([aria-label="Close"])'
+          )
+          autoFocusEl?.focus()
+        }
+      }, 50)
+
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen])
+
+  // Keydown listener for Escape and Tab trap
   useEffect(() => {
     if (!isOpen) return
-
-    previousActiveElementRef.current = document.activeElement
 
     function handleKeyDown(e) {
       if (e.key === 'Escape') {
         e.preventDefault()
-        onClose()
+        onCloseRef.current?.()
         return
       }
 
@@ -42,25 +77,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
     }
 
     document.addEventListener('keydown', handleKeyDown)
-
-    // Focus first focusable element inside modal
-    const timer = setTimeout(() => {
-      const modal = modalRef.current
-      if (!modal) return
-      const autoFocusEl = modal.querySelector('[autofocus]') || modal.querySelector(
-        'input, select, textarea, button:not([title="Close"]):not([aria-label="Close"])'
-      )
-      autoFocusEl?.focus()
-    }, 50)
-
     return () => {
-      clearTimeout(timer)
       document.removeEventListener('keydown', handleKeyDown)
-      if (previousActiveElementRef.current && typeof previousActiveElementRef.current.focus === 'function') {
-        previousActiveElementRef.current.focus()
-      }
     }
-  }, [isOpen, onClose])
+  }, [isOpen])
 
   if (!isOpen) return null
 

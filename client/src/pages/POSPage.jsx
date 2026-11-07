@@ -247,7 +247,7 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
           )}
 
           {item.unit_category === 'COUNT' && (
-            <span className="text-xs text-gray-400 font-medium ml-1.5">pcs</span>
+            <span className="text-xs text-gray-400 font-medium ml-1.5">{item.unit || item.base_unit || 'pcs'}</span>
           )}
         </div>
 
