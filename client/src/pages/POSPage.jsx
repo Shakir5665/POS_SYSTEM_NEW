@@ -5,7 +5,6 @@ import { useCart } from '../hooks/useCart'
 import { productsService } from '../services/products'
 import { salesService } from '../services/sales'
 import { customersService } from '../services/customers'
-import { paymentsService } from '../services/payments'
 import { formatCurrency } from '../utils/formatCurrency'
 import { toPesewas, fromPesewas, lineTotalPesewas } from '../utils/money'
 import { formatQuantityWithUnit } from '../utils/uom'
@@ -19,32 +18,19 @@ import { useSettings } from '../hooks/useSettings'
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner'
 import { usePOSKeyboard } from '../hooks/usePOSKeyboard'
 
-// ─── Payment Modal ─────────────────────────────────────────────────────────────
-function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading, customer }) {
+// ─── Payment Modal (Cash Only) ──────────────────────────────────────────────────
+function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading }) {
   const { currency_symbol: currencySymbol = 'GH₵' } = useSettings()
-  const [method, setMethod] = useState('CASH')
   const [amountPaid, setAmountPaid] = useState('')
-  // The parent mounts this modal only while it is open, so state starts fresh each time
-  const [email, setEmail] = useState(customer?.email || '')
   const [errors, setErrors] = useState({})
-  const [paystackLoading, setPaystackLoading] = useState(false)
 
   const paidEnough = amountPaid !== '' && toPesewas(amountPaid) >= toPesewas(total)
-  const change = method === 'CASH' ? fromPesewas(toPesewas(amountPaid) - toPesewas(total)) : 0
+  const change = paidEnough ? fromPesewas(toPesewas(amountPaid) - toPesewas(total)) : 0
 
   function validateCash() {
     const errs = {}
-    if (!paidEnough) {
+    if (!amountPaid || !paidEnough) {
       errs.amountPaid = `Amount must be at least ${formatCurrency(total)}`
-    }
-    setErrors(errs)
-    return Object.keys(errs).length === 0
-  }
-
-  function validateEmail() {
-    const errs = {}
-    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
-      errs.email = 'A valid email is required for Paystack payments'
     }
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -59,158 +45,64 @@ function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading, customer }
     function onKeyDown(e) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault()
-        if (method === 'CASH') {
-          handleCashConfirm()
-        } else {
-          handlePaystackPay()
-        }
+        handleCashConfirm()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [method, amountPaid, email, total])
-
-  async function handlePaystackPay() {
-    if (!validateEmail()) return
-    setPaystackLoading(true)
-
-    try {
-      // 1. Get a Paystack reference from our backend
-      const initRes = await paymentsService.initialize(total, email.trim(), {
-        pos_cashier: true,
-        payment_method: method,
-      })
-      const { reference, access_code } = initRes.data.data
-
-      // 2. Open Paystack popup (loaded via CDN script in index.html)
-      const PaystackPop = window.PaystackPop
-      if (!PaystackPop) {
-        toast.error('Paystack script not loaded. Check your internet connection.')
-        setPaystackLoading(false)
-        return
-      }
-
-      const handler = PaystackPop.setup({
-        key: import.meta.env.VITE_PAYSTACK_PUBLIC_KEY,
-        email: email.trim(),
-        amount: toPesewas(total),
-        currency: 'GHS',
-        ref: reference,
-        access_code,
-        onSuccess(transaction) {
-          // 3. Pass reference back — backend will verify before completing sale
-          onConfirm({
-            payment_method: method,
-            amount_paid: total,
-            reference: transaction.reference,
-          })
-        },
-        onCancel() {
-          toast('Payment cancelled.')
-          setPaystackLoading(false)
-        },
-      })
-
-      handler.openIframe()
-    } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Failed to initialize Paystack payment'
-      toast.error(msg)
-      setPaystackLoading(false)
-    }
-  }
-
-  const methods = [
-    { value: 'CASH', label: 'Cash' },
-    { value: 'MOBILE_MONEY', label: 'Mobile Money' },
-    { value: 'CARD', label: 'Card' },
-  ]
-
-  const isPaystack = method === 'MOBILE_MONEY' || method === 'CARD'
+  }, [amountPaid, total])
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Process Payment" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Cash Payment" size="sm">
       <div className="space-y-4">
-        {/* Total */}
+        {/* Total Due */}
         <div className="bg-primary-50 border border-primary-100 rounded-lg p-4 text-center">
           <p className="text-sm text-primary-600 font-medium">Amount Due</p>
           <p className="text-3xl font-bold text-primary-700 mt-1">{formatCurrency(total)}</p>
         </div>
 
-        {/* Payment Method */}
-        <div>
-          <p className="text-sm font-medium text-gray-700 mb-2">Payment Method</p>
-          <div className="grid grid-cols-3 gap-2">
-            {methods.map((m) => (
-              <button
-                key={m.value}
-                onClick={() => { setMethod(m.value); setErrors({}) }}
-                className={`py-2.5 px-3 rounded-lg border text-sm font-medium transition ${
-                  method === m.value
-                    ? 'border-primary-500 bg-primary-50 text-primary-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                }`}
-              >
-                {m.label}
-              </button>
-            ))}
+        {/* Cash: amount received */}
+        <div className="space-y-2">
+          <Input
+            label={`Cash Received (${currencySymbol})`}
+            type="number"
+            step="any"
+            autoFocus
+            value={amountPaid}
+            onChange={(e) => { setAmountPaid(e.target.value); setErrors({}) }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                handleCashConfirm()
+              }
+            }}
+            placeholder={Number(total || 0).toFixed(2)}
+            error={errors.amountPaid}
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => { setAmountPaid(String(total)); setErrors({}) }}
+              className="px-2.5 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded border border-primary-200 transition"
+            >
+              Exact Cash ({formatCurrency(total)})
+            </button>
           </div>
+          {paidEnough && (
+            <div className="flex justify-between items-center bg-success-50 border border-success-100 rounded-lg px-3 py-2">
+              <span className="text-sm text-success-700 font-medium">Change</span>
+              <span className="font-bold text-success-700 text-lg">{formatCurrency(change)}</span>
+            </div>
+          )}
         </div>
 
-        {/* Cash: amount paid */}
-        {method === 'CASH' && (
-          <div className="space-y-2">
-            <Input
-              label={`Amount Paid (${currencySymbol})`}
-              type="number"
-              min={total}
-              step="0.01"
-              value={amountPaid}
-              onChange={(e) => { setAmountPaid(e.target.value); setErrors({}) }}
-              placeholder={Number(total || 0).toFixed(2)}
-              error={errors.amountPaid}
-            />
-            {paidEnough && (
-              <div className="flex justify-between items-center bg-success-50 border border-success-100 rounded-lg px-3 py-2">
-                <span className="text-sm text-success-700">Change</span>
-                <span className="font-bold text-success-700">{formatCurrency(change)}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Paystack: email + pay button */}
-        {isPaystack && (
-          <div className="space-y-3">
-            <Input
-              label="Customer Email (required for Paystack)"
-              type="email"
-              value={email}
-              onChange={(e) => { setEmail(e.target.value); setErrors({}) }}
-              placeholder="customer@example.com"
-              error={errors.email}
-            />
-            <div className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
-              <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M12 2a10 10 0 100 20A10 10 0 0012 2z" />
-              </svg>
-              <span>A Paystack popup will open for the customer to complete payment.</span>
-            </div>
-          </div>
-        )}
-
         <div className="flex gap-3 pt-2">
-          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={isLoading || paystackLoading}>
+          <Button variant="secondary" className="flex-1" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          {method === 'CASH' ? (
-            <Button variant="success" className="flex-1" onClick={handleCashConfirm} isLoading={isLoading}>
-              Confirm Payment
-            </Button>
-          ) : (
-            <Button variant="success" className="flex-1" onClick={handlePaystackPay} isLoading={paystackLoading || isLoading}>
-              Pay with Paystack
-            </Button>
-          )}
+          <Button variant="success" className="flex-1" onClick={handleCashConfirm} isLoading={isLoading}>
+            Confirm Payment
+          </Button>
         </div>
       </div>
     </Modal>
@@ -281,10 +173,6 @@ function CustomerModal({ isOpen, onClose, onSelect }) {
 
 // ─── Cart Item Row ─────────────────────────────────────────────────────────────
 function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, isSelected }) {
-  const isDecimal = item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME'
-  const step = isDecimal ? (item.unit === 'g' || item.unit === 'ml' ? 100 : 0.5) : 1
-  const min = isDecimal ? 0.001 : 1
-
   return (
     <div className={`py-2.5 px-2.5 rounded-lg border transition ${
       isSelected ? 'border-primary-500 bg-primary-50/40 shadow-sm' : 'border-transparent border-b-gray-100 last:border-b-0'
@@ -308,34 +196,16 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
       </div>
 
       <div className="flex items-center justify-between mt-2.5 gap-2">
-        {/* Quantity controls */}
-        <div className="flex items-center gap-1">
-          <button
-            onClick={() => onUpdate(item.product_id, Math.max(min, Number((Number(item.quantity) - step).toFixed(3))))}
-            className="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-sm font-semibold"
-          >
-            −
-          </button>
+        {/* Quantity control */}
+        <div className="flex items-center gap-1.5">
           <input
             type="number"
-            min={min}
-            step={isDecimal ? 'any' : '1'}
+            step="any"
             value={item.quantity}
-            onChange={(e) => {
-              if (e.target.value === '') return
-              const raw = parseFloat(e.target.value)
-              if (isNaN(raw) || raw <= 0) return
-              const val = isDecimal ? raw : Math.floor(raw)
-              onUpdate(item.product_id, val)
-            }}
-            className="w-16 text-center text-sm border border-gray-200 rounded py-1 focus:outline-none focus:ring-1 focus:ring-primary-400 font-medium"
+            onChange={(e) => onUpdate(item.product_id, e.target.value)}
+            placeholder="Qty"
+            className="w-16 text-center text-sm border border-gray-200 rounded py-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400 font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          <button
-            onClick={() => onUpdate(item.product_id, Number((Number(item.quantity) + step).toFixed(3)))}
-            className="w-7 h-7 rounded border border-gray-200 flex items-center justify-center text-gray-600 hover:bg-gray-100 transition text-sm font-semibold"
-          >
-            +
-          </button>
 
           {/* Unit pill switchers for Weight / Volume */}
           {item.unit_category === 'WEIGHT' && (
@@ -387,11 +257,11 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
             <span className="text-xs text-gray-400">disc:</span>
             <input
               type="number"
-              min={0}
-              step="0.01"
-              value={item.discount || 0}
-              onChange={(e) => onDiscountChange(item.product_id, Math.max(0, parseFloat(e.target.value) || 0))}
-              className="w-16 text-right text-xs border border-gray-200 rounded py-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400"
+              step="any"
+              value={item.discount}
+              onChange={(e) => onDiscountChange(item.product_id, e.target.value)}
+              placeholder="0.00"
+              className="w-16 text-right text-xs border border-gray-200 rounded py-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
 
@@ -519,28 +389,39 @@ export default function POSPage() {
         updateUnit(productId, item.unit === 'ml' ? 'L' : 'ml')
       }
     },
-    onOpenPayment: () => setShowPaymentModal(true),
+    onOpenPayment: () => handleOpenPayment(),
     onOpenClearConfirm: () => setShowClearConfirm(true),
     onOpenCustomerModal: () => setShowCustomerModal(true),
     isModalOpen: isAnyModalOpen,
     searchRef,
   })
 
-  async function handlePaymentConfirm({ payment_method, amount_paid, reference }) {
+  function handleOpenPayment() {
+    if (items.length === 0) return
+    const unentered = items.find(
+      (i) => i.quantity === '' || isNaN(parseFloat(i.quantity)) || parseFloat(i.quantity) <= 0
+    )
+    if (unentered) {
+      toast.error(`Please enter a quantity for ${unentered.name}`)
+      return
+    }
+    setShowPaymentModal(true)
+  }
+
+  async function handlePaymentConfirm({ amount_paid }) {
     setIsSubmitting(true)
     try {
       const payload = {
         items: items.map((i) => ({
           product_id: i.product_id,
-          quantity: i.quantity,
+          quantity: parseFloat(i.quantity) || 0,
           unit: i.unit,
-          discount: i.discount || 0,
+          discount: parseFloat(i.discount) || 0,
         })),
         customer_id: customer?.id || null,
-        payment_method,
+        payment_method: 'CASH',
         amount_paid,
-        discount_amount: cartDiscount || 0,
-        ...(reference ? { reference } : {}),
+        discount_amount: parseFloat(cartDiscount) || 0,
       }
       const res = await salesService.create(payload)
       const sale = res.data?.data
@@ -810,13 +691,19 @@ export default function POSPage() {
             <label className="text-sm text-gray-500 whitespace-nowrap">Cart Discount</label>
             <input
               type="number"
-              min={0}
-              max={subtotal}
-              step="0.01"
-              value={cartDiscount || ''}
-              onChange={(e) => setCartDiscount(Math.min(parseFloat(e.target.value) || 0, subtotal))}
+              step="any"
+              value={cartDiscount}
+              onChange={(e) => {
+                const val = e.target.value
+                if (val === '') {
+                  setCartDiscount('')
+                } else {
+                  const num = parseFloat(val)
+                  setCartDiscount(isNaN(num) ? '' : Math.min(num, subtotal))
+                }
+              }}
               placeholder="0.00"
-              className="flex-1 text-right border border-gray-200 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="flex-1 text-right border border-gray-200 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
           </div>
 
@@ -825,7 +712,7 @@ export default function POSPage() {
             <span>Subtotal</span>
             <span>{formatCurrency(subtotal)}</span>
           </div>
-          {(cartDiscount || 0) > 0 && (
+          {(parseFloat(cartDiscount) || 0) > 0 && (
             <div className="flex justify-between text-sm text-danger-600">
               <span>Discount</span>
               <span>-{formatCurrency(cartDiscount)}</span>
@@ -850,7 +737,7 @@ export default function POSPage() {
             size="lg"
             className="w-full text-base"
             disabled={items.length === 0}
-            onClick={() => setShowPaymentModal(true)}
+            onClick={handleOpenPayment}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -868,7 +755,6 @@ export default function POSPage() {
           total={total}
           onConfirm={handlePaymentConfirm}
           isLoading={isSubmitting}
-          customer={customer}
         />
       )}
 

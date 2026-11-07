@@ -343,12 +343,11 @@ export default function InventoryPage() {
               <Input
                 label={adjustForm.type === 'RESTOCK' ? `Quantity to Add (${adjustForm.unit})` : `Quantity Change (${adjustForm.unit}, use negative to remove)`}
                 type="number"
-                step={adjustTarget.unit_category === 'COUNT' ? '1' : '0.001'}
+                step="any"
                 value={adjustForm.quantity}
                 onChange={(e) => { setAdjustForm((f) => ({ ...f, quantity: e.target.value })); setAdjustErrors({}) }}
                 placeholder={adjustForm.type === 'RESTOCK' ? 'e.g. 50' : 'e.g. 10 or -5'}
                 error={adjustErrors.quantity}
-                {...(adjustForm.type === 'RESTOCK' ? { min: adjustTarget.unit_category === 'COUNT' ? 1 : 0.001 } : {})}
               />
             </div>
 

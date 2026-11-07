@@ -30,8 +30,8 @@ export default function ProductFormPage() {
     pricing_unit: 'pcs',
     price: '',
     cost_price: '',
-    quantity: '0',
-    low_stock_threshold: '10',
+    quantity: '',
+    low_stock_threshold: '',
     is_active: true,
   })
   const [imageFile, setImageFile] = useState(null)
@@ -110,11 +110,11 @@ export default function ProductFormPage() {
     if (!form.category_id) errs.category_id = 'Category is required'
     if (!form.price || parseFloat(form.price) <= 0) errs.price = 'Price must be greater than 0'
     if (form.cost_price && parseFloat(form.cost_price) < 0) errs.cost_price = 'Cost price cannot be negative'
-    if (form.quantity === '' || parseFloat(form.quantity) < 0) errs.quantity = 'Quantity must be 0 or more'
-    if (form.low_stock_threshold === '' || parseFloat(form.low_stock_threshold) < 0) errs.low_stock_threshold = 'Threshold must be 0 or more'
+    if (form.quantity !== '' && parseFloat(form.quantity) < 0) errs.quantity = 'Quantity cannot be negative'
+    if (form.low_stock_threshold !== '' && parseFloat(form.low_stock_threshold) < 0) errs.low_stock_threshold = 'Threshold cannot be negative'
     if (form.unit_category === 'COUNT') {
-      if (!Number.isInteger(Number(form.quantity))) errs.quantity = 'Count products must have integer quantities'
-      if (!Number.isInteger(Number(form.low_stock_threshold))) errs.low_stock_threshold = 'Count products must have integer thresholds'
+      if (form.quantity !== '' && !Number.isInteger(Number(form.quantity))) errs.quantity = 'Count products must have integer quantities'
+      if (form.low_stock_threshold !== '' && !Number.isInteger(Number(form.low_stock_threshold))) errs.low_stock_threshold = 'Count products must have integer thresholds'
     }
     setErrors(errs)
     return Object.keys(errs).length === 0
@@ -127,6 +127,8 @@ export default function ProductFormPage() {
     setIsSubmitting(true)
     try {
       let payload
+      const finalQuantity = form.quantity === '' ? 0 : (form.unit_category === 'COUNT' ? parseInt(form.quantity) : parseFloat(form.quantity))
+      const finalThreshold = form.low_stock_threshold === '' ? 10 : (form.unit_category === 'COUNT' ? parseInt(form.low_stock_threshold) : parseFloat(form.low_stock_threshold))
 
       if (imageFile) {
         // Use FormData for file upload
@@ -140,8 +142,8 @@ export default function ProductFormPage() {
         payload.append('pricing_unit', form.pricing_unit)
         payload.append('price', form.price)
         if (form.cost_price) payload.append('cost_price', form.cost_price)
-        payload.append('quantity', form.quantity)
-        payload.append('low_stock_threshold', form.low_stock_threshold)
+        payload.append('quantity', String(finalQuantity))
+        payload.append('low_stock_threshold', String(finalThreshold))
         payload.append('is_active', form.is_active ? 'true' : 'false')
         payload.append('image', imageFile)
       } else {
@@ -155,8 +157,8 @@ export default function ProductFormPage() {
           pricing_unit: form.pricing_unit,
           price: parseFloat(form.price),
           cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
-          quantity: form.unit_category === 'COUNT' ? parseInt(form.quantity) : parseFloat(form.quantity),
-          low_stock_threshold: form.unit_category === 'COUNT' ? parseInt(form.low_stock_threshold) : parseFloat(form.low_stock_threshold),
+          quantity: finalQuantity,
+          low_stock_threshold: finalThreshold,
           is_active: form.is_active,
         }
       }
@@ -319,8 +321,7 @@ export default function ProductFormPage() {
               <Input
                 label={`Selling Price (${currencySymbol} per ${form.pricing_unit}) *`}
                 type="number"
-                min="0.01"
-                step="0.01"
+                step="any"
                 value={form.price}
                 onChange={(e) => setField('price', e.target.value)}
                 placeholder="0.00"
@@ -329,8 +330,7 @@ export default function ProductFormPage() {
               <Input
                 label={`Cost Price (${currencySymbol} per ${form.pricing_unit})`}
                 type="number"
-                min="0"
-                step="0.01"
+                step="any"
                 value={form.cost_price}
                 onChange={(e) => setField('cost_price', e.target.value)}
                 placeholder="0.00 (optional)"
@@ -346,8 +346,7 @@ export default function ProductFormPage() {
               <Input
                 label={`Current Quantity (${form.base_unit})`}
                 type="number"
-                min="0"
-                step={form.unit_category === 'COUNT' ? '1' : '0.001'}
+                step="any"
                 value={form.quantity}
                 onChange={(e) => setField('quantity', e.target.value)}
                 placeholder="0"
@@ -357,8 +356,7 @@ export default function ProductFormPage() {
               <Input
                 label={`Low Stock Threshold (${form.base_unit})`}
                 type="number"
-                min="0"
-                step={form.unit_category === 'COUNT' ? '1' : '0.001'}
+                step="any"
                 value={form.low_stock_threshold}
                 onChange={(e) => setField('low_stock_threshold', e.target.value)}
                 placeholder="10"

@@ -20,8 +20,8 @@ const getFields = (symbol = 'LKR') => [
   { key: 'store_address', label: 'Store Address', type: 'text', placeholder: '123 Main St, Accra, Ghana' },
   { key: 'store_phone', label: 'Store Phone', type: 'text', placeholder: '0XX-XXX-XXXX' },
   { key: 'currency_symbol', label: 'Currency Symbol', type: 'text', placeholder: symbol || 'LKR' },
-  { key: 'tax_rate', label: 'Tax Rate (%)', type: 'number', placeholder: '0', min: 0, max: 100, step: 0.01 },
-  { key: 'loyalty_points_rate', label: `Loyalty Points Rate (${symbol || 'GHS'} per 1 point)`, type: 'number', placeholder: '10', min: 1, step: 1 },
+  { key: 'tax_rate', label: 'Tax Rate (%)', type: 'number', placeholder: '0', min: 0, max: 100, step: 'any' },
+  { key: 'loyalty_points_rate', label: `Loyalty Points Rate (${symbol || 'GHS'} per 1 point)`, type: 'number', placeholder: '10', min: 1, step: 'any' },
   { key: 'receipt_footer', label: 'Receipt Footer Message', type: 'text', placeholder: 'Thank you for your business!' },
 ]
 

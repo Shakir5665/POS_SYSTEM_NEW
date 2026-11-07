@@ -20,7 +20,7 @@ function cartReducer(state, action) {
         }
       }
       const initialUnit = product.pricing_unit || product.base_unit || 'pcs'
-      const initialQty = 1
+      const initialQty = ''
       return {
         ...state,
         items: [
@@ -29,7 +29,7 @@ function cartReducer(state, action) {
             ...product,
             unit: initialUnit,
             quantity: initialQty,
-            discount: 0,
+            discount: '',
           },
         ],
       }
@@ -39,11 +39,9 @@ function cartReducer(state, action) {
     case 'UPDATE_QUANTITY':
       return {
         ...state,
-        items: state.items
-          .map((i) =>
-            i.product_id === action.payload.product_id ? { ...i, quantity: action.payload.quantity } : i
-          )
-          .filter((i) => Number(i.quantity) > 0),
+        items: state.items.map((i) =>
+          i.product_id === action.payload.product_id ? { ...i, quantity: action.payload.quantity } : i
+        ),
       }
     case 'UPDATE_UNIT': {
       const { product_id, newUnit } = action.payload
@@ -83,7 +81,7 @@ function cartReducer(state, action) {
 
 const initialState = {
   items: [],
-  cartDiscount: 0,
+  cartDiscount: '',
   customer: null,
 }
 
