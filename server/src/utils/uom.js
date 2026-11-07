@@ -75,6 +75,7 @@ function isValidUnitForCategory(category, unit) {
   const conf = UOM_CONFIG[category]
   if (!conf || !unit) return false
   if (category === 'COUNT') {
+    if (['g', 'kg', 'ml', 'L'].includes(unit)) return false
     return typeof unit === 'string' && unit.trim().length > 0
   }
   return conf.allowedUnits.includes(unit)

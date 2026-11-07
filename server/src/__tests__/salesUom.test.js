@@ -3,6 +3,8 @@ const app = require('../app')
 const prisma = require('../utils/prismaClient')
 const bcrypt = require('bcrypt')
 
+jest.setTimeout(30000)
+
 let cashier, cashierToken, category, riceProduct, soapProduct
 
 beforeAll(async () => {
@@ -180,5 +182,60 @@ describe('UOM Sales Integration', () => {
 
     expect(res.status).toBe(422)
     expect(res.body.error.message).toContain('Insufficient stock')
+  })
+
+  it('rejects checkout when multiple cart lines for the same product exceed aggregated stock', async () => {
+    // soapProduct currently has 10 pcs
+    const res = await request(app)
+      .post('/api/sales')
+      .set('Authorization', `Bearer ${cashierToken}`)
+      .send({
+        items: [
+          { product_id: soapProduct.id, quantity: 6, unit: 'pcs' },
+          { product_id: soapProduct.id, quantity: 6, unit: 'pcs' },
+        ],
+        payment_method: 'CASH',
+        amount_paid: 60.0,
+      })
+
+    expect(res.status).toBe(422)
+    expect(res.body.error.message).toContain('Insufficient stock')
+
+    // Verify stock was not deducted and transaction rolled back completely
+    const checkSoap = await prisma.product.findUnique({ where: { id: soapProduct.id } })
+    expect(parseFloat(checkSoap.quantity)).toBe(10)
+  })
+
+  it('atomically handles concurrent checkouts attempting to purchase the same remaining stock', async () => {
+    // soapProduct currently has 10 pcs. Till 1 requests 7, Till 2 requests 7.
+    // Exactly one must succeed and one must fail with 422 Insufficient stock.
+    const [res1, res2] = await Promise.all([
+      request(app)
+        .post('/api/sales')
+        .set('Authorization', `Bearer ${cashierToken}`)
+        .send({
+          items: [{ product_id: soapProduct.id, quantity: 7, unit: 'pcs' }],
+          payment_method: 'CASH',
+          amount_paid: 35.0,
+        }),
+      request(app)
+        .post('/api/sales')
+        .set('Authorization', `Bearer ${cashierToken}`)
+        .send({
+          items: [{ product_id: soapProduct.id, quantity: 7, unit: 'pcs' }],
+          payment_method: 'CASH',
+          amount_paid: 35.0,
+        }),
+    ])
+
+    const statuses = [res1.status, res2.status].sort()
+    expect(statuses).toEqual([201, 422])
+
+    const failedRes = res1.status === 422 ? res1 : res2
+    expect(failedRes.body.error.message).toContain('Insufficient stock')
+
+    // Final stock must be exactly 10 - 7 = 3 (atomic decrement, never negative!)
+    const finalSoap = await prisma.product.findUnique({ where: { id: soapProduct.id } })
+    expect(parseFloat(finalSoap.quantity)).toBe(3)
   })
 })

@@ -7,7 +7,7 @@ import { salesService } from '../services/sales'
 import { customersService } from '../services/customers'
 import { formatCurrency } from '../utils/formatCurrency'
 import { toPesewas, fromPesewas, lineTotalPesewas } from '../utils/money'
-import { formatQuantityWithUnit } from '../utils/uom'
+import { formatQuantityWithUnit, getAvailableStockForItem } from '../utils/uom'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
@@ -172,8 +172,27 @@ function CustomerModal({ isOpen, onClose, onSelect }) {
 }
 
 // ─── Cart Item Row ─────────────────────────────────────────────────────────────
-function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, isSelected, isLastAdded }) {
+export function CartItem({
+  item,
+  index = 0,
+  itemCount = 1,
+  allCartItems = [],
+  productData = null,
+  onUpdate,
+  onRemove,
+  onDiscountChange,
+  onUnitChange,
+  isSelected,
+  isLastAdded,
+}) {
   const qtyInputRef = useRef(null)
+  const discountInputRef = useRef(null)
+  const [stockError, setStockError] = useState('')
+
+  const maxStock = getAvailableStockForItem(item, allCartItems, productData)
+  const current = item.quantity === '' ? 0 : parseFloat(item.quantity)
+  const currentVal = isNaN(current) ? 0 : current
+  const isAtStockLimit = maxStock <= 0 || currentVal >= maxStock
 
   useEffect(() => {
     if (isLastAdded) {
@@ -181,6 +200,293 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
       qtyInputRef.current?.select()
     }
   }, [isLastAdded])
+
+  function handleDecrement() {
+    setStockError('')
+    if (currentVal <= 0) {
+      onUpdate(item.product_id, '0')
+      return
+    }
+    const nextVal = Math.max(0, Number((currentVal - 1).toFixed(3)))
+    onUpdate(item.product_id, nextVal === 0 ? '0' : String(nextVal))
+  }
+
+  function handleIncrement() {
+    if (isAtStockLimit) return
+    const nextVal = Math.min(maxStock, Number((currentVal + 1).toFixed(3)))
+    setStockError('')
+    onUpdate(item.product_id, String(nextVal))
+  }
+
+  function handleQuantityChange(val) {
+    if (val === '') {
+      setStockError('')
+      onUpdate(item.product_id, '')
+      return
+    }
+
+    if (val.includes('-')) {
+      val = val.replace(/-/g, '')
+      if (val === '') {
+        setStockError('')
+        onUpdate(item.product_id, '')
+        return
+      }
+    }
+
+    if (item.unit_category === 'COUNT') {
+      if (val.includes('.')) {
+        val = val.split('.')[0]
+        if (val === '') {
+          setStockError('')
+          onUpdate(item.product_id, '')
+          return
+        }
+      }
+      val = val.replace(/[^\d]/g, '')
+      if (val === '') {
+        setStockError('')
+        onUpdate(item.product_id, '')
+        return
+      }
+    } else {
+      val = val.replace(/[^\d.]/g, '')
+      const parts = val.split('.')
+      if (parts.length > 2) {
+        val = parts[0] + '.' + parts.slice(1).join('')
+      }
+      if (parts.length === 2 && parts[1].length > 3) {
+        val = parts[0] + '.' + parts[1].slice(0, 3)
+      }
+    }
+
+    if (val === '.') {
+      onUpdate(item.product_id, '0.')
+      return
+    }
+
+    const num = parseFloat(val)
+    if (isNaN(num)) return
+    if (num < 0) {
+      setStockError('')
+      onUpdate(item.product_id, '0')
+      return
+    }
+
+    const unitLabel = item.unit || item.base_unit || 'units'
+    if (num > maxStock) {
+      setStockError(`Only ${maxStock} ${unitLabel} available in stock.`)
+      onUpdate(item.product_id, String(maxStock))
+      return
+    }
+
+    setStockError('')
+    onUpdate(item.product_id, val)
+  }
+
+  function handleQuantityBlur() {
+    const qty = parseFloat(item.quantity) || 0
+    const disc = parseFloat(item.discount) || 0
+    if (disc > 0) {
+      let pricingQty = qty
+      if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
+        const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
+        const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+        pricingQty = (qty * factorSelling) / factorPricing
+      }
+      const maxDiscount = Number((pricingQty * Number(item.price)).toFixed(2))
+      if (disc > maxDiscount) {
+        onDiscountChange(item.product_id, maxDiscount > 0 ? String(maxDiscount) : '')
+      }
+    }
+  }
+
+  function handleDiscountChange(val) {
+    if (val === '') {
+      onDiscountChange(item.product_id, '')
+      return
+    }
+
+    if (val.includes('-')) {
+      val = val.replace(/-/g, '')
+      if (val === '') {
+        onDiscountChange(item.product_id, '')
+        return
+      }
+    }
+
+    val = val.replace(/[^\d.]/g, '')
+    const parts = val.split('.')
+    if (parts.length > 2) {
+      val = parts[0] + '.' + parts.slice(1).join('')
+    }
+    if (parts.length === 2 && parts[1].length > 2) {
+      val = parts[0] + '.' + parts[1].slice(0, 2)
+    }
+
+    if (val === '.') {
+      onDiscountChange(item.product_id, '0.')
+      return
+    }
+
+    const num = parseFloat(val)
+    if (isNaN(num)) return
+    if (num < 0) {
+      onDiscountChange(item.product_id, '0')
+      return
+    }
+
+    const qty = parseFloat(item.quantity) || 0
+    if (qty > 0) {
+      let pricingQty = qty
+      if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
+        const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
+        const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+        pricingQty = (qty * factorSelling) / factorPricing
+      }
+      const maxDiscount = Number((pricingQty * Number(item.price)).toFixed(2))
+      if (num > maxDiscount) {
+        onDiscountChange(item.product_id, String(maxDiscount))
+        return
+      }
+    }
+
+    onDiscountChange(item.product_id, val)
+  }
+
+  function handleDiscountBlur() {
+    const num = parseFloat(item.discount)
+    if (isNaN(num) || num <= 0) {
+      if (item.discount !== '' && item.discount !== '0') onDiscountChange(item.product_id, '')
+      return
+    }
+    const qty = parseFloat(item.quantity) || 0
+    if (qty > 0) {
+      let pricingQty = qty
+      if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
+        const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
+        const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+        pricingQty = (qty * factorSelling) / factorPricing
+      }
+      const maxDiscount = Number((pricingQty * Number(item.price)).toFixed(2))
+      if (num > maxDiscount) {
+        onDiscountChange(item.product_id, String(maxDiscount))
+      }
+    }
+  }
+
+  function handleQtyKeyDown(e) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (index < itemCount - 1) {
+        const nextInput = document.getElementById(`cart-qty-${index + 1}`)
+        if (nextInput) {
+          nextInput.focus()
+          nextInput.select()
+        }
+      } else {
+        qtyInputRef.current?.focus()
+        qtyInputRef.current?.select()
+      }
+      return
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (index > 0) {
+        const prevInput = document.getElementById(`cart-qty-${index - 1}`)
+        if (prevInput) {
+          prevInput.focus()
+          prevInput.select()
+        }
+      } else {
+        qtyInputRef.current?.focus()
+        qtyInputRef.current?.select()
+      }
+      return
+    }
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      if (discountInputRef.current) {
+        discountInputRef.current.focus()
+        discountInputRef.current.select()
+      } else {
+        const discInput = document.getElementById(`cart-discount-${index}`)
+        if (discInput) {
+          discInput.focus()
+          discInput.select()
+        }
+      }
+      return
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (index < itemCount - 1) {
+        const nextInput = document.getElementById(`cart-qty-${index + 1}`)
+        if (nextInput) {
+          nextInput.focus()
+          nextInput.select()
+        }
+      } else if (discountInputRef.current) {
+        discountInputRef.current.focus()
+        discountInputRef.current.select()
+      }
+      return
+    }
+  }
+
+  function handleDiscountKeyDown(e) {
+    if (e.key === 'ArrowLeft') {
+      e.preventDefault()
+      qtyInputRef.current?.focus()
+      qtyInputRef.current?.select()
+      return
+    }
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      if (index < itemCount - 1) {
+        const nextDisc = document.getElementById(`cart-discount-${index + 1}`)
+        if (nextDisc) {
+          nextDisc.focus()
+          nextDisc.select()
+        }
+      } else {
+        discountInputRef.current?.focus()
+        discountInputRef.current?.select()
+      }
+      return
+    }
+
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      if (index > 0) {
+        const prevDisc = document.getElementById(`cart-discount-${index - 1}`)
+        if (prevDisc) {
+          prevDisc.focus()
+          prevDisc.select()
+        }
+      } else {
+        discountInputRef.current?.focus()
+        discountInputRef.current?.select()
+      }
+      return
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      if (index < itemCount - 1) {
+        const nextQty = document.getElementById(`cart-qty-${index + 1}`)
+        if (nextQty) {
+          nextQty.focus()
+          nextQty.select()
+        }
+      }
+      return
+    }
+  }
 
   return (
     <div
@@ -212,21 +518,67 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
       </div>
 
       <div className="flex items-center justify-between mt-2.5 gap-2">
-        {/* Quantity control */}
+        {/* Quantity control with - / + buttons */}
         <div className="flex items-center gap-1.5">
-          <input
-            ref={qtyInputRef}
-            type="number"
-            step="any"
-            value={item.quantity}
-            onChange={(e) => onUpdate(item.product_id, e.target.value)}
-            placeholder="Qty"
-            className="w-16 text-center text-sm border border-gray-200 rounded py-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400 font-medium [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-          />
+          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shadow-xs focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
+            <button
+              type="button"
+              id={`cart-qty-dec-${index}`}
+              data-testid={`qty-dec-${item.product_id}`}
+              onClick={handleDecrement}
+              className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200 transition font-bold select-none text-sm"
+              title="Decrease quantity (−)"
+              aria-label="Decrease quantity"
+            >
+              −
+            </button>
+            <input
+              ref={qtyInputRef}
+              id={`cart-qty-${index}`}
+              data-testid={`cart-qty-${item.product_id}`}
+              data-cart-index={index}
+              data-field="qty"
+              type="text"
+              inputMode="decimal"
+              value={item.quantity}
+              onChange={(e) => handleQuantityChange(e.target.value)}
+              onKeyDown={handleQtyKeyDown}
+              onBlur={handleQuantityBlur}
+              placeholder="0"
+              aria-label={`Quantity for ${item.name}`}
+              className="w-14 text-center text-sm font-semibold text-gray-900 border-x border-gray-200 py-1 px-1 focus:outline-none bg-transparent"
+            />
+            <button
+              type="button"
+              id={`cart-qty-inc-${index}`}
+              data-testid={`cart-qty-inc-${item.product_id}`}
+              onClick={handleIncrement}
+              disabled={isAtStockLimit}
+              className={`w-7 h-7 flex items-center justify-center transition font-bold select-none text-sm ${
+                isAtStockLimit
+                  ? 'text-gray-300 bg-gray-50 cursor-not-allowed'
+                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200'
+              }`}
+              title={isAtStockLimit ? 'Stock limit reached' : 'Increase quantity (+)'}
+              aria-label="Increase quantity"
+            >
+              +
+            </button>
+          </div>
+
+          {/* Red Out of stock indicator beside the + button when stock limit is reached */}
+          {isAtStockLimit && (
+            <span
+              data-testid={`out-of-stock-badge-${item.product_id}`}
+              className="text-xs font-semibold text-danger-600 bg-danger-50 border border-danger-200 px-1.5 py-0.5 rounded whitespace-nowrap"
+            >
+              Out of stock
+            </span>
+          )}
 
           {/* Unit pill switchers for Weight / Volume */}
           {item.unit_category === 'WEIGHT' && (
-            <div className="flex rounded border border-gray-200 overflow-hidden text-xs ml-1.5">
+            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs ml-1">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'g')}
@@ -245,7 +597,7 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
           )}
 
           {item.unit_category === 'VOLUME' && (
-            <div className="flex rounded border border-gray-200 overflow-hidden text-xs ml-1.5">
+            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs ml-1">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'ml')}
@@ -264,21 +616,29 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
           )}
 
           {item.unit_category === 'COUNT' && (
-            <span className="text-xs text-gray-400 font-medium ml-1.5">{item.unit || item.base_unit || 'pcs'}</span>
+            <span className="text-xs text-gray-400 font-medium ml-1">{item.unit || item.base_unit || 'pcs'}</span>
           )}
         </div>
 
         {/* Item discount & Line total */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1">
-            <span className="text-xs text-gray-400">disc:</span>
+            <span className="text-xs font-medium text-gray-500">Disc:</span>
             <input
-              type="number"
-              step="any"
+              ref={discountInputRef}
+              id={`cart-discount-${index}`}
+              data-testid={`cart-discount-${item.product_id}`}
+              data-cart-index={index}
+              data-field="discount"
+              type="text"
+              inputMode="decimal"
               value={item.discount}
-              onChange={(e) => onDiscountChange(item.product_id, e.target.value)}
+              onChange={(e) => handleDiscountChange(e.target.value)}
+              onKeyDown={handleDiscountKeyDown}
+              onBlur={handleDiscountBlur}
               placeholder="0.00"
-              className="w-16 text-right text-xs border border-gray-200 rounded py-1 px-1.5 focus:outline-none focus:ring-1 focus:ring-primary-400 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              aria-label={`Discount for ${item.name}`}
+              className="w-16 text-right text-sm border border-gray-200 rounded-lg py-1 px-2 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium bg-white"
             />
           </div>
 
@@ -287,6 +647,16 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
           </p>
         </div>
       </div>
+
+      {/* Red validation message for manual quantity entry exceeding stock */}
+      {stockError && (
+        <p
+          data-testid={`stock-error-${item.product_id}`}
+          className="text-xs font-medium text-danger-600 mt-1.5"
+        >
+          {stockError}
+        </p>
+      )}
     </div>
   )
 }
@@ -314,11 +684,13 @@ export default function POSPage() {
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [completedSale, setCompletedSale] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const isAnyModalOpen = showPaymentModal || showReceiptModal || showCustomerModal || showClearConfirm
 
   const searchRef = useRef(null)
   const cartContainerRef = useRef(null)
   const cartEndRef = useRef(null)
   const [lastAddedId, setLastAddedId] = useState(null)
+  const lastScanRef = useRef({ code: '', time: 0 })
 
   // Load all products and categories on mount
   useEffect(() => {
@@ -356,53 +728,92 @@ export default function POSPage() {
   })
 
   async function handleBarcodeSearch(barcode) {
+    const code = String(barcode || '').trim()
+    if (!code) return
+
+    // Prevent duplicate events from scanner key bounces (< 250ms)
+    const now = Date.now()
+    if (lastScanRef.current.code === code && (now - lastScanRef.current.time) < 250) {
+      return
+    }
+    lastScanRef.current = { code, time: now }
+
+    // Fast O(1) in-memory check for products already in the active cart
+    const inCart = items.find((i) => i.barcode === code)
+    if (inCart) {
+      const fullProduct = allProducts.find((p) => p.id === inCart.product_id) || inCart
+      handleAddProduct(fullProduct)
+      setSearchQuery('')
+      return
+    }
+
+    // Fast in-memory check for products already loaded in product catalog
+    const localProduct = allProducts.find((p) => p.barcode === code)
+    if (localProduct) {
+      handleAddProduct(localProduct)
+      setSearchQuery('')
+      return
+    }
+
+    // Single indexed backend query if not present in memory
     try {
-      const res = await productsService.byBarcode(barcode)
+      const res = await productsService.byBarcode(code)
       const product = res.data?.data
-      if (product) {
-        if (Number(product.quantity) <= 0) {
-          toast.error(`${product.name} is out of stock`)
-          return
-        }
+      if (product && product.is_active !== false) {
+        setAllProducts((prev) => {
+          if (prev.some((p) => p.id === product.id)) return prev
+          return [...prev, product]
+        })
         handleAddProduct(product)
+        setSearchQuery('')
       } else {
-        toast.error('Product not found for barcode: ' + barcode)
+        toast.error('Product not found. Please register the product or search manually.')
       }
     } catch {
-      toast.error('Barcode lookup failed')
+      toast.error('Product not found. Please register the product or search manually.')
     }
   }
 
   // Hardware barcode scanner
   useBarcodeScanner((barcode) => {
     handleBarcodeSearch(barcode)
-  })
+  }, { enabled: !isAnyModalOpen })
 
   function handleAddProduct(product) {
-    if (Number(product.quantity) <= 0) {
+    if (!product) return
+    const availableStock = Number(product.quantity ?? product.quantity_available ?? 0)
+    if (availableStock <= 0) {
       toast.error(`${product.name} is out of stock`)
       return
     }
-    setLastAddedId(product.id)
-    addItem(product)
+    const pid = product.id || product.product_id
+    const existing = items.find((i) => i.product_id === pid)
+    if (existing) {
+      const maxStock = getAvailableStockForItem(existing, items, product)
+      const currentQty = Number(existing.quantity || 0)
+      if (currentQty >= maxStock) {
+        const unitLabel = existing.unit || existing.base_unit || 'units'
+        toast.error(`Cannot add more. Only ${maxStock} ${unitLabel} available in stock.`)
+        return
+      }
+    }
+    setLastAddedId(pid)
+    addItem(product, 1)
     toast.success(`${product.name} added to cart`, { duration: 1500 })
   }
 
-  // Auto-scroll cart so the last added product details are immediately visible
+  // Auto-scroll cart ONLY when a new product is added (never when editing quantities)
   useEffect(() => {
     if (!lastAddedId) return
     const timer = setTimeout(() => {
       const el = document.getElementById(`cart-item-${lastAddedId}`)
-      if (el) {
+      if (el && typeof el.scrollIntoView === 'function') {
         el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
-      } else if (cartEndRef.current) {
-        cartEndRef.current.scrollIntoView({ behavior: 'smooth' })
       }
-    }, 50)
+      setLastAddedId(null)
+    }, 80)
     return () => clearTimeout(timer)
-  }, [items, lastAddedId])
-
-  const isAnyModalOpen = showPaymentModal || showReceiptModal || showCustomerModal || showClearConfirm
+  }, [lastAddedId])
 
   const {
     selectedProductIndex,
@@ -439,6 +850,19 @@ export default function POSPage() {
       toast.error(`Please enter a quantity for ${unentered.name}`)
       return
     }
+
+    // Verify all cart items against available stock before opening payment modal
+    for (const item of items) {
+      const product = allProducts.find((p) => p.id === item.product_id)
+      const maxStock = getAvailableStockForItem(item, items, product)
+      const requested = parseFloat(item.quantity) || 0
+      if (requested > maxStock) {
+        const unitLabel = item.unit || item.base_unit || 'units'
+        toast.error(`Cannot checkout. Only ${maxStock} ${unitLabel} of ${item.name} available in stock.`)
+        return
+      }
+    }
+
     setShowPaymentModal(true)
   }
 
@@ -464,9 +888,21 @@ export default function POSPage() {
       setShowReceiptModal(true)
       clearCart()
       toast.success('Sale completed successfully!')
+      try {
+        const productsRes = await productsService.list({ per_page: 100, is_active: true })
+        setAllProducts(productsRes.data?.data || [])
+      } catch (e) {
+        console.warn('Failed to refresh products:', e)
+      }
     } catch (err) {
-      const msg = err.response?.data?.error?.message || 'Failed to process sale'
+      const msg = err.response?.data?.error?.message || err.response?.data?.message || 'Failed to process sale'
       toast.error(msg)
+      try {
+        const productsRes = await productsService.list({ per_page: 100, is_active: true })
+        setAllProducts(productsRes.data?.data || [])
+      } catch (e) {
+        console.warn('Failed to refresh products:', e)
+      }
     } finally {
       setIsSubmitting(false)
     }
@@ -534,6 +970,16 @@ export default function POSPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                e.stopPropagation()
+                const q = searchQuery.trim()
+                if (q) {
+                  handleBarcodeSearch(q)
+                }
+              }
+            }}
             placeholder="Search by name, SKU, or scan barcode… (F1)"
             className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
@@ -692,7 +1138,7 @@ export default function POSPage() {
         </div>
 
         {/* Cart items */}
-        <div ref={cartContainerRef} className="flex-1 overflow-y-auto px-4 scroll-smooth">
+        <div ref={cartContainerRef} className="flex-1 overflow-y-auto px-4">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-300 py-8">
               <svg className="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -707,6 +1153,10 @@ export default function POSPage() {
                 <CartItem
                   key={item.product_id}
                   item={item}
+                  index={idx}
+                  itemCount={items.length}
+                  allCartItems={items}
+                  productData={allProducts.find((p) => p.id === item.product_id)}
                   isSelected={activeZone === 'CART' && selectedCartIndex === idx}
                   isLastAdded={lastAddedId === item.product_id}
                   onUpdate={updateQuantity}
@@ -727,22 +1177,37 @@ export default function POSPage() {
         <div className="border-t border-gray-100 px-4 py-3 space-y-2.5">
           {/* Cart discount */}
           <div className="flex items-center gap-3">
-            <label className="text-sm text-gray-500 whitespace-nowrap">Cart Discount</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Cart Discount</label>
             <input
-              type="number"
-              step="any"
+              type="text"
+              inputMode="decimal"
               value={cartDiscount}
               onChange={(e) => {
-                const val = e.target.value
+                let val = e.target.value
                 if (val === '') {
                   setCartDiscount('')
+                  return
+                }
+                if (val.includes('-')) {
+                  val = val.replace(/-/g, '')
+                  if (val === '') {
+                    setCartDiscount('')
+                    return
+                  }
+                }
+                val = val.replace(/[^\d.]/g, '')
+                const parts = val.split('.')
+                if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('')
+                if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2)
+                const num = parseFloat(val)
+                if (isNaN(num)) {
+                  setCartDiscount('')
                 } else {
-                  const num = parseFloat(val)
-                  setCartDiscount(isNaN(num) ? '' : Math.min(num, subtotal))
+                  setCartDiscount(String(Math.min(Math.max(0, num), subtotal)))
                 }
               }}
               placeholder="0.00"
-              className="flex-1 text-right border border-gray-200 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+              className="flex-1 text-right border border-gray-200 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium bg-white"
             />
           </div>
 

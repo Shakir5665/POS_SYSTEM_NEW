@@ -43,8 +43,10 @@ async function getProductById(id) {
 }
 
 async function getProductByBarcode(barcode) {
+  const code = String(barcode || '').trim()
+  if (!code) throw new NotFoundError('Product not found')
   const product = await prisma.product.findUnique({
-    where: { barcode },
+    where: { barcode: code },
     include: { category: { select: { id: true, name: true } } },
   })
   if (!product) throw new NotFoundError('Product not found')

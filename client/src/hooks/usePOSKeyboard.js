@@ -37,6 +37,7 @@ export function usePOSKeyboard({
 
   useEffect(() => {
     function handleKeyDown(e) {
+      if (e.defaultPrevented) return
       // If a modal is open, let modal handle its own keys (Tab, Esc, Enter)
       if (isModalOpen) return
 

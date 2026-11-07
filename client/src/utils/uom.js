@@ -135,3 +135,36 @@ export function calculateLineTotal({
 
   return (totalInPesewas / 100).toFixed(2)
 }
+
+/**
+ * Calculate available stock for a cart item in its current selling unit,
+ * taking into account any OTHER rows in the cart that share the same product_id.
+ */
+export function getAvailableStockForItem(item, allCartItems = [], productData = null) {
+  if (!item) return 0
+  const rawAvail = productData?.quantity ?? item.quantity_available
+  if (rawAvail === undefined || rawAvail === null) {
+    return Infinity
+  }
+  const availBase = Number(rawAvail)
+  if (availBase <= 0) return 0
+
+  const category = item.unit_category || 'COUNT'
+  const unit = item.unit || item.pricing_unit || item.base_unit || 'pcs'
+  const baseUnit = item.base_unit || getBaseUnit(category)
+  const factorUnit = getUnitFactor(category, unit)
+  const factorBase = getUnitFactor(category, baseUnit)
+
+  // Calculate base quantity reserved by OTHER items in cart with the same product_id
+  let otherUsedBase = 0
+  if (Array.isArray(allCartItems)) {
+    for (const other of allCartItems) {
+      if (other && other !== item && other.product_id === item.product_id) {
+        otherUsedBase += toBaseQuantity(other.quantity, other.unit, other.unit_category, other.base_unit)
+      }
+    }
+  }
+
+  const remainingBase = Math.max(0, availBase - otherUsedBase)
+  return Number(((remainingBase * factorBase) / factorUnit).toFixed(3))
+}

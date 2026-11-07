@@ -15,6 +15,8 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
 
   const productMap = new Map(products.map((p) => [p.id, p]))
 
+  const aggregatedBaseQuantities = new Map()
+
   for (const item of items) {
     const product = productMap.get(item.product_id)
     if (!product) {
@@ -29,13 +31,19 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     validateQuantity(item.quantity, sellingUnit, product.unit_category)
 
     const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category, product.base_unit)
+    const currentAgg = aggregatedBaseQuantities.get(item.product_id) || new Decimal(0)
+    aggregatedBaseQuantities.set(item.product_id, currentAgg.plus(baseQuantity))
+  }
+
+  for (const [productId, totalRequestedBase] of aggregatedBaseQuantities.entries()) {
+    const product = productMap.get(productId)
     const availableStock = new Decimal(product.quantity)
 
-    if (availableStock.lt(baseQuantity)) {
+    if (availableStock.lt(totalRequestedBase)) {
       throw new ValidationError('Insufficient stock', [
         {
           field: 'items',
-          message: `Insufficient stock for "${product.name}". Available: ${availableStock} ${product.base_unit}, requested: ${item.quantity} ${sellingUnit} (${baseQuantity} ${product.base_unit})`,
+          message: `Insufficient stock for "${product.name}". Available: ${availableStock} ${product.base_unit}, requested: ${totalRequestedBase} ${product.base_unit}`,
         },
       ])
     }

@@ -1,4 +1,5 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') })
+jest.setTimeout(30000)
 const request = require('supertest')
 const app = require('../app')
 const prisma = require('../utils/prismaClient')
@@ -8,10 +9,33 @@ let managerToken
 let cashierToken
 let testCategory
 let testProduct
+let leadingZeroProduct
 let managerUser
 let cashierUser
 
 beforeAll(async () => {
+  // Clean up any stale data from previous runs
+  const staleCat = await prisma.category.findUnique({ where: { name: 'Inv_Test_Category_XYZ' } })
+  if (staleCat) {
+    const prods = await prisma.product.findMany({ where: { category_id: staleCat.id }, select: { id: true } })
+    const prodIds = prods.map((p) => p.id)
+    if (prodIds.length > 0) {
+      await prisma.inventoryLog.deleteMany({ where: { product_id: { in: prodIds } } })
+      await prisma.saleItem.deleteMany({ where: { product_id: { in: prodIds } } })
+      await prisma.product.deleteMany({ where: { id: { in: prodIds } } })
+    }
+    await prisma.category.delete({ where: { id: staleCat.id } })
+  }
+  const staleUsers = await prisma.user.findMany({
+    where: { username: { in: ['inv_test_manager', 'inv_test_cashier'] } },
+    select: { id: true },
+  })
+  if (staleUsers.length > 0) {
+    const staleIds = staleUsers.map((u) => u.id)
+    await prisma.authLog.deleteMany({ where: { user_id: { in: staleIds } } })
+    await prisma.user.deleteMany({ where: { id: { in: staleIds } } })
+  }
+
   const hash = await bcrypt.hash('testpass123', 12)
   managerUser = await prisma.user.create({
     data: {
@@ -56,11 +80,22 @@ beforeAll(async () => {
       low_stock_threshold: 10,
     },
   })
+  leadingZeroProduct = await prisma.product.create({
+    data: {
+      name: 'Leading Zero Barcode Product',
+      sku: 'INV-TEST-002-LZ',
+      barcode: '0012345678905',
+      category_id: testCategory.id,
+      price: 22.5,
+      quantity: 15,
+      low_stock_threshold: 5,
+    },
+  })
 })
 
 afterAll(async () => {
-  await prisma.inventoryLog.deleteMany({ where: { product_id: testProduct.id } })
-  await prisma.product.delete({ where: { id: testProduct.id } })
+  await prisma.inventoryLog.deleteMany({ where: { product_id: { in: [testProduct.id, leadingZeroProduct.id] } } })
+  await prisma.product.deleteMany({ where: { id: { in: [testProduct.id, leadingZeroProduct.id] } } })
   await prisma.category.delete({ where: { id: testCategory.id } })
   await prisma.authLog.deleteMany({ where: { user_id: { in: [managerUser.id, cashierUser.id] } } })
   await prisma.user.deleteMany({ where: { id: { in: [managerUser.id, cashierUser.id] } } })
@@ -247,6 +282,41 @@ describe('GET /api/inventory/log/:productId', () => {
     const res = await request(app)
       .get('/api/inventory/log/00000000-0000-0000-0000-000000000000')
       .set('Authorization', `Bearer ${managerToken}`)
+
+    expect(res.status).toBe(404)
+  })
+})
+
+describe('GET /api/products/barcode/:code — Barcode Lookup', () => {
+  it('returns matching product with full inventory and category information', async () => {
+    const res = await request(app)
+      .get(`/api/products/barcode/${testProduct.barcode}`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.data.id).toBe(testProduct.id)
+    expect(res.body.data.name).toBe('Inventory Test Product')
+    expect(res.body.data.barcode).toBe('9990000000001')
+    expect(Number(res.body.data.price)).toBe(15.0)
+    expect(Number(res.body.data.quantity)).toBeGreaterThan(0)
+  })
+
+  it('preserves leading zeros in barcode lookup', async () => {
+    const res = await request(app)
+      .get(`/api/products/barcode/${leadingZeroProduct.barcode}`)
+      .set('Authorization', `Bearer ${cashierToken}`)
+
+    expect(res.status).toBe(200)
+    expect(res.body.success).toBe(true)
+    expect(res.body.data.barcode).toBe('0012345678905')
+    expect(res.body.data.name).toBe('Leading Zero Barcode Product')
+  })
+
+  it('returns 404 for unknown barcode', async () => {
+    const res = await request(app)
+      .get('/api/products/barcode/UNKNOWN_BARCODE_999999')
+      .set('Authorization', `Bearer ${cashierToken}`)
 
     expect(res.status).toBe(404)
   })

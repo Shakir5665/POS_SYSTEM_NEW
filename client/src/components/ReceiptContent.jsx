@@ -1,34 +1,30 @@
 import { formatAmount } from '../utils/formatCurrency'
+import { getReceiptDataModel } from '../utils/receiptModel'
 
 /**
  * Pure presentation component for receipt rendering.
- * Shared 1:1 between on-screen modal review and 80mm thermal print portal.
+ * Shared 1:1 between on-screen modal review and thermal print portal (58mm & 80mm).
  * Currency symbol/code is omitted in receipts per retail receipt formatting.
  */
 export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
   if (!sale) return null
 
   const fmt = (v) => formatAmount(v)
+  const { items: computedItems, summary } = getReceiptDataModel(sale)
 
   const {
     transaction_id,
     created_at,
     user,
     customer,
-    items = [],
-    subtotal,
-    discount_amount,
-    tax_amount,
-    total_amount,
     payment_method,
     payment,
   } = sale
 
-  const itemsList = items.length > 0 ? items : (sale.sale_items || [])
   const paymentObj = payment || (sale.payments?.[0] ?? null)
 
   return (
-    <div className={`receipt-body font-mono text-gray-900 ${isPrint ? 'text-xs p-1' : 'text-sm'}`}>
+    <div className={`receipt-body font-mono text-gray-900 ${isPrint ? 'text-xs p-1 max-w-[80mm] mx-auto w-full' : 'text-sm'}`}>
       {/* Store Header */}
       <div className="text-center mb-3">
         <p className="font-bold text-base">{settings.store_name || 'NexTill Store'}</p>
@@ -58,53 +54,83 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
         )}
       </div>
 
-      {/* Items Table */}
-      <div className="border-t border-dashed border-gray-400 py-2 text-xs">
-        <div className="flex justify-between font-bold mb-1 border-b border-gray-200 pb-1">
-          <span className="w-[38%] text-left pr-1">Item</span>
-          <span className="w-[18%] text-right px-1">Qty</span>
-          <span className="w-[22%] text-right px-1">Price</span>
-          <span className="w-[22%] text-right pl-1">Total</span>
+      {/* Items Section */}
+      <div className="border-t border-dashed border-gray-400 py-2 text-xs space-y-2">
+        <div className="font-bold uppercase tracking-wider text-[11px] text-gray-700 border-b border-gray-200 pb-1">
+          Items
         </div>
-        {itemsList.map((item, idx) => {
-          const name = item.product?.name || item.name || item.product_name || 'Item'
-          const qty = item.quantity != null ? String(item.quantity) : '1'
-          const unitLabel = item.unit ? ` ${item.unit}` : ''
-          const unitPrice = item.unit_price != null ? item.unit_price : item.price
-          const lineTotal = item.total != null ? item.total : (Number(qty) * Number(unitPrice || 0))
-          return (
-            <div key={idx} className="receipt-table-row flex justify-between py-1 border-b border-dotted border-gray-100 last:border-0">
-              <span className="w-[38%] text-left break-words pr-1">{name}</span>
-              <span className="w-[18%] text-right whitespace-nowrap px-1">{qty}{unitLabel}</span>
-              <span className="w-[22%] text-right whitespace-nowrap px-1">{fmt(unitPrice)}</span>
-              <span className="w-[22%] text-right whitespace-nowrap pl-1 font-medium">{fmt(lineTotal)}</span>
+        {computedItems.map((item, idx) => (
+          <div key={idx} className="receipt-table-row py-1 border-b border-dotted border-gray-200 last:border-0">
+            <div className="font-semibold text-gray-900 break-words">{item.name}</div>
+            <div className="flex justify-between text-gray-700 mt-0.5">
+              <span>{item.qty}{item.unitLabel} × {fmt(item.unitPrice)}</span>
+              <span className="font-medium whitespace-nowrap">
+                {item.totalDiscount > 0 ? `= ${fmt(item.lineGross)}` : fmt(item.lineTotal)}
+              </span>
             </div>
-          )
-        })}
+            {item.totalDiscount > 0 && (
+              <div className="flex justify-between text-red-600 print:text-black mt-0.5">
+                <span className="truncate pr-1">Discount ({fmt(item.unitDiscount)} × {item.qty}):</span>
+                <span className="font-medium whitespace-nowrap">-{fmt(item.totalDiscount)}</span>
+              </div>
+            )}
+            {item.totalDiscount > 0 && (
+              <div className="flex justify-between font-bold text-gray-900 mt-0.5">
+                <span>Line Total:</span>
+                <span className="whitespace-nowrap">{fmt(item.lineTotal)}</span>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
 
-      {/* Financial Totals */}
+      {/* Financial Summary */}
       <div className="border-t border-dashed border-gray-400 pt-2 text-xs space-y-1">
+        {/* 1. Gross Subtotal */}
         <div className="flex justify-between">
-          <span className="text-gray-600">Subtotal:</span>
-          <span>{fmt(subtotal)}</span>
+          <span className="text-gray-600">Gross Subtotal:</span>
+          <span className="font-semibold">{fmt(summary.grossSubtotal)}</span>
         </div>
-        {parseFloat(discount_amount || 0) > 0 && (
-          <div className="flex justify-between text-red-600">
-            <span>Discount:</span>
-            <span>-{fmt(discount_amount)}</span>
+
+        {/* 2. Total Product Discounts */}
+        {summary.totalProductDiscounts > 0 && (
+          <div className="flex justify-between text-red-600 print:text-black">
+            <span>Total Product Discounts:</span>
+            <span className="font-semibold">-{fmt(summary.totalProductDiscounts)}</span>
           </div>
         )}
-        {parseFloat(tax_amount || 0) > 0 && (
+
+        {/* 3. Additional Cart Discount */}
+        {summary.additionalCartDiscount > 0 && (
+          <div className="flex justify-between text-red-600 print:text-black">
+            <span>Additional Cart Discount:</span>
+            <span className="font-semibold">-{fmt(summary.additionalCartDiscount)}</span>
+          </div>
+        )}
+
+        {/* 4. Total Discounts */}
+        {summary.totalDiscounts > 0 && (
+          <div className="flex justify-between text-red-600 print:text-black font-semibold border-t border-dotted border-gray-200 pt-1">
+            <span>Total Discounts:</span>
+            <span>{fmt(summary.totalDiscounts)}</span>
+          </div>
+        )}
+
+        {/* 5. Applicable Taxes */}
+        {summary.applicableTaxes > 0 && (
           <div className="flex justify-between text-gray-600">
-            <span>Tax:</span>
-            <span>{fmt(tax_amount)}</span>
+            <span>Applicable Taxes:</span>
+            <span>{fmt(summary.applicableTaxes)}</span>
           </div>
         )}
-        <div className="flex justify-between font-bold text-base border-t border-gray-400 pt-1 mt-1">
-          <span>TOTAL:</span>
-          <span>{fmt(total_amount)}</span>
+
+        {/* 6. Final Total */}
+        <div className="flex justify-between font-bold text-base border-t border-gray-900 pt-1 mt-1">
+          <span>Final Total:</span>
+          <span>{fmt(summary.finalTotal)}</span>
         </div>
+
+        {/* Payment Breakdown */}
         <div className="flex justify-between pt-1">
           <span className="text-gray-600">Payment:</span>
           <span className="font-medium">{payment_method?.replace('_', ' ') || 'CASH'}</span>

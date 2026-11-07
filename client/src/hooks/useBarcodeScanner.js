@@ -8,8 +8,9 @@ import { useEffect, useRef } from 'react'
  * @param {object} [options]
  * @param {number} [options.maxInterval=35] - Max ms between keystrokes to qualify as scanner
  * @param {number} [options.minLength=4] - Min characters for a barcode
+ * @param {boolean} [options.enabled=true] - Whether scanner listening is active
  */
-export function useBarcodeScanner(onScan, { maxInterval = 35, minLength = 4 } = {}) {
+export function useBarcodeScanner(onScan, { maxInterval = 35, minLength = 4, enabled = true } = {}) {
   const onScanRef = useRef(onScan)
   onScanRef.current = onScan
 
@@ -18,6 +19,8 @@ export function useBarcodeScanner(onScan, { maxInterval = 35, minLength = 4 } = 
   const timerRef = useRef(null)
 
   useEffect(() => {
+    if (!enabled) return
+
     function handleKeyDown(e) {
       // Ignore functional modifier keys
       if (e.ctrlKey || e.altKey || e.metaKey) return
@@ -66,5 +69,5 @@ export function useBarcodeScanner(onScan, { maxInterval = 35, minLength = 4 } = 
       window.removeEventListener('keydown', handleKeyDown, true)
       clearTimeout(timerRef.current)
     }
-  }, [maxInterval, minLength])
+  }, [maxInterval, minLength, enabled])
 }

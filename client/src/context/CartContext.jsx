@@ -2,7 +2,7 @@ import { useReducer } from 'react'
 import { CartContext } from './contexts'
 import { useSettings } from '../hooks/useSettings'
 import { cartTotals } from '../utils/money'
-import { getUnitFactor } from '../utils/uom'
+import { getUnitFactor, getAvailableStockForItem } from '../utils/uom'
 
 function cartReducer(state, action) {
   switch (action.type) {
@@ -11,17 +11,21 @@ function cartReducer(state, action) {
       const existing = state.items.find((i) => i.product_id === product.product_id)
       if (existing) {
         const step = existing.unit_category === 'COUNT' ? 1 : (existing.unit === 'g' || existing.unit === 'ml' ? 100 : 1)
+        const currentQty = Number(existing.quantity || 0)
+        const maxStock = getAvailableStockForItem(existing, state.items)
+        const addAmount = product.initialQuantity !== undefined ? Number(product.initialQuantity) : step
+        const nextQty = Math.min(maxStock, Number((currentQty + addAmount).toFixed(3)))
         return {
           ...state,
           items: state.items.map((i) =>
             i.product_id === product.product_id
-              ? { ...i, quantity: Number((Number(i.quantity) + step).toFixed(3)) }
+              ? { ...i, quantity: nextQty }
               : i
           ),
         }
       }
       const initialUnit = product.pricing_unit || product.base_unit || 'pcs'
-      const initialQty = ''
+      const initialQty = product.initialQuantity !== undefined ? product.initialQuantity : 1
       return {
         ...state,
         items: [
@@ -53,11 +57,14 @@ function cartReducer(state, action) {
           if (i.unit === newUnit) return i
           const factorOld = getUnitFactor(i.unit_category, i.unit)
           const factorNew = getUnitFactor(i.unit_category, newUnit)
-          const newQty = Number(((Number(i.quantity) * factorOld) / factorNew).toFixed(3))
+          const convertedQty = Number(((Number(i.quantity) * factorOld) / factorNew).toFixed(3))
+          const tempItem = { ...i, unit: newUnit }
+          const maxStock = getAvailableStockForItem(tempItem, state.items)
+          const clampedQty = Math.min(maxStock, convertedQty > 0 ? convertedQty : 1)
           return {
             ...i,
             unit: newUnit,
-            quantity: newQty > 0 ? newQty : 1,
+            quantity: clampedQty,
           }
         }),
       }
@@ -93,18 +100,20 @@ export function CartProvider({ children }) {
   // Exact totals, including tax, matching what the server will charge
   const { subtotal, tax, total } = cartTotals(state.items, state.cartDiscount, settings.tax_rate)
 
-  function addItem(product) {
+  function addItem(product, initialQuantity = 1) {
     dispatch({
       type: 'ADD_ITEM',
       payload: {
-        product_id: product.id,
+        product_id: product.id || product.product_id,
         name: product.name,
         price: product.price,
         sku: product.sku,
-        quantity_available: product.quantity,
+        barcode: product.barcode,
+        quantity_available: product.quantity ?? product.quantity_available,
         unit_category: product.unit_category || 'COUNT',
         base_unit: product.base_unit || 'pcs',
         pricing_unit: product.pricing_unit || 'pcs',
+        initialQuantity,
       },
     })
   }

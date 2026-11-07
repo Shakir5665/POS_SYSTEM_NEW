@@ -1,4 +1,5 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') })
+jest.setTimeout(30000)
 const request = require('supertest')
 const app = require('../app')
 const prisma = require('../utils/prismaClient')
@@ -34,6 +35,34 @@ let cashierUser
 let managerUser
 
 beforeAll(async () => {
+  // Clean up any stale test data from previous aborted runs
+  const staleCategory = await prisma.category.findUnique({ where: { name: 'SalesTest_Category_XYZ' } })
+  if (staleCategory) {
+    const prods = await prisma.product.findMany({ where: { category_id: staleCategory.id }, select: { id: true } })
+    const prodIds = prods.map((p) => p.id)
+    if (prodIds.length > 0) {
+      await prisma.inventoryLog.deleteMany({ where: { product_id: { in: prodIds } } })
+      await prisma.saleItem.deleteMany({ where: { product_id: { in: prodIds } } })
+      await prisma.product.deleteMany({ where: { id: { in: prodIds } } })
+    }
+    await prisma.category.delete({ where: { id: staleCategory.id } })
+  }
+  await prisma.customer.deleteMany({ where: { name: 'Sales Test Customer' } })
+
+  const staleUsers = await prisma.user.findMany({
+    where: { username: { in: ['sales_test_cashier', 'sales_test_manager'] } },
+    select: { id: true },
+  })
+  if (staleUsers.length > 0) {
+    const staleIds = staleUsers.map((u) => u.id)
+    await prisma.inventoryLog.deleteMany({ where: { user_id: { in: staleIds } } })
+    await prisma.payment.deleteMany({ where: { sale: { user_id: { in: staleIds } } } })
+    await prisma.saleItem.deleteMany({ where: { sale: { user_id: { in: staleIds } } } })
+    await prisma.sale.deleteMany({ where: { user_id: { in: staleIds } } })
+    await prisma.authLog.deleteMany({ where: { user_id: { in: staleIds } } })
+    await prisma.user.deleteMany({ where: { id: { in: staleIds } } })
+  }
+
   // Create test users
   const hash = await bcrypt.hash('testpass123', 12)
   cashierUser = await prisma.user.create({
