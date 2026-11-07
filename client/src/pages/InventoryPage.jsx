@@ -9,7 +9,7 @@ import { Badge } from '../components/Badge'
 import { Modal } from '../components/Modal'
 import { inventoryService } from '../services/inventory'
 import { formatCurrency } from '../utils/formatCurrency'
-import { formatQuantityWithUnit, getUnitsForCategory, toBaseQuantity } from '../utils/uom'
+import { formatQuantityWithUnit, getUnitsForCategory, toBaseQuantity, getUnitCategory, getAllUnitsFlat } from '../utils/uom'
 
 const TABS = [
   { key: 'all', label: 'All Products' },
@@ -108,8 +108,8 @@ export default function InventoryPage() {
       errs.quantity = 'Restock quantity must be positive'
     } else if (adjustForm.type === 'ADJUSTMENT' && qty === 0) {
       errs.quantity = 'Adjustment cannot be zero'
-    } else if (adjustTarget?.unit_category === 'COUNT' && !Number.isInteger(Number(adjustForm.quantity))) {
-      errs.quantity = 'Count products must have integer quantities'
+    } else if (getUnitCategory(adjustForm.unit) === 'COUNT' && !Number.isInteger(Number(adjustForm.quantity))) {
+      errs.quantity = 'Count units must have integer quantities'
     }
     setAdjustErrors(errs)
     return Object.keys(errs).length === 0
@@ -322,21 +322,77 @@ export default function InventoryPage() {
               </div>
             </div>
 
-            {/* Unit selector (if applicable) */}
-            {getUnitsForCategory(adjustTarget.unit_category).length > 1 && (
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">Unit</label>
-                <select
-                  value={adjustForm.unit}
-                  onChange={(e) => setAdjustForm((f) => ({ ...f, unit: e.target.value }))}
-                  className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
-                >
-                  {getUnitsForCategory(adjustTarget.unit_category).map((u) => (
-                    <option key={u.value} value={u.value}>{u.label}</option>
-                  ))}
-                </select>
+            {/* Unit selector */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">Unit of Measure</label>
+                <span className="text-xs text-gray-400">Tracked in: {adjustTarget.base_unit}</span>
               </div>
-            )}
+              <select
+                value={adjustForm.unit}
+                onChange={(e) => setAdjustForm((f) => ({ ...f, unit: e.target.value }))}
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+              >
+                {/* Product base unit if not already in standard list */}
+                {adjustTarget.base_unit && !getAllUnitsFlat().some((u) => u.value === adjustTarget.base_unit) && (
+                  <option value={adjustTarget.base_unit}>{adjustTarget.base_unit} (Base unit)</option>
+                )}
+                <optgroup label="Weight">
+                  <option value="kg">Kilograms (kg)</option>
+                  <option value="g">Grams (g)</option>
+                </optgroup>
+                <optgroup label="Volume / Liters">
+                  <option value="L">Litres (L)</option>
+                  <option value="ml">Millilitres (ml)</option>
+                </optgroup>
+                <optgroup label="Count / Packaging">
+                  <option value="pcs">Pieces (pcs)</option>
+                  <option value="pack">Packs (pack)</option>
+                  <option value="box">Boxes (box)</option>
+                  <option value="bottle">Bottles (bottle)</option>
+                  <option value="can">Cans (can)</option>
+                  <option value="carton">Cartons (carton)</option>
+                  <option value="bag">Bags (bag)</option>
+                  <option value="unit">Units (unit)</option>
+                  <option value="item">Items (item)</option>
+                  <option value="pair">Pairs (pair)</option>
+                  <option value="set">Sets (set)</option>
+                  <option value="roll">Rolls (roll)</option>
+                  <option value="bundle">Bundles (bundle)</option>
+                  <option value="doz">Dozens (doz)</option>
+                </optgroup>
+              </select>
+
+              {/* Quick-pill shortcuts */}
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {[
+                  adjustTarget.base_unit,
+                  'kg',
+                  'g',
+                  'L',
+                  'ml',
+                  'pcs',
+                  'pack',
+                  'box',
+                  'carton',
+                ]
+                  .filter((v, i, a) => v && a.indexOf(v) === i)
+                  .map((uVal) => (
+                    <button
+                      key={uVal}
+                      type="button"
+                      onClick={() => setAdjustForm((f) => ({ ...f, unit: uVal }))}
+                      className={`px-2 py-0.5 text-xs rounded border transition ${
+                        adjustForm.unit === uVal
+                          ? 'bg-primary-50 border-primary-500 text-primary-700 font-semibold shadow-xs'
+                          : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'
+                      }`}
+                    >
+                      {uVal}
+                    </button>
+                  ))}
+              </div>
+            </div>
 
             {/* Quantity */}
             <div>
@@ -366,9 +422,14 @@ export default function InventoryPage() {
             {/* New quantity preview */}
             {adjustForm.quantity !== '' && !isNaN(parseFloat(adjustForm.quantity)) && (
               (() => {
-                const addedInBase = toBaseQuantity(parseFloat(adjustForm.quantity), adjustForm.unit, adjustTarget.unit_category)
+                const addedInBase = toBaseQuantity(
+                  parseFloat(adjustForm.quantity),
+                  adjustForm.unit,
+                  adjustTarget.unit_category,
+                  adjustTarget.base_unit
+                )
                 const currentInBase = Number(adjustTarget.quantity)
-                const newQty = currentInBase + addedInBase
+                const newQty = currentInBase + (adjustForm.type === 'RESTOCK' ? Math.abs(addedInBase) : addedInBase)
                 return (
                   <div className={`border rounded-lg px-3 py-2 text-sm ${newQty < 0 ? 'bg-danger-50 border-danger-100' : 'bg-blue-50 border-blue-100'}`}>
                     New quantity will be:{' '}

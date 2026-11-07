@@ -40,6 +40,20 @@ export const UOM_CONFIG = {
   },
 }
 
+export function getUnitCategory(unit) {
+  if (['g', 'kg'].includes(unit)) return 'WEIGHT'
+  if (['ml', 'L'].includes(unit)) return 'VOLUME'
+  return 'COUNT'
+}
+
+export function getAllUnitsFlat() {
+  return [
+    ...UOM_CONFIG.WEIGHT.units,
+    ...UOM_CONFIG.VOLUME.units,
+    ...UOM_CONFIG.COUNT.units,
+  ]
+}
+
 export function getUnitsForCategory(category = 'COUNT') {
   return UOM_CONFIG[category]?.units || UOM_CONFIG.COUNT.units
 }
@@ -76,8 +90,13 @@ export function getUnitMin(category = 'COUNT', unit = 'pcs') {
  */
 export function toBaseQuantity(quantity, unit, category = 'COUNT', targetBaseUnit = null) {
   const target = targetBaseUnit || getBaseUnit(category)
-  const factorUnit = getUnitFactor(category, unit)
-  const factorTarget = getUnitFactor(category, target)
+  if (unit === target) {
+    return Number(Number(quantity || 0).toFixed(3))
+  }
+  const catUnit = getUnitCategory(unit) || category
+  const catTarget = getUnitCategory(target) || category
+  const factorUnit = getUnitFactor(catUnit, unit)
+  const factorTarget = getUnitFactor(catTarget, target)
   return Number(((Number(quantity || 0) * factorUnit) / factorTarget).toFixed(3))
 }
 

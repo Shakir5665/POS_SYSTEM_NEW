@@ -172,11 +172,27 @@ function CustomerModal({ isOpen, onClose, onSelect }) {
 }
 
 // ─── Cart Item Row ─────────────────────────────────────────────────────────────
-function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, isSelected }) {
+function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, isSelected, isLastAdded }) {
+  const qtyInputRef = useRef(null)
+
+  useEffect(() => {
+    if (isLastAdded) {
+      qtyInputRef.current?.focus()
+      qtyInputRef.current?.select()
+    }
+  }, [isLastAdded])
+
   return (
-    <div className={`py-2.5 px-2.5 rounded-lg border transition ${
-      isSelected ? 'border-primary-500 bg-primary-50/40 shadow-sm' : 'border-transparent border-b-gray-100 last:border-b-0'
-    }`}>
+    <div
+      id={`cart-item-${item.product_id}`}
+      className={`py-2.5 px-2.5 rounded-lg border transition-all duration-300 ${
+        isLastAdded
+          ? 'border-primary-400 bg-primary-50/50 shadow-sm ring-1 ring-primary-200'
+          : isSelected
+          ? 'border-primary-500 bg-primary-50/40 shadow-sm'
+          : 'border-transparent border-b-gray-100 last:border-b-0'
+      }`}
+    >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
@@ -199,6 +215,7 @@ function CartItem({ item, onUpdate, onRemove, onDiscountChange, onUnitChange, is
         {/* Quantity control */}
         <div className="flex items-center gap-1.5">
           <input
+            ref={qtyInputRef}
             type="number"
             step="any"
             value={item.quantity}
@@ -299,6 +316,9 @@ export default function POSPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const searchRef = useRef(null)
+  const cartContainerRef = useRef(null)
+  const cartEndRef = useRef(null)
+  const [lastAddedId, setLastAddedId] = useState(null)
 
   // Load all products and categories on mount
   useEffect(() => {
@@ -363,10 +383,24 @@ export default function POSPage() {
       toast.error(`${product.name} is out of stock`)
       return
     }
+    setLastAddedId(product.id)
     addItem(product)
     toast.success(`${product.name} added to cart`, { duration: 1500 })
-    searchRef.current?.focus()
   }
+
+  // Auto-scroll cart so the last added product details are immediately visible
+  useEffect(() => {
+    if (!lastAddedId) return
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`cart-item-${lastAddedId}`)
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+      } else if (cartEndRef.current) {
+        cartEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      }
+    }, 50)
+    return () => clearTimeout(timer)
+  }, [items, lastAddedId])
 
   const isAnyModalOpen = showPaymentModal || showReceiptModal || showCustomerModal || showClearConfirm
 
@@ -658,7 +692,7 @@ export default function POSPage() {
         </div>
 
         {/* Cart items */}
-        <div className="flex-1 overflow-y-auto px-4">
+        <div ref={cartContainerRef} className="flex-1 overflow-y-auto px-4 scroll-smooth">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-gray-300 py-8">
               <svg className="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
@@ -674,12 +708,17 @@ export default function POSPage() {
                   key={item.product_id}
                   item={item}
                   isSelected={activeZone === 'CART' && selectedCartIndex === idx}
+                  isLastAdded={lastAddedId === item.product_id}
                   onUpdate={updateQuantity}
-                  onRemove={removeItem}
+                  onRemove={(pid) => {
+                    if (lastAddedId === pid) setLastAddedId(null)
+                    removeItem(pid)
+                  }}
                   onDiscountChange={updateDiscount}
                   onUnitChange={(pid, unit) => updateUnit(pid, unit)}
                 />
               ))}
+              <div ref={cartEndRef} />
             </div>
           )}
         </div>

@@ -65,6 +65,12 @@ function isValidCategory(category) {
   return Boolean(category && UOM_CONFIG[category])
 }
 
+function getUnitCategory(unit) {
+  if (['g', 'kg'].includes(unit)) return 'WEIGHT'
+  if (['ml', 'L'].includes(unit)) return 'VOLUME'
+  return 'COUNT'
+}
+
 function isValidUnitForCategory(category, unit) {
   const conf = UOM_CONFIG[category]
   if (!conf || !unit) return false
@@ -103,8 +109,15 @@ function getConversionFactorToBase(category, unit) {
  */
 function toBaseUnitQuantity(quantity, unit, category = 'COUNT', targetBaseUnit = null) {
   const target = targetBaseUnit || getBaseUnit(category)
-  const factorUnit = getConversionFactorToBase(category, unit)
-  const factorTarget = getConversionFactorToBase(category, target)
+  if (unit === target) {
+    return new Decimal(quantity).toDecimalPlaces(3, Decimal.ROUND_HALF_UP)
+  }
+
+  const catUnit = getUnitCategory(unit) || category
+  const catTarget = getUnitCategory(target) || category
+
+  const factorUnit = getConversionFactorToBase(catUnit, unit)
+  const factorTarget = getConversionFactorToBase(catTarget, target)
   const qty = new Decimal(quantity)
   return qty.mul(factorUnit).div(factorTarget).toDecimalPlaces(3, Decimal.ROUND_HALF_UP)
 }
@@ -153,7 +166,9 @@ function validateQuantity(quantity, unit, category = 'COUNT') {
     throw new ValidationError('Quantity must be greater than 0')
   }
 
-  if (category === 'COUNT') {
+  const cat = (unit ? getUnitCategory(unit) : null) || category
+
+  if (cat === 'COUNT') {
     if (!dec.isInteger()) {
       throw new ValidationError(`Count products must have integer quantities, got ${quantity}`)
     }
@@ -174,6 +189,7 @@ module.exports = {
   getBaseUnit,
   getDefaultPricingUnit,
   getConversionFactorToBase,
+  getUnitCategory,
   toBaseUnitQuantity,
   toPricingUnitQuantity,
   calculateLineGross,
