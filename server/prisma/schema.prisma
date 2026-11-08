@@ -96,7 +96,7 @@ model Product {
   name                String
   sku                 String       @unique
   barcode             String?      @unique
-  category_id         String
+  category_id         String?
   unit_category       UnitCategory @default(COUNT)
   base_unit           String       @default("pcs")
   pricing_unit        String       @default("pcs")
@@ -111,7 +111,7 @@ model Product {
   created_at          DateTime     @default(now())
   updated_at          DateTime     @updatedAt
 
-  category       Category       @relation(fields: [category_id], references: [id])
+  category       Category?      @relation(fields: [category_id], references: [id], onDelete: SetNull)
   sale_items     SaleItem[]
   inventory_logs InventoryLog[]
   purchase_items PurchaseItem[]

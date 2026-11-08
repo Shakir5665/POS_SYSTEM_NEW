@@ -97,8 +97,8 @@ async function createProduct(data) {
   }
 
   if (usualPrice.lt(0)) {
-    throw new ValidationError('Usual price must be non-negative', [
-      { field: 'usual_price', message: 'Usual price must be non-negative' },
+    throw new ValidationError('Market price must be non-negative', [
+      { field: 'usual_price', message: 'Market price must be non-negative' },
     ])
   }
   if (ourPrice.lt(0)) {
@@ -107,8 +107,8 @@ async function createProduct(data) {
     ])
   }
   if (ourPrice.gt(usualPrice)) {
-    throw new ValidationError('Our price cannot exceed usual price', [
-      { field: 'our_price', message: 'Our price cannot exceed usual price' },
+    throw new ValidationError('Our price cannot exceed market price', [
+      { field: 'our_price', message: 'Our price cannot exceed market price' },
     ])
   }
 
@@ -118,6 +118,11 @@ async function createProduct(data) {
     if (cp.lt(0)) {
       throw new ValidationError('Cost price must be non-negative', [
         { field: 'cost_price', message: 'Cost price must be non-negative' },
+      ])
+    }
+    if (ourPrice.lt(cp)) {
+      throw new ValidationError('Our price cannot be lower than cost price', [
+        { field: 'our_price', message: 'Our price cannot be lower than cost price' },
       ])
     }
     costPrice = cp
@@ -131,7 +136,7 @@ async function createProduct(data) {
       name: data.name,
       sku: data.sku,
       barcode: data.barcode || null,
-      category_id: data.category_id,
+      category_id: data.category_id || null,
       unit_category,
       base_unit,
       pricing_unit,
@@ -199,8 +204,8 @@ async function updateProduct(id, data) {
   }
 
   if (targetUsual.lt(0)) {
-    throw new ValidationError('Usual price must be non-negative', [
-      { field: 'usual_price', message: 'Usual price must be non-negative' },
+    throw new ValidationError('Market price must be non-negative', [
+      { field: 'usual_price', message: 'Market price must be non-negative' },
     ])
   }
   if (targetOur.lt(0)) {
@@ -209,8 +214,8 @@ async function updateProduct(id, data) {
     ])
   }
   if (targetOur.gt(targetUsual)) {
-    throw new ValidationError('Our price cannot exceed usual price', [
-      { field: 'our_price', message: 'Our price cannot exceed usual price' },
+    throw new ValidationError('Our price cannot exceed market price', [
+      { field: 'our_price', message: 'Our price cannot exceed market price' },
     ])
   }
 
@@ -229,6 +234,16 @@ async function updateProduct(id, data) {
     }
   }
 
+  const effectiveCost = targetCost !== undefined
+    ? targetCost
+    : (existing.cost_price !== null && existing.cost_price !== undefined ? toMoney(existing.cost_price) : null)
+
+  if (effectiveCost !== null && targetOur.lt(effectiveCost)) {
+    throw new ValidationError('Our price cannot be lower than cost price', [
+      { field: 'our_price', message: 'Our price cannot be lower than cost price' },
+    ])
+  }
+
   const activePrice = targetOur
 
   const product = await prisma.product.update({
@@ -237,7 +252,7 @@ async function updateProduct(id, data) {
       ...(data.name !== undefined && { name: data.name }),
       ...(data.sku !== undefined && { sku: data.sku }),
       ...(data.barcode !== undefined && { barcode: data.barcode || null }),
-      ...(data.category_id !== undefined && { category_id: data.category_id }),
+      ...(data.category_id !== undefined && { category_id: data.category_id || null }),
       ...(data.unit_category !== undefined && { unit_category: data.unit_category }),
       ...(data.base_unit !== undefined && { base_unit: data.base_unit }),
       ...(data.pricing_unit !== undefined && { pricing_unit: data.pricing_unit }),
@@ -298,6 +313,23 @@ async function updateCategory(id, data) {
   })
 }
 
+async function deleteCategory(id) {
+  const existing = await prisma.category.findUnique({ where: { id } })
+  if (!existing) throw new NotFoundError('Category not found')
+
+  const affectedCount = await prisma.product.count({ where: { category_id: id } })
+
+  await prisma.$transaction(async (tx) => {
+    await tx.product.updateMany({
+      where: { category_id: id },
+      data: { category_id: null },
+    })
+    await tx.category.delete({ where: { id } })
+  })
+
+  return { id, affected_products: affectedCount }
+}
+
 module.exports = {
   listProducts,
   getProductById,
@@ -308,4 +340,5 @@ module.exports = {
   listCategories,
   createCategory,
   updateCategory,
+  deleteCategory,
 }

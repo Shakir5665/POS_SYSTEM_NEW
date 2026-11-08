@@ -35,17 +35,23 @@ const upload = multer({
 const productValidation = [
   body('name').notEmpty().trim().withMessage('Name is required'),
   body('sku').notEmpty().trim().withMessage('SKU is required'),
-  body('category_id').notEmpty().isUUID().withMessage('Valid category ID is required'),
+  body('category_id').optional({ nullable: true }).isUUID().withMessage('Valid category ID is required'),
   body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME']).withMessage('Unit category must be COUNT, WEIGHT, or VOLUME'),
   body('base_unit').optional().isString().trim(),
   body('pricing_unit').optional().isString().trim(),
   body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
-  body('usual_price').optional().isFloat({ min: 0.01 }).withMessage('Usual price must be greater than 0'),
+  body('usual_price').optional().isFloat({ min: 0.01 }).withMessage('Market price must be greater than 0'),
   body('our_price').optional().isFloat({ min: 0 }).withMessage('Our price must be >= 0')
     .custom((val, { req }) => {
       const usual = req.body.usual_price !== undefined ? parseFloat(req.body.usual_price) : (req.body.price !== undefined ? parseFloat(req.body.price) : undefined)
       if (usual !== undefined && parseFloat(val) > usual) {
-        throw new Error('Our price cannot exceed usual price')
+        throw new Error('Our price cannot exceed market price')
+      }
+      if (req.body.cost_price !== undefined && req.body.cost_price !== null && req.body.cost_price !== '') {
+        const cp = parseFloat(req.body.cost_price)
+        if (!isNaN(cp) && parseFloat(val) < cp) {
+          throw new Error('Our price cannot be lower than cost price')
+        }
       }
       return true
     }),
@@ -85,6 +91,7 @@ router.use(authenticate)
 router.get('/categories', productController.listCategories)
 router.post('/categories', authorize(['ADMIN', 'MANAGER']), categoryValidation, validate, productController.createCategory)
 router.put('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid category ID'), categoryValidation, validate, productController.updateCategory)
+router.delete('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid category ID'), validate, productController.deleteCategory)
 
 // Product routes
 router.get('/', listProductsValidation(), validate, productController.listProducts)
@@ -104,15 +111,22 @@ function listProductsValidation() {
 function updateProductValidation() {
   return [
     param('id').isUUID().withMessage('Invalid product ID'),
+    body('category_id').optional({ nullable: true }).isUUID().withMessage('Valid category ID is required'),
     body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME']).withMessage('Unit category must be COUNT, WEIGHT, or VOLUME'),
     body('base_unit').optional().isString().trim(),
     body('pricing_unit').optional().isString().trim(),
     body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be > 0'),
-    body('usual_price').optional().isFloat({ min: 0.01 }).withMessage('Usual price must be > 0'),
+    body('usual_price').optional().isFloat({ min: 0.01 }).withMessage('Market price must be > 0'),
     body('our_price').optional().isFloat({ min: 0 }).withMessage('Our price must be >= 0')
       .custom((val, { req }) => {
         if (req.body.usual_price !== undefined && parseFloat(val) > parseFloat(req.body.usual_price)) {
-          throw new Error('Our price cannot exceed usual price')
+          throw new Error('Our price cannot exceed market price')
+        }
+        if (req.body.cost_price !== undefined && req.body.cost_price !== null && req.body.cost_price !== '') {
+          const cp = parseFloat(req.body.cost_price)
+          if (!isNaN(cp) && parseFloat(val) < cp) {
+            throw new Error('Our price cannot be lower than cost price')
+          }
         }
         return true
       }),

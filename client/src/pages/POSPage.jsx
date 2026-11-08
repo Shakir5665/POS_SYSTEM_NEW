@@ -353,64 +353,180 @@ function QuickCustomerModal({ isOpen, onClose, onCustomerCreated }) {
 }
 
 // ─── Customer Search Modal ─────────────────────────────────────────────────────
-function CustomerModal({ isOpen, onClose, onSelect }) {
+export function InlineCustomerSelector({ customer, onSelect, onOpenQuickCustomer }) {
+  const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [results, setResults] = useState([])
   const [isLoading, setIsLoading] = useState(false)
+  const containerRef = useRef(null)
+  const inputRef = useRef(null)
 
   useEffect(() => {
-    if (!isOpen) { setQuery(''); setResults([]) }
+    if (!isOpen) return
+
+    let cancelled = false
+    setIsLoading(true)
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await customersService.list({ search: query.trim(), per_page: 30 })
+        if (!cancelled) {
+          setResults(res.data?.data || [])
+        }
+      } catch {
+        if (!cancelled) setResults([])
+      } finally {
+        if (!cancelled) setIsLoading(false)
+      }
+    }, query.trim() ? 250 : 0)
+
+    return () => {
+      cancelled = true
+      clearTimeout(timeout)
+    }
+  }, [isOpen, query])
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false)
+      }
+    }
+    if (isOpen) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [isOpen])
 
-  useEffect(() => {
-    if (!query.trim()) { setResults([]); return }
-    const id = setTimeout(async () => {
-      setIsLoading(true)
-      try {
-        const res = await customersService.list({ search: query, per_page: 10 })
-        setResults(res.data?.data || [])
-      } catch {
-        setResults([])
-      } finally {
-        setIsLoading(false)
-      }
-    }, 300)
-    return () => clearTimeout(id)
-  }, [query])
-
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Select Customer" size="md">
-      <div className="space-y-3">
-        <Input
-          placeholder="Search by name or phone..."
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          autoFocus
-        />
-        {isLoading && <p className="text-sm text-gray-400 text-center py-2">Searching...</p>}
-        {!isLoading && results.length === 0 && query && (
-          <p className="text-sm text-gray-400 text-center py-2">No customers found.</p>
-        )}
-        <ul className="divide-y divide-gray-100 max-h-64 overflow-y-auto rounded-lg border border-gray-100">
-          {results.map((c) => (
-            <li key={c.id}>
-              <button
-                onClick={() => { onSelect(c); onClose() }}
-                className="w-full text-left px-4 py-3 hover:bg-primary-50 transition"
-              >
-                <p className="text-sm font-medium text-gray-900">{c.name}</p>
-                <p className="text-xs text-gray-500">{c.phone || c.email || 'No contact info'} &bull; {c.loyalty_points} pts</p>
-              </button>
-            </li>
-          ))}
-        </ul>
-        <div className="pt-1">
-          <Button variant="ghost" size="sm" onClick={() => { onSelect(null); onClose() }} className="w-full">
-            Clear Customer (Walk-in)
-          </Button>
+    <div ref={containerRef} className="relative flex-1">
+      {customer && !isOpen ? (
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border border-primary-300 bg-primary-50/50 hover:bg-primary-50 transition">
+          <div
+            onClick={() => {
+              setIsOpen(true)
+              setTimeout(() => inputRef.current?.focus(), 50)
+            }}
+            className="flex-1 min-w-0 cursor-pointer flex items-center gap-2"
+          >
+            <svg className="w-4 h-4 text-primary-600 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+            </svg>
+            <div className="truncate">
+              <span className="text-sm font-semibold text-gray-900">{customer.name}</span>
+              <span className="text-xs text-gray-500 ml-1.5">
+                {customer.phone || customer.email || ''} &bull; {customer.loyalty_points || 0} pts
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onSelect(null)
+            }}
+            className="p-1 text-gray-400 hover:text-danger-600 rounded transition"
+            title="Remove customer (Walk-in)"
+            aria-label="Remove customer"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
         </div>
-      </div>
-    </Modal>
+      ) : (
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            data-testid="customer-search-inline-input"
+            value={query}
+            onFocus={() => setIsOpen(true)}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search customer by name or phone (F5)..."
+            className="w-full pl-8 pr-8 py-1.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+          />
+          {query && (
+            <button
+              type="button"
+              onClick={() => setQuery('')}
+              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+        </div>
+      )}
+
+      {isOpen && (
+        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden text-sm max-h-64 flex flex-col">
+          <div
+            onClick={() => {
+              onSelect(null)
+              setIsOpen(false)
+              setQuery('')
+            }}
+            className="px-3 py-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex items-center justify-between text-gray-700 font-medium"
+          >
+            <span>Walk-in Customer (None)</span>
+            <span className="text-2xs text-gray-400">Cash/card only</span>
+          </div>
+
+          <div className="overflow-y-auto flex-1 divide-y divide-gray-50">
+            {isLoading && (
+              <p className="text-xs text-gray-400 text-center py-3">Searching customers...</p>
+            )}
+            {!isLoading && results.length === 0 && (
+              <div className="py-4 text-center px-3">
+                <p className="text-xs text-gray-500">No customers found.</p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsOpen(false)
+                    onOpenQuickCustomer?.()
+                  }}
+                  className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 font-semibold"
+                >
+                  + Quick Register Customer
+                </button>
+              </div>
+            )}
+            {!isLoading && results.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => {
+                  onSelect(c)
+                  setIsOpen(false)
+                  setQuery('')
+                }}
+                className={`px-3 py-2 cursor-pointer hover:bg-primary-50 transition ${customer?.id === c.id ? 'bg-primary-50/70 font-semibold text-primary-900' : 'text-gray-800'}`}
+              >
+                <div className="flex items-center justify-between">
+                  <p className="font-medium text-gray-900 truncate">{c.name}</p>
+                  <span className="text-2xs text-gray-500 font-normal">
+                    {c.loyalty_points || 0} pts
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-gray-500 mt-0.5">
+                  <span>{c.phone || c.email || 'No contact info'}</span>
+                  {Number(c.outstanding_debt || 0) > 0 && (
+                    <span className="text-danger-600 font-medium text-2xs">
+                      Debt: {c.outstanding_debt}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
   )
 }
 
@@ -430,7 +546,6 @@ export function CartItem({
   isLastAdded,
 }) {
   const qtyInputRef = useRef(null)
-  const discountInputRef = useRef(null)
   const [stockError, setStockError] = useState('')
 
   const maxStock = getAvailableStockForItem(item, allCartItems, productData)
@@ -546,93 +661,8 @@ export function CartItem({
   }
 
   function handleQuantityBlur() {
-    const qty = parseFloat(item.quantity) || 0
-    const disc = parseFloat(item.discount) || 0
-    if (disc > 0) {
-      let pricingQty = qty
-      if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-        const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-        const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
-        pricingQty = (qty * factorSelling) / factorPricing
-      }
-      const maxDiscount = Number((pricingQty * Number(item.price)).toFixed(2))
-      if (disc > maxDiscount) {
-        onDiscountChange(item.product_id, maxDiscount > 0 ? String(maxDiscount) : '')
-      }
-    }
-  }
-
-  function handleDiscountChange(val) {
-    if (val === '') {
-      onDiscountChange(item.product_id, '')
-      return
-    }
-
-    if (val.includes('-')) {
-      val = val.replace(/-/g, '')
-      if (val === '') {
-        onDiscountChange(item.product_id, '')
-        return
-      }
-    }
-
-    val = val.replace(/[^\d.]/g, '')
-    const parts = val.split('.')
-    if (parts.length > 2) {
-      val = parts[0] + '.' + parts.slice(1).join('')
-    }
-    if (parts.length === 2 && parts[1].length > 2) {
-      val = parts[0] + '.' + parts[1].slice(0, 2)
-    }
-
-    if (val === '.') {
-      onDiscountChange(item.product_id, '0.')
-      return
-    }
-
-    const num = parseFloat(val)
-    if (isNaN(num)) return
-    if (num < 0) {
-      onDiscountChange(item.product_id, '0')
-      return
-    }
-
-    const qty = parseFloat(item.quantity) || 0
-    if (qty > 0) {
-      let pricingQty = qty
-      if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-        const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-        const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
-        pricingQty = (qty * factorSelling) / factorPricing
-      }
-      const maxDiscount = Number((pricingQty * Number(item.price)).toFixed(2))
-      if (num > maxDiscount) {
-        onDiscountChange(item.product_id, String(maxDiscount))
-        return
-      }
-    }
-
-    onDiscountChange(item.product_id, val)
-  }
-
-  function handleDiscountBlur() {
-    const num = parseFloat(item.discount)
-    if (isNaN(num) || num <= 0) {
-      if (item.discount !== '' && item.discount !== '0') onDiscountChange(item.product_id, '')
-      return
-    }
-    const qty = parseFloat(item.quantity) || 0
-    if (qty > 0) {
-      let pricingQty = qty
-      if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-        const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-        const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
-        pricingQty = (qty * factorSelling) / factorPricing
-      }
-      const maxDiscount = Number((pricingQty * Number(item.price)).toFixed(2))
-      if (num > maxDiscount) {
-        onDiscountChange(item.product_id, String(maxDiscount))
-      }
+    if (item.quantity === '' || isNaN(parseFloat(item.quantity))) {
+      onUpdate(item.product_id, '0')
     }
   }
 
@@ -667,83 +697,13 @@ export function CartItem({
       return
     }
 
-    if (e.key === 'ArrowRight') {
-      e.preventDefault()
-      if (discountInputRef.current) {
-        discountInputRef.current.focus()
-        discountInputRef.current.select()
-      } else {
-        const discInput = document.getElementById(`cart-discount-${index}`)
-        if (discInput) {
-          discInput.focus()
-          discInput.select()
-        }
-      }
-      return
-    }
-
     if (e.key === 'Enter') {
       e.preventDefault()
-      if (index < itemCount - 1) {
-        const nextInput = document.getElementById(`cart-qty-${index + 1}`)
-        if (nextInput) {
-          nextInput.focus()
-          nextInput.select()
-        }
-      } else if (discountInputRef.current) {
-        discountInputRef.current.focus()
-        discountInputRef.current.select()
-      }
-      return
-    }
-  }
-
-  function handleDiscountKeyDown(e) {
-    if (e.key === 'ArrowLeft') {
-      e.preventDefault()
-      qtyInputRef.current?.focus()
-      qtyInputRef.current?.select()
-      return
-    }
-
-    if (e.key === 'ArrowDown') {
-      e.preventDefault()
-      if (index < itemCount - 1) {
-        const nextDisc = document.getElementById(`cart-discount-${index + 1}`)
-        if (nextDisc) {
-          nextDisc.focus()
-          nextDisc.select()
-        }
-      } else {
-        discountInputRef.current?.focus()
-        discountInputRef.current?.select()
-      }
-      return
-    }
-
-    if (e.key === 'ArrowUp') {
-      e.preventDefault()
-      if (index > 0) {
-        const prevDisc = document.getElementById(`cart-discount-${index - 1}`)
-        if (prevDisc) {
-          prevDisc.focus()
-          prevDisc.select()
-        }
-      } else {
-        discountInputRef.current?.focus()
-        discountInputRef.current?.select()
-      }
-      return
-    }
-
-    if (e.key === 'Enter') {
-      e.preventDefault()
-      if (index < itemCount - 1) {
-        const nextQty = document.getElementById(`cart-qty-${index + 1}`)
-        if (nextQty) {
-          nextQty.focus()
-          nextQty.select()
-        }
+      // Intended workflow: Cashier enters product quantity -> Press Enter -> Focus moves to Additional Cart Discount
+      const cartDiscountInput = document.querySelector('[data-testid="additional-cart-discount-input"]')
+      if (cartDiscountInput) {
+        cartDiscountInput.focus()
+        cartDiscountInput.select()
       }
       return
     }
@@ -766,8 +726,8 @@ export function CartItem({
           <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
             {hasPredefinedDiscount ? (
               <>
-                <span className="line-through text-gray-400">Usual: {formatCurrency(usualPrice)}</span>
-                <span className="font-semibold text-primary-700">Our: {formatCurrency(ourPrice)}</span>
+                <span className="line-through text-gray-400">Market: {formatCurrency(usualPrice)}</span>
+                <span className="font-semibold text-primary-700">Our Price: {formatCurrency(ourPrice)}</span>
               </>
             ) : (
               <span className="font-medium text-gray-700">{formatCurrency(usualPrice)}</span>
@@ -911,28 +871,8 @@ export function CartItem({
           )}
         </div>
 
-        {/* Item discount & Line total */}
+        {/* Line total */}
         <div className="flex items-center gap-2.5">
-          <div className="flex items-center gap-1">
-            <span className="text-xs font-medium text-gray-500">Disc:</span>
-            <input
-              ref={discountInputRef}
-              id={`cart-discount-${index}`}
-              data-testid={`cart-discount-${item.product_id}`}
-              data-cart-index={index}
-              data-field="discount"
-              type="text"
-              inputMode="decimal"
-              value={item.discount}
-              onChange={(e) => handleDiscountChange(e.target.value)}
-              onKeyDown={handleDiscountKeyDown}
-              onBlur={handleDiscountBlur}
-              placeholder="0.00"
-              aria-label={`Discount for ${item.name}`}
-              className="w-16 text-right text-sm border border-gray-200 rounded-lg py-1 px-2 focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium bg-white"
-            />
-          </div>
-
           <p className="text-sm font-bold text-gray-900 min-w-[70px] text-right">
             {formatCurrency(fromPesewas(lineTotalPesewas(item)))}
           </p>
@@ -992,12 +932,11 @@ export default function POSPage() {
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
-  const [showCustomerModal, setShowCustomerModal] = useState(false)
   const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [completedSale, setCompletedSale] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const isAnyModalOpen = showPaymentModal || showReceiptModal || showCustomerModal || showClearConfirm || showQuickCustomerModal
+  const isAnyModalOpen = showPaymentModal || showReceiptModal || showClearConfirm || showQuickCustomerModal
 
   const searchRef = useRef(null)
   const cartContainerRef = useRef(null)
@@ -1150,7 +1089,12 @@ export default function POSPage() {
     },
     onOpenPayment: () => handleOpenPayment(),
     onOpenClearConfirm: () => setShowClearConfirm(true),
-    onOpenCustomerModal: () => setShowCustomerModal(true),
+    onOpenCustomerModal: () => {
+      const input = document.querySelector('[data-testid="customer-search-inline-input"]')
+      if (input) {
+        input.focus()
+      }
+    },
     isModalOpen: isAnyModalOpen,
     searchRef,
   })
@@ -1530,37 +1474,15 @@ export default function POSPage() {
           )}
         </div>
 
-        {/* Customer selector with Quick Register button */}
+        {/* Inline customer selector with Quick Register button */}
         <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
+          <InlineCustomerSelector
+            customer={customer}
+            onSelect={setCustomer}
+            onOpenQuickCustomer={() => setShowQuickCustomerModal(true)}
+          />
           <button
-            onClick={() => setShowCustomerModal(true)}
-            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-gray-300 hover:border-primary-400 hover:bg-primary-50 transition text-left"
-          >
-            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-            </svg>
-            {customer ? (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{customer.name}</p>
-                <p className="text-xs text-gray-400">{customer.phone || customer.email || 'Customer'} &bull; {customer.loyalty_points || 0} pts</p>
-              </div>
-            ) : (
-              <span className="text-sm text-gray-400">Add customer (optional, F5)</span>
-            )}
-          </button>
-          {customer && (
-            <button
-              onClick={() => setCustomer(null)}
-              className="p-2 text-gray-400 hover:text-danger-600 rounded-lg hover:bg-danger-50 transition"
-              title="Remove selected customer"
-              aria-label="Remove selected customer"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          )}
-          <button
+            type="button"
             onClick={() => setShowQuickCustomerModal(true)}
             className="px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 rounded-lg flex items-center gap-1 text-sm font-medium transition shadow-xs flex-shrink-0"
             title="Quick Register Customer (+)"
@@ -1644,6 +1566,12 @@ export default function POSPage() {
                 }
               }}
               placeholder="0.00"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  if (items.length > 0) handleOpenPayment()
+                }
+              }}
               className="flex-1 text-right border border-gray-200 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium bg-white"
             />
           </div>
@@ -1651,7 +1579,7 @@ export default function POSPage() {
           {/* Breakdown summary */}
           <div className="space-y-1 pt-1 border-t border-gray-100 text-sm text-gray-600">
             <div className="flex justify-between">
-              <span>Usual Price Subtotal</span>
+              <span>Market Price Subtotal</span>
               <span>{formatCurrency(usual_subtotal != null ? usual_subtotal : subtotal)}</span>
             </div>
             {Number(predefined_discounts || 0) > 0 && (
@@ -1677,7 +1605,7 @@ export default function POSPage() {
           {/* Total */}
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
             <div>
-              <span className="text-base font-bold text-gray-900 block leading-tight">Final Total</span>
+              <span className="text-base font-bold text-gray-900 block leading-tight">Grand Total</span>
               <span className="text-xs text-gray-400">
                 {distinct_items || items.length} distinct item{(distinct_items || items.length) !== 1 ? 's' : ''} ({total_quantity || items.reduce((s, i) => s + Number(i.quantity || 0), 0)} units)
               </span>
@@ -1730,12 +1658,6 @@ export default function POSPage() {
       >
         <Receipt sale={completedSale} onClose={() => setShowReceiptModal(false)} />
       </Modal>
-
-      <CustomerModal
-        isOpen={showCustomerModal}
-        onClose={() => setShowCustomerModal(false)}
-        onSelect={setCustomer}
-      />
 
       {/* Clear cart confirmation */}
       <Modal

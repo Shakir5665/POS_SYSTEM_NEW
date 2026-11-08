@@ -107,7 +107,7 @@ export default function ProductsPage() {
     },
     {
       key: 'usual_price',
-      label: 'Usual Price',
+      label: 'Market Price',
       render: (val, row) => {
         const u = val ?? row.price
         return (

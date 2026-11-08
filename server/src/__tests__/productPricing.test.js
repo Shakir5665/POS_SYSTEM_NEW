@@ -108,7 +108,60 @@ describe('Product Pricing Architecture (Batch 1)', () => {
       })
 
     expect(res.status).toBe(422)
-    expect(JSON.stringify(res.body)).toMatch(/cannot exceed usual price/i)
+    expect(JSON.stringify(res.body)).toMatch(/cannot exceed (market|usual) price/i)
+  })
+
+  it('rejects product creation when Our Price is lower than Cost Price', async () => {
+    const res = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Below Cost Product',
+        sku: 'BELOW-COST-' + Date.now(),
+        category_id: testCategory.id,
+        cost_price: 80.0,
+        usual_price: 100.0,
+        our_price: 60.0, // Invalid: lower than cost price
+      })
+
+    expect(res.status).toBe(422)
+    expect(JSON.stringify(res.body)).toMatch(/cannot be lower than cost price/i)
+  })
+
+  it('deletes a category and nullifies category_id on linked products without deleting products', async () => {
+    const tempCat = await prisma.category.create({
+      data: { name: 'Delete_Cat_' + Date.now(), description: 'Temp cat' },
+    })
+
+    const prodRes = await request(app)
+      .post('/api/products')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        name: 'Cat Delete Test Prod',
+        sku: 'CAT-DEL-' + Date.now(),
+        category_id: tempCat.id,
+        cost_price: 10.0,
+        usual_price: 20.0,
+        our_price: 18.0,
+        quantity: 5,
+      })
+    expect(prodRes.status).toBe(201)
+    const catProdId = prodRes.body.data.id
+
+    const delRes = await request(app)
+      .delete(`/api/products/categories/${tempCat.id}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+    expect(delRes.status).toBe(200)
+    expect(delRes.body.data.affected_products).toBeGreaterThanOrEqual(1)
+
+    // Verify product still exists and category_id is now NULL
+    const checkProd = await prisma.product.findUnique({ where: { id: catProdId } })
+    expect(checkProd).not.toBeNull()
+    expect(checkProd.category_id).toBeNull()
+
+    // Clean up
+    await prisma.inventoryLog.deleteMany({ where: { product_id: catProdId } })
+    await prisma.product.delete({ where: { id: catProdId } })
   })
 
   it('rejects negative prices', async () => {

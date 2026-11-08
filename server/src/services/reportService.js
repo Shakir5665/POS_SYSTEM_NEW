@@ -90,12 +90,12 @@ async function getCategoryPerformance({ start_date, end_date }) {
   const results = await prisma.$queryRaw`
     SELECT
       c.id,
-      c.name as label,
+      COALESCE(c.name, 'Uncategorized') as label,
       ROUND(SUM(si.quantity)::numeric, 3)::float as total_quantity,
       SUM(si.total)::float as value
     FROM "SaleItem" si
     JOIN "Product" p ON p.id = si.product_id
-    JOIN "Category" c ON c.id = p.category_id
+    LEFT JOIN "Category" c ON c.id = p.category_id
     JOIN "Sale" s ON s.id = si.sale_id
     WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
       AND s.payment_status = 'COMPLETED'
@@ -167,21 +167,24 @@ async function getProfitReport({ start_date, end_date }) {
       p.id,
       p.name,
       p.sku,
+      p.cost_price,
       SUM(si.total)::float as revenue,
       SUM(COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0)))::float as cost,
-      SUM(si.total - COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0)))::float as profit
+      SUM(si.total - COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0)))::float as profit,
+      BOOL_OR(p.cost_price IS NULL AND (si.line_cost IS NULL OR si.line_cost = 0)) as unrecorded_cost
     FROM "SaleItem" si
     JOIN "Product" p ON p.id = si.product_id
     JOIN "Sale" s ON s.id = si.sale_id
     WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
       AND s.payment_status = 'COMPLETED'
-    GROUP BY p.id, p.name, p.sku
+    GROUP BY p.id, p.name, p.sku, p.cost_price
     ORDER BY profit DESC
   `
   return results.map((r) => {
     const revenue = parseFloat(r.revenue || 0)
     const cost = parseFloat(r.cost || 0)
     const profit = parseFloat(r.profit || 0)
+    const hasUnrecordedCost = Boolean(r.unrecorded_cost)
     return {
       id: r.id,
       name: r.name,
@@ -189,7 +192,8 @@ async function getProfitReport({ start_date, end_date }) {
       revenue,
       cost,
       profit,
-      margin: revenue > 0 ? (profit / revenue) * 100 : 0,
+      margin: hasUnrecordedCost ? null : (revenue > 0 ? (profit / revenue) * 100 : 0),
+      unrecorded_cost: hasUnrecordedCost,
     }
   })
 }

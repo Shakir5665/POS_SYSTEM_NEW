@@ -449,14 +449,24 @@ export default function ReportsPage() {
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-100">
                       {profitData.map((p, i) => {
-                        const margin = p.margin ?? (p.revenue && p.profit != null ? ((p.profit / p.revenue) * 100) : null)
+                        const margin = p.unrecorded_cost ? null : (p.margin ?? (p.revenue && p.profit != null ? ((p.profit / p.revenue) * 100) : null))
                         return (
                           <tr key={i} className="hover:bg-gray-50">
                             <td className="px-4 py-3 text-sm font-medium text-gray-900">{p.name ?? p.label}</td>
                             <td className="px-4 py-3 text-sm text-gray-700">{formatCurrency(p.revenue ?? 0)}</td>
-                            <td className="px-4 py-3 text-sm text-gray-700">{formatCurrency(p.cost ?? 0)}</td>
+                            <td className="px-4 py-3 text-sm text-gray-700">
+                              {p.unrecorded_cost ? (
+                                <span className="text-gray-400 italic">Unrecorded</span>
+                              ) : (
+                                formatCurrency(p.cost ?? 0)
+                              )}
+                            </td>
                             <td className={`px-4 py-3 text-sm font-semibold ${(p.profit ?? 0) >= 0 ? 'text-success-700' : 'text-danger-700'}`}>
-                              {formatCurrency(p.profit ?? 0)}
+                              {p.unrecorded_cost ? (
+                                <span className="text-gray-400 italic">—</span>
+                              ) : (
+                                formatCurrency(p.profit ?? 0)
+                              )}
                             </td>
                             <td className="px-4 py-3 text-sm text-gray-700">
                               {margin != null ? `${margin.toFixed(1)}%` : '—'}

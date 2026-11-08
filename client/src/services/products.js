@@ -9,4 +9,6 @@ export const productsService = {
   byBarcode: (code) => api.get(`/products/barcode/${code}`),
   categories: () => api.get('/products/categories'),
   createCategory: (data) => api.post('/products/categories', data),
+  updateCategory: (id, data) => api.put(`/products/categories/${id}`, data),
+  deleteCategory: (id) => api.delete(`/products/categories/${id}`),
 }

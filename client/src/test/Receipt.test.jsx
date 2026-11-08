@@ -196,8 +196,8 @@ describe('Section 8 Example Calculation: Preview & Print Parity', () => {
     expect(printRoot.textContent).toContain('Total Discounts:')
     expect(printRoot.textContent).toContain('37.00')
 
-    // Final Total: 17.00
-    expect(printRoot.textContent).toContain('Final Total:')
+    // Grand Total: 17.00
+    expect(printRoot.textContent).toContain('Grand Total:')
     expect(printRoot.textContent).toContain('17.00')
 
     // Payment method & cash amounts

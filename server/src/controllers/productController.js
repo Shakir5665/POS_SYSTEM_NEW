@@ -105,6 +105,15 @@ async function updateCategory(req, res, next) {
   }
 }
 
+async function deleteCategory(req, res, next) {
+  try {
+    const result = await productService.deleteCategory(req.params.id)
+    res.json({ success: true, data: result, message: 'Category deleted successfully' })
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   listProducts,
   getProduct,
@@ -115,4 +124,5 @@ module.exports = {
   listCategories,
   createCategory,
   updateCategory,
+  deleteCategory,
 }

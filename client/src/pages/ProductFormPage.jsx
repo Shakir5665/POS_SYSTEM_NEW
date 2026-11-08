@@ -4,6 +4,7 @@ import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
+import { Modal } from '../components/Modal'
 import { productsService } from '../services/products'
 import { useSettings } from '../hooks/useSettings'
 import { UOM_CONFIG, getUnitsForCategory, getBaseUnit, getDefaultPricingUnit } from '../utils/uom'
@@ -19,6 +20,17 @@ export default function ProductFormPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState({})
   const fileInputRef = useRef(null)
+
+  // Category modal state (create, edit, delete)
+  const [categoryModal, setCategoryModal] = useState({
+    open: false,
+    mode: 'create', // 'create' | 'edit' | 'delete'
+    category: null,
+    name: '',
+    description: '',
+    isSubmitting: false,
+    error: '',
+  })
 
   const [form, setForm] = useState({
     name: '',
@@ -39,12 +51,95 @@ export default function ProductFormPage() {
   const [imageFile, setImageFile] = useState(null)
   const [imagePreview, setImagePreview] = useState(null)
 
-  // Load categories
+  // Load categories with optional auto-select
+  async function loadCategories(selectId = null) {
+    try {
+      const res = await productsService.categories()
+      const list = res.data?.data || []
+      setCategories(list)
+      if (selectId) {
+        setField('category_id', selectId)
+      }
+    } catch {
+      toast.error('Failed to load categories')
+    }
+  }
+
   useEffect(() => {
-    productsService.categories()
-      .then((res) => setCategories(res.data?.data || []))
-      .catch(() => toast.error('Failed to load categories'))
+    loadCategories()
   }, [])
+
+  function openCategoryModal(mode, category = null) {
+    setCategoryModal({
+      open: true,
+      mode,
+      category,
+      name: category ? category.name : '',
+      description: category?.description || '',
+      isSubmitting: false,
+      error: '',
+    })
+  }
+
+  function closeCategoryModal() {
+    setCategoryModal({
+      open: false,
+      mode: 'create',
+      category: null,
+      name: '',
+      description: '',
+      isSubmitting: false,
+      error: '',
+    })
+  }
+
+  async function handleCategorySubmit(e) {
+    e.preventDefault()
+    if (categoryModal.mode === 'delete') {
+      setCategoryModal((prev) => ({ ...prev, isSubmitting: true, error: '' }))
+      try {
+        await productsService.deleteCategory(categoryModal.category.id)
+        toast.success('Category deleted. Associated products set to unassigned.')
+        if (form.category_id === categoryModal.category.id) {
+          setField('category_id', '')
+        }
+        closeCategoryModal()
+        await loadCategories()
+      } catch (err) {
+        const msg = err.response?.data?.error?.message || err.message || 'Failed to delete category'
+        setCategoryModal((prev) => ({ ...prev, isSubmitting: false, error: msg }))
+      }
+      return
+    }
+
+    const name = categoryModal.name.trim()
+    if (!name) {
+      setCategoryModal((prev) => ({ ...prev, error: 'Category name is required' }))
+      return
+    }
+
+    setCategoryModal((prev) => ({ ...prev, isSubmitting: true, error: '' }))
+    try {
+      if (categoryModal.mode === 'create') {
+        const res = await productsService.createCategory({ name, description: categoryModal.description.trim() || null })
+        const newCat = res.data?.data
+        toast.success('Category created successfully')
+        closeCategoryModal()
+        await loadCategories(newCat?.id)
+      } else {
+        await productsService.updateCategory(categoryModal.category.id, {
+          name,
+          description: categoryModal.description.trim() || null,
+        })
+        toast.success('Category updated successfully')
+        closeCategoryModal()
+        await loadCategories(form.category_id)
+      }
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.message || 'Failed to save category'
+      setCategoryModal((prev) => ({ ...prev, isSubmitting: false, error: msg }))
+    }
+  }
 
   // Load product if editing
   useEffect(() => {
@@ -77,9 +172,58 @@ export default function ProductFormPage() {
       .finally(() => setIsLoadingProduct(false))
   }, [id, isEditing, navigate])
 
+  function checkPriceErrors(costVal, ourVal, usualVal) {
+    const pErrors = {}
+    const hasCost = costVal !== '' && costVal !== null && !isNaN(parseFloat(costVal))
+    const cost = hasCost ? parseFloat(costVal) : null
+    const usual = usualVal !== '' && !isNaN(parseFloat(usualVal)) ? parseFloat(usualVal) : NaN
+    const our = ourVal !== '' && !isNaN(parseFloat(ourVal)) ? parseFloat(ourVal) : NaN
+
+    if (hasCost && cost < 0) {
+      pErrors.cost_price = 'Cost price cannot be negative'
+    }
+
+    if (usualVal !== '') {
+      if (isNaN(usual) || usual <= 0) {
+        pErrors.usual_price = 'Market price must be greater than 0'
+      } else if (usual < 0) {
+        pErrors.usual_price = 'Market price cannot be negative'
+      }
+    }
+
+    if (ourVal !== '') {
+      if (isNaN(our) || our < 0) {
+        pErrors.our_price = 'Our price must be non-negative'
+      } else {
+        if (!isNaN(usual) && our > usual) {
+          pErrors.our_price = 'Our price cannot exceed market price'
+        } else if (hasCost && cost !== null && our < cost) {
+          pErrors.our_price = 'Our price cannot be lower than cost price'
+        }
+      }
+    }
+    return pErrors
+  }
+
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }))
-    if (errors[key]) setErrors((prev) => { const e = { ...prev }; delete e[key]; return e })
+
+    if (key === 'cost_price' || key === 'our_price' || key === 'usual_price') {
+      const costV = key === 'cost_price' ? value : form.cost_price
+      const ourV = key === 'our_price' ? value : form.our_price
+      const usualV = key === 'usual_price' ? value : form.usual_price
+      const priceErrs = checkPriceErrors(costV, ourV, usualV)
+
+      setErrors((prev) => {
+        const updated = { ...prev }
+        delete updated.cost_price
+        delete updated.our_price
+        delete updated.usual_price
+        return { ...updated, ...priceErrs }
+      })
+    } else if (errors[key]) {
+      setErrors((prev) => { const e = { ...prev }; delete e[key]; return e })
+    }
   }
 
   function handleUnitCategoryChange(newCat) {
@@ -119,19 +263,29 @@ export default function ProductFormPage() {
 
     const usual = parseFloat(form.usual_price)
     const our = parseFloat(form.our_price)
+    const hasCost = form.cost_price !== '' && form.cost_price !== null && !isNaN(parseFloat(form.cost_price))
+    const cost = hasCost ? parseFloat(form.cost_price) : null
 
-    if (!form.usual_price || isNaN(usual) || usual <= 0) {
-      errs.usual_price = 'Usual price must be greater than 0'
-    }
-    if (form.our_price === '' || isNaN(our) || our < 0) {
-      errs.our_price = 'Our price must be non-negative'
-    } else if (!isNaN(usual) && our > usual) {
-      errs.our_price = 'Our price cannot exceed usual price'
-    }
-
-    if (form.cost_price !== '' && form.cost_price !== null && parseFloat(form.cost_price) < 0) {
+    if (hasCost && cost < 0) {
       errs.cost_price = 'Cost price cannot be negative'
     }
+
+    if (!form.usual_price || isNaN(usual) || usual <= 0) {
+      errs.usual_price = 'Market price must be greater than 0'
+    } else if (usual < 0) {
+      errs.usual_price = 'Market price cannot be negative'
+    }
+
+    if (form.our_price === '' || isNaN(our) || our < 0) {
+      errs.our_price = 'Our price must be non-negative'
+    } else {
+      if (!isNaN(usual) && our > usual) {
+        errs.our_price = 'Our price cannot exceed market price'
+      } else if (hasCost && cost !== null && our < cost) {
+        errs.our_price = 'Our price cannot be lower than cost price'
+      }
+    }
+
     if (form.quantity !== '' && parseFloat(form.quantity) < 0) errs.quantity = 'Quantity cannot be negative'
     if (form.low_stock_threshold !== '' && parseFloat(form.low_stock_threshold) < 0) errs.low_stock_threshold = 'Threshold cannot be negative'
     if (form.unit_category === 'COUNT') {
@@ -288,7 +442,41 @@ export default function ProductFormPage() {
             </div>
 
             <div>
-              <label className="text-sm font-medium text-gray-700 block mb-1">Category *</label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">Category *</label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => openCategoryModal('create')}
+                    className="text-xs text-primary-600 hover:text-primary-800 font-semibold flex items-center gap-1"
+                    title="Add new category"
+                  >
+                    <span>+ New Category</span>
+                  </button>
+                  {categories.find((c) => c.id === form.category_id) && (
+                    <>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => openCategoryModal('edit', categories.find((c) => c.id === form.category_id))}
+                        className="text-xs text-gray-600 hover:text-primary-700 font-medium"
+                        title="Edit selected category name"
+                      >
+                        Edit
+                      </button>
+                      <span className="text-gray-300">|</span>
+                      <button
+                        type="button"
+                        onClick={() => openCategoryModal('delete', categories.find((c) => c.id === form.category_id))}
+                        className="text-xs text-danger-600 hover:text-danger-800 font-medium"
+                        title="Delete selected category"
+                      >
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
               <select
                 value={form.category_id}
                 onChange={(e) => setField('category_id', e.target.value)}
@@ -297,7 +485,9 @@ export default function ProductFormPage() {
               >
                 <option value="">Select a category…</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name} {cat._count?.products !== undefined ? `(${cat._count.products} products)` : ''}
+                  </option>
                 ))}
               </select>
               {errors.category_id && <p className="text-xs text-danger-600 mt-1">{errors.category_id}</p>}
@@ -442,7 +632,7 @@ export default function ProductFormPage() {
 
               <div>
                 <Input
-                  label={`Usual Price (${currencySymbol}) *`}
+                  label={`Market Price (${currencySymbol}) *`}
                   type="number"
                   step="any"
                   value={form.usual_price}
@@ -480,7 +670,7 @@ export default function ProductFormPage() {
                   Predefined Product Discount
                 </p>
                 <p className="text-xs text-primary-700">
-                  Calculated automatically: Usual Price ({currencySymbol} {numUsual.toFixed(2)}) − Our Price ({currencySymbol} {numOur.toFixed(2)})
+                  Calculated automatically: Market Price ({currencySymbol} {numUsual.toFixed(2)}) − Our Price ({currencySymbol} {numOur.toFixed(2)})
                 </p>
               </div>
               <div className="flex items-baseline gap-1.5 bg-white px-3 py-1.5 rounded-md border border-primary-200 shadow-xs">
@@ -606,6 +796,83 @@ export default function ProductFormPage() {
             </Button>
           </div>
         </form>
+
+        {/* Category Modal (Create / Edit / Delete) */}
+        {categoryModal.open && (
+          <Modal
+            isOpen={categoryModal.open}
+            onClose={closeCategoryModal}
+            title={
+              categoryModal.mode === 'create'
+                ? 'Create New Category'
+                : categoryModal.mode === 'edit'
+                ? 'Edit Category'
+                : 'Delete Category'
+            }
+            size="sm"
+          >
+            {categoryModal.mode === 'delete' ? (
+              <div className="space-y-4">
+                <p className="text-sm text-gray-700">
+                  Are you sure you want to delete category{' '}
+                  <strong className="text-gray-900">"{categoryModal.category?.name}"</strong>?
+                </p>
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                  <p className="font-semibold">Associated Products Protection:</p>
+                  <p className="mt-0.5">
+                    This category currently has{' '}
+                    <strong>{categoryModal.category?._count?.products || 0} product(s)</strong>.
+                    Deleting this category will <strong>NOT</strong> delete any products; their category will simply be set to Unassigned.
+                  </p>
+                </div>
+                {categoryModal.error && (
+                  <p className="text-xs text-danger-600">{categoryModal.error}</p>
+                )}
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button variant="secondary" onClick={closeCategoryModal} disabled={categoryModal.isSubmitting}>
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="danger"
+                    onClick={handleCategorySubmit}
+                    isLoading={categoryModal.isSubmitting}
+                  >
+                    Delete Category
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <form onSubmit={handleCategorySubmit} className="space-y-4">
+                <Input
+                  label="Category Name *"
+                  value={categoryModal.name}
+                  onChange={(e) => setCategoryModal((prev) => ({ ...prev, name: e.target.value, error: '' }))}
+                  placeholder="e.g. Beverages, Snacks, Hardware"
+                  error={categoryModal.error}
+                  autoFocus
+                />
+                <div>
+                  <label className="text-sm font-medium text-gray-700 block mb-1">Description (Optional)</label>
+                  <textarea
+                    value={categoryModal.description}
+                    onChange={(e) => setCategoryModal((prev) => ({ ...prev, description: e.target.value }))}
+                    placeholder="Short description for this category..."
+                    rows={2}
+                    className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
+                  />
+                </div>
+                <div className="flex justify-end gap-3 pt-2">
+                  <Button variant="secondary" type="button" onClick={closeCategoryModal} disabled={categoryModal.isSubmitting}>
+                    Cancel
+                  </Button>
+                  <Button variant="primary" type="submit" isLoading={categoryModal.isSubmitting}>
+                    {categoryModal.mode === 'create' ? 'Create Category' : 'Save Changes'}
+                  </Button>
+                </div>
+              </form>
+            )}
+          </Modal>
+        )}
       </div>
     </DashboardLayout>
   )

@@ -134,23 +134,37 @@ describe('Input Validation and Negative Rejections', () => {
     expect(onUpdate).toHaveBeenCalledWith('prod-val', '3')
   })
 
-  it('rejects negative discount values', () => {
-    const onDiscountChange = vi.fn()
-    render(<CartItem item={item} index={0} itemCount={1} onDiscountChange={onDiscountChange} />)
+  it('toggles predefined discount when checkbox is toggled', () => {
+    const onToggleDiscount = vi.fn()
+    const discountedItem = {
+      ...item,
+      usual_price: 60,
+      our_price: 50,
+      apply_predefined_discount: true,
+    }
+    render(<CartItem item={discountedItem} index={0} itemCount={1} onToggleDiscount={onToggleDiscount} />)
 
-    const discInput = screen.getByRole('textbox', { name: /discount for/i })
-    fireEvent.change(discInput, { target: { value: '-10' } })
-    expect(onDiscountChange).toHaveBeenCalledWith('prod-val', '10')
+    const toggle = screen.getByTestId('predefined-discount-toggle-prod-val')
+    expect(toggle).toBeDefined()
+    expect(toggle.checked).toBe(true)
+
+    fireEvent.click(toggle)
+    expect(onToggleDiscount).toHaveBeenCalledWith('prod-val', false)
   })
 
-  it('caps discount if it exceeds product line gross', () => {
-    const onDiscountChange = vi.fn()
-    // price = 50, quantity = 2 -> gross = 100
-    render(<CartItem item={item} index={0} itemCount={1} onDiscountChange={onDiscountChange} />)
+  it('renders predefined discount as disabled when apply_predefined_discount is false', () => {
+    const onToggleDiscount = vi.fn()
+    const discountedItem = {
+      ...item,
+      usual_price: 60,
+      our_price: 50,
+      apply_predefined_discount: false,
+    }
+    render(<CartItem item={discountedItem} index={0} itemCount={1} onToggleDiscount={onToggleDiscount} />)
 
-    const discInput = screen.getByRole('textbox', { name: /discount for/i })
-    fireEvent.change(discInput, { target: { value: '150' } })
-    expect(onDiscountChange).toHaveBeenCalledWith('prod-val', '100')
+    const toggle = screen.getByTestId('predefined-discount-toggle-prod-val')
+    expect(toggle.checked).toBe(false)
+    expect(screen.getByText('Disabled')).toBeDefined()
   })
 })
 
@@ -216,31 +230,34 @@ describe('Keyboard Navigation', () => {
     expect(selectSpy).toHaveBeenCalled()
   })
 
-  it('moves focus to the discount input belonging to the same product on ArrowRight and selects it', () => {
-    render(<MultiItemCart />)
+  it('moves focus to the Additional Cart Discount on Enter in quantity input', () => {
+    render(
+      <div>
+        <MultiItemCart />
+        <input data-testid="additional-cart-discount-input" />
+      </div>
+    )
 
     const qty0 = screen.getByTestId('cart-qty-p1')
-    const disc0 = screen.getByTestId('cart-discount-p1')
+    const discountInput = screen.getByTestId('additional-cart-discount-input')
+    const focusSpy = vi.spyOn(discountInput, 'focus')
 
     qty0.focus()
-    const selectSpy = vi.spyOn(disc0, 'select')
+    fireEvent.keyDown(qty0, { key: 'Enter' })
 
-    fireEvent.keyDown(qty0, { key: 'ArrowRight' })
-
-    expect(document.activeElement).toBe(disc0)
-    expect(selectSpy).toHaveBeenCalled()
+    expect(focusSpy).toHaveBeenCalled()
   })
 
-  it('moves focus back from discount input to quantity input on ArrowLeft', () => {
+  it('moves focus to the previous item quantity on ArrowUp', () => {
     render(<MultiItemCart />)
 
     const qty0 = screen.getByTestId('cart-qty-p1')
-    const disc0 = screen.getByTestId('cart-discount-p1')
+    const qty1 = screen.getByTestId('cart-qty-p2')
 
-    disc0.focus()
     const selectSpy = vi.spyOn(qty0, 'select')
+    qty1.focus()
 
-    fireEvent.keyDown(disc0, { key: 'ArrowLeft' })
+    fireEvent.keyDown(qty1, { key: 'ArrowUp' })
 
     expect(document.activeElement).toBe(qty0)
     expect(selectSpy).toHaveBeenCalled()

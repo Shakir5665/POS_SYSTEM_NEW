@@ -33,65 +33,72 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
       </div>
 
       {/* Transaction Metadata */}
-      <div className="border-t border-dashed border-gray-400 py-2 text-xs space-y-0.5">
-        <div className="flex justify-between">
-          <span className="text-gray-600">TXN:</span>
-          <span className="font-semibold">{transaction_id}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Date:</span>
-          <span>{created_at ? new Date(created_at).toLocaleString('en-GH') : '—'}</span>
-        </div>
-        <div className="flex justify-between">
-          <span className="text-gray-600">Cashier:</span>
-          <span>{user?.full_name || '—'}</span>
-        </div>
-        {customer && (
-          <div className="flex justify-between">
-            <span className="text-gray-600">Customer:</span>
-            <span>{customer.name}</span>
+      <div className="border-t border-dashed border-gray-400 py-1.5 text-xs space-y-1">
+        <div className="flex justify-between items-baseline gap-2">
+          <div className="truncate">
+            <span className="text-gray-600">Invoice: </span>
+            <span className="font-semibold">{transaction_id}</span>
           </div>
-        )}
+          <div className="text-right flex-shrink-0 text-[11px] text-gray-700">
+            <span>{created_at ? new Date(created_at).toLocaleString('en-GH') : '—'}</span>
+          </div>
+        </div>
+        <div className="flex justify-between items-baseline gap-2">
+          <div className="truncate">
+            <span className="text-gray-600">Cashier: </span>
+            <span className="font-medium">{user?.full_name || '—'}</span>
+          </div>
+          <div className="text-right truncate text-gray-700">
+            <span className="text-gray-600">Customer: </span>
+            <span className="font-medium">{customer?.name || 'Walk-in'}</span>
+          </div>
+        </div>
       </div>
 
       {/* Items Section */}
       <div className="border-t border-dashed border-gray-400 py-2 text-xs space-y-2">
-        <div className="font-bold uppercase tracking-wider text-[11px] text-gray-700 border-b border-gray-200 pb-1">
-          Items
+        <div className="flex justify-between font-bold uppercase tracking-wider text-[11px] text-gray-700 border-b border-gray-200 pb-1">
+          <span>Items</span>
+          <span>Qty &bull; Price &bull; Amount</span>
         </div>
-        {computedItems.map((item, idx) => (
-          <div key={idx} className="receipt-table-row py-1 border-b border-dotted border-gray-200 last:border-0">
-            <div className="font-semibold text-gray-900 break-words">{item.name}</div>
-            <div className="flex justify-between text-gray-700 mt-0.5">
-              <span>{item.qty}{item.unitLabel} × {fmt(item.unitPrice)}</span>
-              <span className="font-medium whitespace-nowrap">
-                {item.totalDiscount > 0 ? `= ${fmt(item.lineGross)}` : fmt(item.lineTotal)}
-              </span>
+        {computedItems.map((item, idx) => {
+          const hasDiscount = item.usualPrice != null && item.ourPrice != null && item.usualPrice > item.ourPrice
+          const unitSavings = hasDiscount ? Number((item.usualPrice - item.ourPrice).toFixed(2)) : 0
+
+          return (
+            <div key={idx} className="receipt-table-row py-1 border-b border-dotted border-gray-200 last:border-0">
+              <div className="font-semibold text-gray-900 break-words">{item.name}</div>
+              <div className="flex justify-between text-gray-700 mt-0.5">
+                <span>{item.qty}{item.unitLabel} × {fmt(item.unitPrice)}</span>
+                <span className="font-medium whitespace-nowrap">
+                  {item.totalDiscount > 0 ? `= ${fmt(item.lineGross)}` : fmt(item.lineTotal)}
+                </span>
+              </div>
+              {hasDiscount && (
+                <div className="flex justify-between text-[11px] text-gray-500 mt-0.5">
+                  <span>Market Price: {fmt(item.usualPrice)} | Our Price: {fmt(item.ourPrice)}</span>
+                  {item.predefinedApplied && (
+                    <span className="text-success-700 print:text-black font-medium">
+                      Savings: {fmt(unitSavings)}/unit {item.predefinedDiscountAmount > 0 ? `(-${fmt(item.predefinedDiscountAmount)})` : ''}
+                    </span>
+                  )}
+                </div>
+              )}
+              {item.totalDiscount > 0 && (
+                <div className="flex justify-between text-red-600 print:text-black mt-0.5">
+                  <span className="truncate pr-1">Discount ({fmt(item.unitDiscount)} × {item.qty}):</span>
+                  <span className="font-medium whitespace-nowrap">-{fmt(item.totalDiscount)}</span>
+                </div>
+              )}
+              {item.totalDiscount > 0 && (
+                <div className="flex justify-between font-bold text-gray-900 mt-0.5">
+                  <span>Line Total:</span>
+                  <span className="whitespace-nowrap">{fmt(item.lineTotal)}</span>
+                </div>
+              )}
             </div>
-            {item.usualPrice > item.ourPrice && (
-              <div className="flex justify-between text-[11px] text-gray-500 mt-0.5">
-                <span>Usual: {fmt(item.usualPrice)} | Our: {fmt(item.ourPrice)}</span>
-                {item.predefinedApplied && item.predefinedDiscountAmount > 0 && (
-                  <span className="text-success-700 print:text-black font-medium">
-                    Disc: -{fmt(item.predefinedDiscountAmount)}
-                  </span>
-                )}
-              </div>
-            )}
-            {item.totalDiscount > 0 && (
-              <div className="flex justify-between text-red-600 print:text-black mt-0.5">
-                <span className="truncate pr-1">Discount ({fmt(item.unitDiscount)} × {item.qty}):</span>
-                <span className="font-medium whitespace-nowrap">-{fmt(item.totalDiscount)}</span>
-              </div>
-            )}
-            {item.totalDiscount > 0 && (
-              <div className="flex justify-between font-bold text-gray-900 mt-0.5">
-                <span>Line Total:</span>
-                <span className="whitespace-nowrap">{fmt(item.lineTotal)}</span>
-              </div>
-            )}
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Financial Summary */}
@@ -102,10 +109,10 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
           <span>{summary.distinctItems || computedItems.length} ({summary.totalQuantity || computedItems.reduce((s, i) => s + i.qty, 0)} units)</span>
         </div>
 
-        {/* 1. Usual Price Subtotal / Gross Subtotal */}
+        {/* 1. Market Price Subtotal / Gross Subtotal */}
         <div className="flex justify-between">
           <span className="text-gray-600">
-            {summary.usualSubtotal != null ? 'Usual Price Subtotal:' : 'Gross Subtotal:'}
+            {summary.usualSubtotal != null ? 'Market Price Subtotal:' : 'Gross Subtotal:'}
           </span>
           <span className="font-semibold">{fmt(summary.usualSubtotal != null ? summary.usualSubtotal : summary.grossSubtotal)}</span>
         </div>
@@ -136,7 +143,7 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
 
         {/* 5. Total Discounts */}
         {summary.totalDiscounts > 0 && (
-          <div className="flex justify-between text-gray-700 font-semibold print:text-black">
+          <div className="flex justify-between text-gray-800 font-bold print:text-black">
             <span>Total Discounts:</span>
             <span>-{fmt(summary.totalDiscounts)}</span>
           </div>
@@ -150,9 +157,9 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
           </div>
         )}
 
-        {/* 6. Final Total */}
+        {/* 6. Grand Total */}
         <div className="flex justify-between font-bold text-base border-t border-gray-900 pt-1 mt-1">
-          <span>Final Total:</span>
+          <span>Grand Total:</span>
           <span>{fmt(summary.finalTotal)}</span>
         </div>
 
@@ -173,10 +180,15 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
                 <span>{fmt(paymentObj.change_given)}</span>
               </div>
             )}
-            {summary.outstandingBalance > 0 && (
+            {summary.outstandingBalance > 0 ? (
               <div className="flex justify-between font-bold text-danger-600 print:text-black">
                 <span>Outstanding Balance:</span>
                 <span>{fmt(summary.outstandingBalance)}</span>
+              </div>
+            ) : (
+              <div className="flex justify-between font-semibold text-success-700 print:text-black">
+                <span>Status:</span>
+                <span>FULLY PAID</span>
               </div>
             )}
             {paymentObj.reference && (

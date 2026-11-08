@@ -208,6 +208,7 @@ export function calculateReceiptSummary(sale, computedItems = []) {
     distinctItems,
     totalQuantity: Number(totalQuantity.toFixed(3)),
     usualSubtotal,
+    marketSubtotal: usualSubtotal,
     totalPredefinedDiscounts,
     grossSubtotal,
     totalProductDiscounts,
@@ -215,6 +216,7 @@ export function calculateReceiptSummary(sale, computedItems = []) {
     totalDiscounts,
     applicableTaxes,
     finalTotal,
+    grandTotal: finalTotal,
     amountPaid,
     outstandingBalance,
   }
