@@ -13,6 +13,7 @@ const saleValidation = [
   body('items.*.product_id').isUUID().withMessage('Each item must have a valid product ID'),
   body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Each item quantity must be > 0'),
   body('items.*.unit').optional().isString().trim(),
+  body('items.*.predefined_discount_applied').optional().isBoolean().withMessage('Predefined discount applied must be boolean'),
   body('items.*.discount').optional().isFloat({ min: 0 }).withMessage('Item discount must be >= 0'),
   body('payment_method')
     .isIn(['CASH', 'MOBILE_MONEY', 'CARD'])

@@ -26,17 +26,39 @@ export function formatReceiptItem(item) {
   const unitLabel = item.unit ? ` ${item.unit}` : ''
   const unitPrice = Number(item.unit_price != null ? item.unit_price : (item.price != null ? item.price : 0))
 
-  // Determine line gross
+  const hasUsualPrice = item.usual_price_snapshot != null || item.usual_price != null
+  const usualPrice = hasUsualPrice
+    ? Number(item.usual_price_snapshot != null ? item.usual_price_snapshot : item.usual_price)
+    : null
+
+  const hasOurPrice = item.our_price_snapshot != null || item.our_price != null
+  const ourPrice = hasOurPrice
+    ? Number(item.our_price_snapshot != null ? item.our_price_snapshot : item.our_price)
+    : null
+
+  const predefinedApplied = item.predefined_discount_applied !== undefined
+    ? Boolean(item.predefined_discount_applied)
+    : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01)
+
+  let pricingFactor = 1
+  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
+    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
+    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+    pricingFactor = factorSelling / factorPricing
+  }
+  const pricingQty = qty * pricingFactor
+
+  const usualLineGross = usualPrice != null ? Number((pricingQty * usualPrice).toFixed(2)) : null
+  const predefinedDiscountAmount = item.predefined_discount_amount != null
+    ? Number(item.predefined_discount_amount)
+    : (predefinedApplied && usualPrice != null && ourPrice != null ? Number((Math.max(0, usualPrice - ourPrice) * pricingQty).toFixed(2)) : 0)
+
+  // Determine line gross at unit_price
   let lineGross = 0
   if (item.line_gross != null) {
     lineGross = Number(item.line_gross)
-  } else if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
-    const pricingQty = (qty * factorSelling) / factorPricing
-    lineGross = Number((pricingQty * unitPrice).toFixed(2))
   } else {
-    lineGross = Number((qty * unitPrice).toFixed(2))
+    lineGross = Number((pricingQty * unitPrice).toFixed(2))
   }
 
   // Determine discount per unit and total product discount
@@ -59,11 +81,9 @@ export function formatReceiptItem(item) {
       lineTotal = explicitTotal
       const diffFromGross = Number((lineGross - explicitTotal).toFixed(2))
       if (Math.abs(diffFromGross - rawDisc) < 0.01) {
-        // rawDisc was total discount for the line
         totalDiscount = rawDisc
         unitDiscount = qty > 0 ? Number((totalDiscount / qty).toFixed(2)) : 0
       } else if (Math.abs(diffFromGross - (rawDisc * qty)) < 0.01) {
-        // rawDisc was per-unit discount
         unitDiscount = rawDisc
         totalDiscount = Number((unitDiscount * qty).toFixed(2))
       } else if (diffFromGross > 0) {
@@ -74,7 +94,6 @@ export function formatReceiptItem(item) {
         unitDiscount = 0
       }
     } else {
-      // Per Section 2: "The discount entered for each product represents a discount PER UNIT"
       unitDiscount = rawDisc
       totalDiscount = Number((unitDiscount * qty).toFixed(2))
       lineTotal = Math.max(0, Number((lineGross - totalDiscount).toFixed(2)))
@@ -95,6 +114,11 @@ export function formatReceiptItem(item) {
     qty,
     unitLabel,
     unitPrice,
+    usualPrice,
+    ourPrice,
+    predefinedApplied,
+    predefinedDiscountAmount,
+    usualLineGross,
     lineGross,
     unitDiscount,
     totalDiscount,
@@ -114,48 +138,85 @@ export function formatReceiptItem(item) {
 export function calculateReceiptSummary(sale, computedItems = []) {
   if (!sale) {
     return {
+      distinctItems: 0,
+      totalQuantity: 0,
+      usualSubtotal: 0,
+      totalPredefinedDiscounts: 0,
       grossSubtotal: 0,
       totalProductDiscounts: 0,
       additionalCartDiscount: 0,
       totalDiscounts: 0,
       applicableTaxes: 0,
       finalTotal: 0,
+      amountPaid: 0,
+      outstandingBalance: 0,
     }
   }
 
-  // 1. Gross Subtotal
+  const distinctItems = computedItems.length
+  const totalQuantity = computedItems.reduce((sum, it) => sum + (it.qty || 0), 0)
+
+  // 1. Usual Price Subtotal
+  const hasUsualPrice = computedItems.some(it => it.usualPrice != null)
+  const computedUsualSubtotal = computedItems.reduce(
+    (sum, it) => sum + (it.usualLineGross != null ? it.usualLineGross : (it.lineGross || 0)),
+    0
+  )
+  const usualSubtotal = hasUsualPrice ? Number(computedUsualSubtotal.toFixed(2)) : null
+
+  // 2. Predefined Discounts
+  const computedPredefinedDiscounts = computedItems.reduce(
+    (sum, it) => sum + (it.predefinedDiscountAmount || 0),
+    0
+  )
+  const totalPredefinedDiscounts = Number(computedPredefinedDiscounts.toFixed(2))
+
+  // 3. Gross Subtotal at selling price
   const computedGross = computedItems.reduce((sum, it) => sum + (it.lineGross || 0), 0)
   const grossSubtotal = sale.gross_subtotal != null ? Number(sale.gross_subtotal) : Number(computedGross.toFixed(2))
 
-  // 2. Total Product Discounts
+  // 4. Line-level manual discounts
   const computedProductDiscounts = computedItems.reduce((sum, it) => sum + (it.totalDiscount || 0), 0)
   const totalProductDiscounts = sale.total_product_discounts != null
     ? Number(sale.total_product_discounts)
     : Number(computedProductDiscounts.toFixed(2))
 
-  // 3. Additional Cart Discount
+  // 5. Additional Cart Discount
   const additionalCartDiscount = Number(sale.cart_discount != null ? sale.cart_discount : (sale.discount_amount || 0))
 
-  // 4. Total Discounts
+  // 6. Total Discounts
   const totalDiscounts = sale.total_discounts != null
     ? Number(sale.total_discounts)
-    : Number((totalProductDiscounts + additionalCartDiscount).toFixed(2))
+    : Number((totalPredefinedDiscounts + totalProductDiscounts + additionalCartDiscount).toFixed(2))
 
-  // 5. Applicable Taxes
+  // 7. Applicable Taxes
   const applicableTaxes = Number(sale.tax_amount || 0)
 
-  // 6. Final Total
+  // 8. Final Total
   const finalTotal = sale.total_amount != null
     ? Number(sale.total_amount)
-    : Number((grossSubtotal - totalDiscounts + applicableTaxes).toFixed(2))
+    : Number((grossSubtotal - totalProductDiscounts - additionalCartDiscount + applicableTaxes).toFixed(2))
+
+  // 9. Payment & Outstanding Balance
+  const paymentObj = sale.payment || (sale.payments && sale.payments[0]) || null
+  const amountPaid = paymentObj != null
+    ? Number(paymentObj.amount_paid || 0)
+    : (sale.amount_paid != null ? Number(sale.amount_paid) : finalTotal)
+  const outstandingBalance = Math.max(0, Number((finalTotal - amountPaid).toFixed(2)))
 
   return {
+    distinctItems,
+    totalQuantity: Number(totalQuantity.toFixed(3)),
+    usualSubtotal,
+    totalPredefinedDiscounts,
     grossSubtotal,
     totalProductDiscounts,
     additionalCartDiscount,
     totalDiscounts,
     applicableTaxes,
     finalTotal,
+    amountPaid,
+    outstandingBalance,
   }
 }
 

@@ -106,21 +106,53 @@ export default function ProductsPage() {
       render: (val) => val?.name ? <Badge variant="default">{val.name}</Badge> : <span className="text-gray-400">—</span>,
     },
     {
-      key: 'price',
-      label: 'Price',
-      render: (val, row) => (
-        <span className="font-semibold text-gray-900">
-          {formatCurrency(val)}
-          {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
-        </span>
-      ),
+      key: 'usual_price',
+      label: 'Usual Price',
+      render: (val, row) => {
+        const u = val ?? row.price
+        return (
+          <span className="text-gray-700">
+            {formatCurrency(u)}
+            {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'our_price',
+      label: 'Our Price',
+      render: (val, row) => {
+        const o = val ?? row.price
+        return (
+          <span className="font-semibold text-primary-700">
+            {formatCurrency(o)}
+            {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
+          </span>
+        )
+      },
+    },
+    {
+      key: 'predefined_discount',
+      label: 'Discount',
+      render: (_, row) => {
+        const u = Number(row.usual_price ?? row.price ?? 0)
+        const o = Number(row.our_price ?? row.price ?? 0)
+        const diff = u - o
+        return diff > 0 ? (
+          <span className="text-xs font-semibold text-success-700 bg-success-50 border border-success-200 px-1.5 py-0.5 rounded">
+            -{formatCurrency(diff)}
+          </span>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )
+      },
     },
     {
       key: 'cost_price',
       label: 'Cost Price',
       render: (val, row) => (
         val ? (
-          <span>
+          <span className="text-gray-500 text-xs">
             {formatCurrency(val)}
             {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
           </span>

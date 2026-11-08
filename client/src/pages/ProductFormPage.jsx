@@ -28,6 +28,8 @@ export default function ProductFormPage() {
     unit_category: 'COUNT',
     base_unit: 'pcs',
     pricing_unit: 'pcs',
+    usual_price: '',
+    our_price: '',
     price: '',
     cost_price: '',
     quantity: '',
@@ -51,6 +53,8 @@ export default function ProductFormPage() {
       .then((res) => {
         const p = res.data?.data
         if (!p) { toast.error('Product not found'); navigate('/products'); return }
+        const usual = p.usual_price != null ? p.usual_price.toString() : (p.price != null ? p.price.toString() : '')
+        const our = p.our_price != null ? p.our_price.toString() : (p.price != null ? p.price.toString() : '')
         setForm({
           name: p.name || '',
           sku: p.sku || '',
@@ -59,8 +63,10 @@ export default function ProductFormPage() {
           unit_category: p.unit_category || 'COUNT',
           base_unit: p.base_unit || 'pcs',
           pricing_unit: p.pricing_unit || 'pcs',
-          price: p.price?.toString() || '',
-          cost_price: p.cost_price?.toString() || '',
+          usual_price: usual,
+          our_price: our,
+          price: our || usual,
+          cost_price: p.cost_price != null ? p.cost_price.toString() : '',
           quantity: p.quantity?.toString() || '0',
           low_stock_threshold: p.low_stock_threshold?.toString() || '10',
           is_active: p.is_active ?? true,
@@ -110,8 +116,22 @@ export default function ProductFormPage() {
     if (!form.category_id) errs.category_id = 'Category is required'
     if (!form.base_unit) errs.base_unit = 'Base inventory unit is required'
     if (!form.pricing_unit) errs.pricing_unit = 'Pricing unit is required'
-    if (!form.price || parseFloat(form.price) <= 0) errs.price = 'Price must be greater than 0'
-    if (form.cost_price && parseFloat(form.cost_price) < 0) errs.cost_price = 'Cost price cannot be negative'
+
+    const usual = parseFloat(form.usual_price)
+    const our = parseFloat(form.our_price)
+
+    if (!form.usual_price || isNaN(usual) || usual <= 0) {
+      errs.usual_price = 'Usual price must be greater than 0'
+    }
+    if (form.our_price === '' || isNaN(our) || our < 0) {
+      errs.our_price = 'Our price must be non-negative'
+    } else if (!isNaN(usual) && our > usual) {
+      errs.our_price = 'Our price cannot exceed usual price'
+    }
+
+    if (form.cost_price !== '' && form.cost_price !== null && parseFloat(form.cost_price) < 0) {
+      errs.cost_price = 'Cost price cannot be negative'
+    }
     if (form.quantity !== '' && parseFloat(form.quantity) < 0) errs.quantity = 'Quantity cannot be negative'
     if (form.low_stock_threshold !== '' && parseFloat(form.low_stock_threshold) < 0) errs.low_stock_threshold = 'Threshold cannot be negative'
     if (form.unit_category === 'COUNT') {
@@ -131,6 +151,11 @@ export default function ProductFormPage() {
       let payload
       const finalQuantity = form.quantity === '' ? 0 : (form.unit_category === 'COUNT' ? parseInt(form.quantity) : parseFloat(form.quantity))
       const finalThreshold = form.low_stock_threshold === '' ? 10 : (form.unit_category === 'COUNT' ? parseInt(form.low_stock_threshold) : parseFloat(form.low_stock_threshold))
+      const finalUsualPrice = parseFloat(form.usual_price)
+      const finalOurPrice = parseFloat(form.our_price)
+      const finalCostPrice = form.cost_price !== '' && form.cost_price !== null && !isNaN(parseFloat(form.cost_price))
+        ? parseFloat(form.cost_price)
+        : null
 
       if (imageFile) {
         // Use FormData for file upload
@@ -142,8 +167,10 @@ export default function ProductFormPage() {
         payload.append('unit_category', form.unit_category)
         payload.append('base_unit', form.base_unit)
         payload.append('pricing_unit', form.pricing_unit)
-        payload.append('price', form.price)
-        if (form.cost_price) payload.append('cost_price', form.cost_price)
+        payload.append('usual_price', String(finalUsualPrice))
+        payload.append('our_price', String(finalOurPrice))
+        payload.append('price', String(finalOurPrice))
+        if (finalCostPrice !== null) payload.append('cost_price', String(finalCostPrice))
         payload.append('quantity', String(finalQuantity))
         payload.append('low_stock_threshold', String(finalThreshold))
         payload.append('is_active', form.is_active ? 'true' : 'false')
@@ -157,8 +184,10 @@ export default function ProductFormPage() {
           unit_category: form.unit_category,
           base_unit: form.base_unit,
           pricing_unit: form.pricing_unit,
-          price: parseFloat(form.price),
-          cost_price: form.cost_price ? parseFloat(form.cost_price) : null,
+          usual_price: finalUsualPrice,
+          our_price: finalOurPrice,
+          price: finalOurPrice,
+          cost_price: finalCostPrice,
           quantity: finalQuantity,
           low_stock_threshold: finalThreshold,
           is_active: form.is_active,
@@ -188,6 +217,10 @@ export default function ProductFormPage() {
       setIsSubmitting(false)
     }
   }
+
+  const numUsual = parseFloat(form.usual_price) || 0
+  const numOur = parseFloat(form.our_price) || 0
+  const calculatedDiscount = numUsual >= numOur && numUsual > 0 ? (numUsual - numOur).toFixed(2) : '0.00'
 
   if (isLoadingProduct) {
     return (
@@ -388,26 +421,74 @@ export default function ProductFormPage() {
 
           {/* Pricing */}
           <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 mt-4">
-            <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Pricing</h2>
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label={`Selling Price (${currencySymbol} per ${form.pricing_unit}) *`}
-                type="number"
-                step="any"
-                value={form.price}
-                onChange={(e) => setField('price', e.target.value)}
-                placeholder="0.00"
-                error={errors.price}
-              />
-              <Input
-                label={`Cost Price (${currencySymbol} per ${form.pricing_unit})`}
-                type="number"
-                step="any"
-                value={form.cost_price}
-                onChange={(e) => setField('cost_price', e.target.value)}
-                placeholder="0.00 (optional)"
-                error={errors.cost_price}
-              />
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Product Pricing</h2>
+              <span className="text-xs text-gray-400">All prices per {form.pricing_unit || 'unit'}</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <Input
+                  label={`Cost Price (${currencySymbol})`}
+                  type="number"
+                  step="any"
+                  value={form.cost_price}
+                  onChange={(e) => setField('cost_price', e.target.value)}
+                  placeholder="0.00 (optional)"
+                  error={errors.cost_price}
+                />
+                <p className="text-xs text-gray-400 mt-1">Internal acquisition cost</p>
+              </div>
+
+              <div>
+                <Input
+                  label={`Usual Price (${currencySymbol}) *`}
+                  type="number"
+                  step="any"
+                  value={form.usual_price}
+                  onChange={(e) => {
+                    const val = e.target.value
+                    setField('usual_price', val)
+                    if (!form.our_price && val) {
+                      setField('our_price', val)
+                    }
+                  }}
+                  placeholder="0.00"
+                  error={errors.usual_price}
+                />
+                <p className="text-xs text-gray-400 mt-1">Standard retail price</p>
+              </div>
+
+              <div>
+                <Input
+                  label={`Our Price (${currencySymbol}) *`}
+                  type="number"
+                  step="any"
+                  value={form.our_price}
+                  onChange={(e) => setField('our_price', e.target.value)}
+                  placeholder="0.00"
+                  error={errors.our_price}
+                />
+                <p className="text-xs text-gray-400 mt-1">Preferred selling price</p>
+              </div>
+            </div>
+
+            {/* Dynamic Predefined Discount display */}
+            <div className="bg-primary-50/70 border border-primary-200 rounded-lg p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold text-primary-900 uppercase tracking-wider">
+                  Predefined Product Discount
+                </p>
+                <p className="text-xs text-primary-700">
+                  Calculated automatically: Usual Price ({currencySymbol} {numUsual.toFixed(2)}) − Our Price ({currencySymbol} {numOur.toFixed(2)})
+                </p>
+              </div>
+              <div className="flex items-baseline gap-1.5 bg-white px-3 py-1.5 rounded-md border border-primary-200 shadow-xs">
+                <span className="text-xs text-primary-600 font-semibold">{currencySymbol}</span>
+                <span className="text-xl font-bold text-primary-800">
+                  {calculatedDiscount}
+                </span>
+              </div>
             </div>
           </div>
 

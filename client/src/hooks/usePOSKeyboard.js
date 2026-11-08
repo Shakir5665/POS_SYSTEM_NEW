@@ -78,28 +78,8 @@ export function usePOSKeyboard({
           document.activeElement.tagName === 'TEXTAREA' ||
           document.activeElement.tagName === 'SELECT')
 
-      // If search input is focused:
+      // If search input is focused, search input's onKeyDown handles ArrowUp/Down and Enter directly
       if (document.activeElement === searchRef.current) {
-        if (e.key === 'ArrowDown') {
-          e.preventDefault()
-          if (products.length > 0) {
-            setActiveZone('PRODUCTS')
-            setSelectedProductIndex(0)
-            searchRef.current?.blur()
-          }
-          return
-        }
-        if (e.key === 'Enter') {
-          // If only 1 product matches, or user presses enter in search, add the selected/first product
-          if (products.length > 0) {
-            e.preventDefault()
-            const target = products[selectedProductIndex] || products[0]
-            if (target) {
-              onAddProduct?.(target)
-            }
-          }
-          return
-        }
         return
       }
 

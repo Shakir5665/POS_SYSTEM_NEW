@@ -35,6 +35,7 @@ function cartReducer(state, action) {
             unit: initialUnit,
             quantity: initialQty,
             discount: '',
+            apply_predefined_discount: true,
           },
         ],
       }
@@ -48,6 +49,20 @@ function cartReducer(state, action) {
           i.product_id === action.payload.product_id ? { ...i, quantity: action.payload.quantity } : i
         ),
       }
+    case 'TOGGLE_PREDEFINED_DISCOUNT': {
+      const { product_id, applied } = action.payload
+      return {
+        ...state,
+        items: state.items.map((i) => {
+          if (i.product_id !== product_id) return i
+          const nextApplied = applied !== undefined ? Boolean(applied) : !i.apply_predefined_discount
+          return {
+            ...i,
+            apply_predefined_discount: nextApplied,
+          }
+        }),
+      }
+    }
     case 'UPDATE_UNIT': {
       const { product_id, newUnit } = action.payload
       return {
@@ -98,7 +113,16 @@ export function CartProvider({ children }) {
 
   const settings = useSettings()
   // Exact totals, including tax, matching what the server will charge
-  const { subtotal, tax, total } = cartTotals(state.items, state.cartDiscount, settings.tax_rate)
+  const {
+    usual_subtotal,
+    predefined_discounts,
+    subtotal,
+    discount,
+    tax,
+    total,
+    distinct_items,
+    total_quantity,
+  } = cartTotals(state.items, state.cartDiscount, settings.tax_rate)
 
   function addItem(product, initialQuantity = 1) {
     dispatch({
@@ -107,6 +131,9 @@ export function CartProvider({ children }) {
         product_id: product.id || product.product_id,
         name: product.name,
         price: product.price,
+        usual_price: product.usual_price ?? product.price,
+        our_price: product.our_price ?? product.price,
+        cost_price: product.cost_price ?? null,
         sku: product.sku,
         barcode: product.barcode,
         quantity_available: product.quantity ?? product.quantity_available,
@@ -119,6 +146,7 @@ export function CartProvider({ children }) {
   }
   function removeItem(product_id) { dispatch({ type: 'REMOVE_ITEM', payload: product_id }) }
   function updateQuantity(product_id, quantity) { dispatch({ type: 'UPDATE_QUANTITY', payload: { product_id, quantity } }) }
+  function togglePredefinedDiscount(product_id, applied) { dispatch({ type: 'TOGGLE_PREDEFINED_DISCOUNT', payload: { product_id, applied } }) }
   function updateUnit(product_id, newUnit) { dispatch({ type: 'UPDATE_UNIT', payload: { product_id, newUnit } }) }
   function updateDiscount(product_id, discount) { dispatch({ type: 'UPDATE_DISCOUNT', payload: { product_id, discount } }) }
   function setCartDiscount(amount) { dispatch({ type: 'SET_CART_DISCOUNT', payload: amount }) }
@@ -126,7 +154,28 @@ export function CartProvider({ children }) {
   function clearCart() { dispatch({ type: 'CLEAR_CART' }) }
 
   return (
-    <CartContext.Provider value={{ ...state, subtotal, tax, total, addItem, removeItem, updateQuantity, updateUnit, updateDiscount, setCartDiscount, setCustomer, clearCart }}>
+    <CartContext.Provider
+      value={{
+        ...state,
+        usual_subtotal,
+        predefined_discounts,
+        subtotal,
+        discount,
+        tax,
+        total,
+        distinct_items,
+        total_quantity,
+        addItem,
+        removeItem,
+        updateQuantity,
+        togglePredefinedDiscount,
+        updateUnit,
+        updateDiscount,
+        setCartDiscount,
+        setCustomer,
+        clearCart,
+      }}
+    >
       {children}
     </CartContext.Provider>
   )

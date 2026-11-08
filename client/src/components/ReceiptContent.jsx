@@ -68,6 +68,16 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
                 {item.totalDiscount > 0 ? `= ${fmt(item.lineGross)}` : fmt(item.lineTotal)}
               </span>
             </div>
+            {item.usualPrice > item.ourPrice && (
+              <div className="flex justify-between text-[11px] text-gray-500 mt-0.5">
+                <span>Usual: {fmt(item.usualPrice)} | Our: {fmt(item.ourPrice)}</span>
+                {item.predefinedApplied && item.predefinedDiscountAmount > 0 && (
+                  <span className="text-success-700 print:text-black font-medium">
+                    Disc: -{fmt(item.predefinedDiscountAmount)}
+                  </span>
+                )}
+              </div>
+            )}
             {item.totalDiscount > 0 && (
               <div className="flex justify-between text-red-600 print:text-black mt-0.5">
                 <span className="truncate pr-1">Discount ({fmt(item.unitDiscount)} × {item.qty}):</span>
@@ -86,17 +96,25 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
 
       {/* Financial Summary */}
       <div className="border-t border-dashed border-gray-400 pt-2 text-xs space-y-1">
-        {/* 1. Gross Subtotal */}
-        <div className="flex justify-between">
-          <span className="text-gray-600">Gross Subtotal:</span>
-          <span className="font-semibold">{fmt(summary.grossSubtotal)}</span>
+        {/* Distinct Items */}
+        <div className="flex justify-between text-gray-600">
+          <span>Distinct Items:</span>
+          <span>{summary.distinctItems || computedItems.length} ({summary.totalQuantity || computedItems.reduce((s, i) => s + i.qty, 0)} units)</span>
         </div>
 
-        {/* 2. Total Product Discounts */}
-        {summary.totalProductDiscounts > 0 && (
-          <div className="flex justify-between text-red-600 print:text-black">
-            <span>Total Product Discounts:</span>
-            <span className="font-semibold">-{fmt(summary.totalProductDiscounts)}</span>
+        {/* 1. Usual Price Subtotal / Gross Subtotal */}
+        <div className="flex justify-between">
+          <span className="text-gray-600">
+            {summary.usualSubtotal != null ? 'Usual Price Subtotal:' : 'Gross Subtotal:'}
+          </span>
+          <span className="font-semibold">{fmt(summary.usualSubtotal != null ? summary.usualSubtotal : summary.grossSubtotal)}</span>
+        </div>
+
+        {/* 2. Total Predefined Discounts */}
+        {summary.totalPredefinedDiscounts > 0 && (
+          <div className="flex justify-between text-success-700 print:text-black">
+            <span>Predefined Discounts:</span>
+            <span className="font-semibold">-{fmt(summary.totalPredefinedDiscounts)}</span>
           </div>
         )}
 
@@ -108,11 +126,19 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
           </div>
         )}
 
-        {/* 4. Total Discounts */}
+        {/* 4. Total Line / Product Discounts */}
+        {summary.totalProductDiscounts > 0 && (
+          <div className="flex justify-between text-red-600 print:text-black">
+            <span>Total Product Discounts:</span>
+            <span className="font-semibold">-{fmt(summary.totalProductDiscounts)}</span>
+          </div>
+        )}
+
+        {/* 5. Total Discounts */}
         {summary.totalDiscounts > 0 && (
-          <div className="flex justify-between text-red-600 print:text-black font-semibold border-t border-dotted border-gray-200 pt-1">
+          <div className="flex justify-between text-gray-700 font-semibold print:text-black">
             <span>Total Discounts:</span>
-            <span>{fmt(summary.totalDiscounts)}</span>
+            <span>-{fmt(summary.totalDiscounts)}</span>
           </div>
         )}
 
@@ -145,6 +171,12 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
               <div className="flex justify-between font-semibold">
                 <span className="text-gray-600">Change:</span>
                 <span>{fmt(paymentObj.change_given)}</span>
+              </div>
+            )}
+            {summary.outstandingBalance > 0 && (
+              <div className="flex justify-between font-bold text-danger-600 print:text-black">
+                <span>Outstanding Balance:</span>
+                <span>{fmt(summary.outstandingBalance)}</span>
               </div>
             )}
             {paymentObj.reference && (

@@ -39,8 +39,23 @@ const productValidation = [
   body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME']).withMessage('Unit category must be COUNT, WEIGHT, or VOLUME'),
   body('base_unit').optional().isString().trim(),
   body('pricing_unit').optional().isString().trim(),
-  body('price').isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
-  body('cost_price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Cost price must be >= 0'),
+  body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
+  body('usual_price').optional().isFloat({ min: 0.01 }).withMessage('Usual price must be greater than 0'),
+  body('our_price').optional().isFloat({ min: 0 }).withMessage('Our price must be >= 0')
+    .custom((val, { req }) => {
+      const usual = req.body.usual_price !== undefined ? parseFloat(req.body.usual_price) : (req.body.price !== undefined ? parseFloat(req.body.price) : undefined)
+      if (usual !== undefined && parseFloat(val) > usual) {
+        throw new Error('Our price cannot exceed usual price')
+      }
+      return true
+    }),
+  body().custom((val, { req }) => {
+    if (req.body.usual_price === undefined && req.body.price === undefined) {
+      throw new Error('Price or usual price is required')
+    }
+    return true
+  }),
+  body('cost_price').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }).withMessage('Cost price must be >= 0'),
   body('quantity').optional().isFloat({ min: 0 }).withMessage('Quantity must be >= 0')
     .custom((val, { req }) => {
       const cat = req.body.unit_category || 'COUNT'
@@ -93,7 +108,15 @@ function updateProductValidation() {
     body('base_unit').optional().isString().trim(),
     body('pricing_unit').optional().isString().trim(),
     body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be > 0'),
-    body('cost_price').optional({ nullable: true }).isFloat({ min: 0 }).withMessage('Cost price must be >= 0'),
+    body('usual_price').optional().isFloat({ min: 0.01 }).withMessage('Usual price must be > 0'),
+    body('our_price').optional().isFloat({ min: 0 }).withMessage('Our price must be >= 0')
+      .custom((val, { req }) => {
+        if (req.body.usual_price !== undefined && parseFloat(val) > parseFloat(req.body.usual_price)) {
+          throw new Error('Our price cannot exceed usual price')
+        }
+        return true
+      }),
+    body('cost_price').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }).withMessage('Cost price must be >= 0'),
     body('quantity').optional().isFloat({ min: 0 }).withMessage('Quantity must be >= 0'),
     body('low_stock_threshold').optional().isFloat({ min: 0 }).withMessage('Threshold must be >= 0'),
   ]

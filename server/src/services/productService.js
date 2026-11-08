@@ -1,6 +1,7 @@
 const prisma = require('../utils/prismaClient')
 const { NotFoundError, ConflictError, ValidationError } = require('../utils/errors')
 const { getBaseUnit, getDefaultPricingUnit, isValidCategory, isValidUnitForCategory } = require('../utils/uom')
+const { Decimal, toMoney } = require('../utils/money')
 const path = require('path')
 const fs = require('fs')
 
@@ -82,6 +83,49 @@ async function createProduct(data) {
     throw new ValidationError(`Invalid pricing unit "${pricing_unit}" for category "${unit_category}"`)
   }
 
+  // Handle pricing fields
+  let usualPrice = data.usual_price !== undefined && data.usual_price !== null && data.usual_price !== ''
+    ? toMoney(data.usual_price)
+    : (data.price !== undefined && data.price !== null && data.price !== '' ? toMoney(data.price) : null)
+
+  let ourPrice = data.our_price !== undefined && data.our_price !== null && data.our_price !== ''
+    ? toMoney(data.our_price)
+    : (usualPrice !== null ? usualPrice : (data.price !== undefined && data.price !== null && data.price !== '' ? toMoney(data.price) : null))
+
+  if (usualPrice === null || ourPrice === null) {
+    throw new ValidationError('Price or usual price is required')
+  }
+
+  if (usualPrice.lt(0)) {
+    throw new ValidationError('Usual price must be non-negative', [
+      { field: 'usual_price', message: 'Usual price must be non-negative' },
+    ])
+  }
+  if (ourPrice.lt(0)) {
+    throw new ValidationError('Our price must be non-negative', [
+      { field: 'our_price', message: 'Our price must be non-negative' },
+    ])
+  }
+  if (ourPrice.gt(usualPrice)) {
+    throw new ValidationError('Our price cannot exceed usual price', [
+      { field: 'our_price', message: 'Our price cannot exceed usual price' },
+    ])
+  }
+
+  let costPrice = null
+  if (data.cost_price !== undefined && data.cost_price !== null && data.cost_price !== '') {
+    const cp = toMoney(data.cost_price)
+    if (cp.lt(0)) {
+      throw new ValidationError('Cost price must be non-negative', [
+        { field: 'cost_price', message: 'Cost price must be non-negative' },
+      ])
+    }
+    costPrice = cp
+  }
+
+  // price is kept synchronized with our_price (the active preferred selling price)
+  const activePrice = ourPrice
+
   const product = await prisma.product.create({
     data: {
       name: data.name,
@@ -91,8 +135,10 @@ async function createProduct(data) {
       unit_category,
       base_unit,
       pricing_unit,
-      price: data.price,
-      cost_price: data.cost_price || null,
+      price: activePrice,
+      usual_price: usualPrice,
+      our_price: ourPrice,
+      cost_price: costPrice,
       quantity: data.quantity ?? 0,
       low_stock_threshold: data.low_stock_threshold ?? 10,
       image_url: data.image_url || null,
@@ -135,6 +181,56 @@ async function updateProduct(id, data) {
     throw new ValidationError(`Invalid pricing unit "${targetPricing}" for category "${targetCategory}"`)
   }
 
+  // Handle pricing fields
+  let targetUsual = existing.usual_price !== undefined && existing.usual_price !== null ? toMoney(existing.usual_price) : toMoney(existing.price)
+  let targetOur = existing.our_price !== undefined && existing.our_price !== null ? toMoney(existing.our_price) : toMoney(existing.price)
+
+  if (data.usual_price !== undefined && data.usual_price !== null && data.usual_price !== '') {
+    targetUsual = toMoney(data.usual_price)
+  }
+  if (data.our_price !== undefined && data.our_price !== null && data.our_price !== '') {
+    targetOur = toMoney(data.our_price)
+  }
+
+  // If a legacy caller only provided data.price and neither usual_price nor our_price was provided
+  if (data.price !== undefined && data.usual_price === undefined && data.our_price === undefined) {
+    targetUsual = toMoney(data.price)
+    targetOur = toMoney(data.price)
+  }
+
+  if (targetUsual.lt(0)) {
+    throw new ValidationError('Usual price must be non-negative', [
+      { field: 'usual_price', message: 'Usual price must be non-negative' },
+    ])
+  }
+  if (targetOur.lt(0)) {
+    throw new ValidationError('Our price must be non-negative', [
+      { field: 'our_price', message: 'Our price must be non-negative' },
+    ])
+  }
+  if (targetOur.gt(targetUsual)) {
+    throw new ValidationError('Our price cannot exceed usual price', [
+      { field: 'our_price', message: 'Our price cannot exceed usual price' },
+    ])
+  }
+
+  let targetCost = undefined
+  if (data.cost_price !== undefined) {
+    if (data.cost_price === null || data.cost_price === '') {
+      targetCost = null
+    } else {
+      const cp = toMoney(data.cost_price)
+      if (cp.lt(0)) {
+        throw new ValidationError('Cost price must be non-negative', [
+          { field: 'cost_price', message: 'Cost price must be non-negative' },
+        ])
+      }
+      targetCost = cp
+    }
+  }
+
+  const activePrice = targetOur
+
   const product = await prisma.product.update({
     where: { id },
     data: {
@@ -145,8 +241,10 @@ async function updateProduct(id, data) {
       ...(data.unit_category !== undefined && { unit_category: data.unit_category }),
       ...(data.base_unit !== undefined && { base_unit: data.base_unit }),
       ...(data.pricing_unit !== undefined && { pricing_unit: data.pricing_unit }),
-      ...(data.price !== undefined && { price: data.price }),
-      ...(data.cost_price !== undefined && { cost_price: data.cost_price || null }),
+      ...(data.usual_price !== undefined || (data.price !== undefined && data.our_price === undefined) ? { usual_price: targetUsual } : {}),
+      ...(data.our_price !== undefined || (data.price !== undefined && data.usual_price === undefined) ? { our_price: targetOur } : {}),
+      price: activePrice,
+      ...(targetCost !== undefined && { cost_price: targetCost }),
       ...(data.quantity !== undefined && { quantity: data.quantity }),
       ...(data.low_stock_threshold !== undefined && { low_stock_threshold: data.low_stock_threshold }),
       ...(data.image_url !== undefined && { image_url: data.image_url || null }),

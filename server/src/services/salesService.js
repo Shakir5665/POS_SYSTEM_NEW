@@ -2,7 +2,7 @@ const prisma = require('../utils/prismaClient')
 const generateTransactionId = require('../utils/generateTransactionId')
 const { Decimal, toMoney, roundMoney, toPesewas } = require('../utils/money')
 const { NotFoundError, ValidationError, AppError } = require('../utils/errors')
-const { toBaseUnitQuantity, calculateLineGross, calculateLineCost, validateQuantity, isValidUnitForCategory } = require('../utils/uom')
+const { toBaseUnitQuantity, toPricingUnitQuantity, calculateLineGross, calculateLineCost, validateQuantity, isValidUnitForCategory } = require('../utils/uom')
 const { verifyTransaction, createRefund } = require('./paystackService')
 const { getSettingValue } = require('./settingsService')
 
@@ -56,8 +56,28 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     const product = productMap.get(item.product_id)
     const sellingUnit = item.unit || product.pricing_unit || product.base_unit || 'pcs'
     const baseQuantity = toBaseUnitQuantity(item.quantity, sellingUnit, product.unit_category, product.base_unit)
-    const unitPrice = toMoney(product.price)
+    const costPriceSnapshot = product.cost_price !== null ? toMoney(product.cost_price) : null
+    const rawUsual = product.usual_price !== null && product.usual_price !== undefined && Number(product.usual_price) > 0
+      ? product.usual_price
+      : product.price
+    const rawOur = product.our_price !== null && product.our_price !== undefined && Number(product.our_price) > 0
+      ? product.our_price
+      : rawUsual
+
+    const usualPriceSnapshot = toMoney(rawUsual)
+    const ourPriceSnapshot = toMoney(rawOur)
+    const predefinedDiscountApplied = item.predefined_discount_applied !== undefined
+      ? Boolean(item.predefined_discount_applied)
+      : true
+    const activeSellingPrice = predefinedDiscountApplied ? ourPriceSnapshot : usualPriceSnapshot
+    const unitPrice = activeSellingPrice
     const unitCost = toMoney(product.cost_price || 0)
+
+    const pricingQty = toPricingUnitQuantity(item.quantity, sellingUnit, product.pricing_unit, product.unit_category)
+    const unitDiscountDiff = usualPriceSnapshot.minus(ourPriceSnapshot)
+    const predefinedDiscountAmount = predefinedDiscountApplied && unitDiscountDiff.gt(0)
+      ? roundMoney(pricingQty.mul(unitDiscountDiff))
+      : toMoney(0)
     const itemDiscount = toMoney(item.discount)
 
     const lineGross = calculateLineGross(item.quantity, sellingUnit, product.pricing_unit, unitPrice, product.unit_category)
@@ -84,6 +104,11 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
       pricing_unit: product.pricing_unit,
       unit_price: unitPrice,
       unit_cost_snapshot: unitCost,
+      cost_price_snapshot: costPriceSnapshot,
+      usual_price_snapshot: usualPriceSnapshot,
+      our_price_snapshot: ourPriceSnapshot,
+      predefined_discount_applied: predefinedDiscountApplied,
+      predefined_discount_amount: predefinedDiscountAmount,
       line_cost: lineCost,
       discount: itemDiscount,
       total: lineTotal,
@@ -91,6 +116,11 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
   })
 
   const discountAmt = toMoney(discount_amount)
+  if (discountAmt.lt(0)) {
+    throw new ValidationError('Discount cannot be negative', [
+      { field: 'discount_amount', message: 'Cart discount cannot be negative' },
+    ])
+  }
   if (discountAmt.gt(subtotal)) {
     throw new ValidationError('Discount too large', [
       {
@@ -190,6 +220,11 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
         pricing_unit: si.pricing_unit,
         unit_price: si.unit_price,
         unit_cost_snapshot: si.unit_cost_snapshot,
+        cost_price_snapshot: si.cost_price_snapshot,
+        usual_price_snapshot: si.usual_price_snapshot,
+        our_price_snapshot: si.our_price_snapshot,
+        predefined_discount_applied: si.predefined_discount_applied,
+        predefined_discount_amount: si.predefined_discount_amount,
         line_cost: si.line_cost,
         discount: si.discount,
         total: si.total,
@@ -259,7 +294,7 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     }
 
     return newSale
-  }))
+  }, { maxWait: 10000, timeout: 30000 }))
 
   // Fetch complete sale with relations
   return getSaleById(sale.id)
@@ -354,7 +389,7 @@ async function processRefund(saleId, userId) {
     return requestPaystackRefund(sale, userId)
   }
 
-  await prisma.$transaction((tx) => completeRefund(tx, sale, userId))
+  await prisma.$transaction((tx) => completeRefund(tx, sale, userId), { maxWait: 10000, timeout: 30000 })
 
   return getSaleById(saleId)
 }
@@ -406,7 +441,7 @@ async function completePaystackRefund(transactionReference) {
   const userId = sale.refund_requested_by || sale.user_id
 
   try {
-    await prisma.$transaction((tx) => completeRefund(tx, sale, userId))
+    await prisma.$transaction((tx) => completeRefund(tx, sale, userId), { maxWait: 10000, timeout: 30000 })
   } catch (err) {
     if (err instanceof ValidationError) return false // already refunded
     throw err

@@ -180,6 +180,7 @@ export function CartItem({
   productData = null,
   onUpdate,
   onRemove,
+  onToggleDiscount,
   onDiscountChange,
   onUnitChange,
   isSelected,
@@ -193,6 +194,23 @@ export function CartItem({
   const current = item.quantity === '' ? 0 : parseFloat(item.quantity)
   const currentVal = isNaN(current) ? 0 : current
   const isAtStockLimit = maxStock <= 0 || currentVal >= maxStock
+
+  const usualPrice = Number(item.usual_price != null ? item.usual_price : item.price)
+  const ourPrice = Number(item.our_price != null ? item.our_price : item.price)
+  const hasPredefinedDiscount = usualPrice > ourPrice
+  const isPredefinedApplied = item.apply_predefined_discount !== false
+  const activeSellingPrice = isPredefinedApplied ? ourPrice : usualPrice
+  const predefinedDiff = Math.max(0, usualPrice - ourPrice)
+
+  let pricingQty = currentVal
+  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
+    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
+    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+    pricingQty = (currentVal * factorSelling) / factorPricing
+  }
+  const predefinedDiscountAmount = isPredefinedApplied && hasPredefinedDiscount
+    ? Number((predefinedDiff * pricingQty).toFixed(2))
+    : 0
 
   useEffect(() => {
     if (isLastAdded) {
@@ -501,10 +519,40 @@ export function CartItem({
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-gray-900 truncate">{item.name}</p>
-          <p className="text-xs text-gray-400">
-            {formatCurrency(item.price)} / {item.pricing_unit || 'pcs'}
-          </p>
+          <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
+            {hasPredefinedDiscount ? (
+              <>
+                <span className="line-through text-gray-400">Usual: {formatCurrency(usualPrice)}</span>
+                <span className="font-semibold text-primary-700">Our: {formatCurrency(ourPrice)}</span>
+              </>
+            ) : (
+              <span className="font-medium text-gray-700">{formatCurrency(usualPrice)}</span>
+            )}
+            <span>/ {item.pricing_unit || 'pcs'}</span>
+            <span className="text-gray-300">•</span>
+            <span className="font-medium text-gray-700">
+              Active: {formatCurrency(activeSellingPrice)}
+            </span>
+          </div>
+
+          {hasPredefinedDiscount && (
+            <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/70 border border-primary-100 rounded-md px-2 py-1">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-primary-900 font-medium">
+                <input
+                  type="checkbox"
+                  data-testid={`predefined-discount-toggle-${item.product_id}`}
+                  checked={isPredefinedApplied}
+                  onChange={(e) => onToggleDiscount?.(item.product_id, e.target.checked)}
+                  className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-gray-300"
+                />
+                <span>Predefined Discount</span>
+              </label>
+              <span className="font-bold text-success-700">
+                {isPredefinedApplied ? `-${formatCurrency(predefinedDiscountAmount)}` : 'Disabled'}
+              </span>
+            </div>
+          )}
         </div>
         <button
           onClick={() => onRemove(item.product_id)}
@@ -671,7 +719,28 @@ export default function POSPage() {
     navigate('/login')
     toast.success('Logged out successfully')
   }
-  const { items, cartDiscount, customer, subtotal, tax, total, addItem, removeItem, updateQuantity, updateUnit, updateDiscount, setCartDiscount, setCustomer, clearCart } = useCart()
+  const {
+    items,
+    cartDiscount,
+    customer,
+    usual_subtotal,
+    predefined_discounts,
+    subtotal,
+    discount,
+    tax,
+    total,
+    distinct_items,
+    total_quantity,
+    addItem,
+    removeItem,
+    updateQuantity,
+    togglePredefinedDiscount,
+    updateUnit,
+    updateDiscount,
+    setCartDiscount,
+    setCustomer,
+    clearCart,
+  } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
   const [allProducts, setAllProducts] = useState([])
@@ -817,6 +886,7 @@ export default function POSPage() {
 
   const {
     selectedProductIndex,
+    setSelectedProductIndex,
     selectedCartIndex,
     activeZone,
   } = usePOSKeyboard({
@@ -840,6 +910,81 @@ export default function POSPage() {
     isModalOpen: isAnyModalOpen,
     searchRef,
   })
+
+  // Reset selected product highlight when search query or filtered list changes
+  useEffect(() => {
+    if (typeof setSelectedProductIndex === 'function') {
+      setSelectedProductIndex(0)
+    }
+  }, [searchQuery, setSelectedProductIndex])
+
+  // Scroll highlighted product card into view during keyboard navigation
+  useEffect(() => {
+    if (products.length > 0 && selectedProductIndex >= 0 && selectedProductIndex < products.length) {
+      const targetProd = products[selectedProductIndex]
+      if (targetProd) {
+        const el = document.getElementById(`product-card-${targetProd.id}`)
+        if (el && typeof el.scrollIntoView === 'function') {
+          el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+        }
+      }
+    }
+  }, [selectedProductIndex, products])
+
+  // Centralized keyboard & barcode search submission
+  async function handleSearchSubmit() {
+    const q = searchQuery.trim()
+    if (!q) {
+      if (products.length > 0) {
+        const target = products[selectedProductIndex] || products[0]
+        if (target) {
+          handleAddProduct(target)
+        }
+      }
+      return
+    }
+
+    // 1. Exact Barcode match in memory
+    const exactBarcode = allProducts.find((p) => p.barcode && p.barcode.toLowerCase() === q.toLowerCase())
+    if (exactBarcode) {
+      handleAddProduct(exactBarcode)
+      setSearchQuery('')
+      setSelectedProductIndex(0)
+      return
+    }
+
+    // 2. Exact SKU match in memory
+    const exactSku = allProducts.find((p) => p.sku && p.sku.toLowerCase() === q.toLowerCase())
+    if (exactSku) {
+      handleAddProduct(exactSku)
+      setSearchQuery('')
+      setSelectedProductIndex(0)
+      return
+    }
+
+    // 3. Exact Name match in memory
+    const exactName = allProducts.find((p) => p.name && p.name.toLowerCase() === q.toLowerCase())
+    if (exactName) {
+      handleAddProduct(exactName)
+      setSearchQuery('')
+      setSelectedProductIndex(0)
+      return
+    }
+
+    // 4. Highlighted or first matching result from filtered products
+    if (products.length > 0) {
+      const target = products[selectedProductIndex] || products[0]
+      if (target) {
+        handleAddProduct(target)
+        setSearchQuery('')
+        setSelectedProductIndex(0)
+        return
+      }
+    }
+
+    // 5. Fallback: Query backend by barcode for uncached / unloaded products
+    await handleBarcodeSearch(q)
+  }
 
   function handleOpenPayment() {
     if (items.length === 0) return
@@ -874,6 +1019,7 @@ export default function POSPage() {
           product_id: i.product_id,
           quantity: parseFloat(i.quantity) || 0,
           unit: i.unit,
+          predefined_discount_applied: i.apply_predefined_discount !== false,
           discount: parseFloat(i.discount) || 0,
         })),
         customer_id: customer?.id || null,
@@ -971,13 +1117,25 @@ export default function POSPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                if (products.length > 0) {
+                  setSelectedProductIndex((i) => Math.min(products.length - 1, i + 1))
+                }
+                return
+              }
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                if (products.length > 0) {
+                  setSelectedProductIndex((i) => Math.max(0, i - 1))
+                }
+                return
+              }
               if (e.key === 'Enter') {
                 e.preventDefault()
                 e.stopPropagation()
-                const q = searchQuery.trim()
-                if (q) {
-                  handleBarcodeSearch(q)
-                }
+                handleSearchSubmit()
+                return
               }
             }}
             placeholder="Search by name, SKU, or scan barcode… (F1)"
@@ -1050,11 +1208,13 @@ export default function POSPage() {
           {!isLoadingProducts && products.length > 0 && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {products.map((product, idx) => {
-                const isSelected = activeZone === 'PRODUCTS' && selectedProductIndex === idx
+                const isSelected = selectedProductIndex === idx
                 const isOut = Number(product.quantity) <= 0
                 return (
                   <button
                     key={product.id}
+                    id={`product-card-${product.id}`}
+                    data-testid={`product-card-${product.id}`}
                     onClick={() => handleAddProduct(product)}
                     disabled={isOut}
                     className={`bg-white rounded-xl p-3 text-left shadow-sm border transition hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
@@ -1077,10 +1237,17 @@ export default function POSPage() {
                     <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
                     <p className="text-xs text-gray-400 mb-1">{product.sku}</p>
                     <div className="flex items-center justify-between mt-1">
-                      <span className="text-sm font-bold text-primary-600">
-                        {formatCurrency(product.price)}
-                        {product.pricing_unit && product.pricing_unit !== 'pcs' ? ` / ${product.pricing_unit}` : ''}
-                      </span>
+                      <div>
+                        {Number(product.usual_price) > Number(product.our_price || product.price) && (
+                          <span className="text-xs text-gray-400 line-through mr-1">
+                            {formatCurrency(product.usual_price)}
+                          </span>
+                        )}
+                        <span className="text-sm font-bold text-primary-600">
+                          {formatCurrency(product.our_price || product.price)}
+                          {product.pricing_unit && product.pricing_unit !== 'pcs' ? ` / ${product.pricing_unit}` : ''}
+                        </span>
+                      </div>
                       <Badge variant={isOut ? 'danger' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'warning' : 'success'}>
                         {isOut ? 'Out' : formatQuantityWithUnit(product.quantity, product.base_unit)}
                       </Badge>
@@ -1102,8 +1269,10 @@ export default function POSPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
             </svg>
             <h2 className="font-semibold text-gray-900">Cart</h2>
-            {itemCount > 0 && (
-              <Badge variant="primary">{itemCount} item{itemCount !== 1 ? 's' : ''}</Badge>
+            {items.length > 0 && (
+              <Badge variant="primary">
+                {distinct_items || items.length} distinct item{(distinct_items || items.length) !== 1 ? 's' : ''} ({total_quantity || items.reduce((s, i) => s + Number(i.quantity || 0), 0)} units)
+              </Badge>
             )}
           </div>
           {items.length > 0 && (
@@ -1164,6 +1333,7 @@ export default function POSPage() {
                     if (lastAddedId === pid) setLastAddedId(null)
                     removeItem(pid)
                   }}
+                  onToggleDiscount={togglePredefinedDiscount}
                   onDiscountChange={updateDiscount}
                   onUnitChange={(pid, unit) => updateUnit(pid, unit)}
                 />
@@ -1175,12 +1345,13 @@ export default function POSPage() {
 
         {/* Totals + actions */}
         <div className="border-t border-gray-100 px-4 py-3 space-y-2.5">
-          {/* Cart discount */}
+          {/* Additional Cart discount input */}
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Cart Discount</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Additional Cart Discount</label>
             <input
               type="text"
               inputMode="decimal"
+              data-testid="additional-cart-discount-input"
               value={cartDiscount}
               onChange={(e) => {
                 let val = e.target.value
@@ -1211,27 +1382,40 @@ export default function POSPage() {
             />
           </div>
 
-          {/* Subtotal */}
-          <div className="flex justify-between text-sm text-gray-500">
-            <span>Subtotal</span>
-            <span>{formatCurrency(subtotal)}</span>
+          {/* Breakdown summary */}
+          <div className="space-y-1 pt-1 border-t border-gray-100 text-sm text-gray-600">
+            <div className="flex justify-between">
+              <span>Usual Price Subtotal</span>
+              <span>{formatCurrency(usual_subtotal != null ? usual_subtotal : subtotal)}</span>
+            </div>
+            {Number(predefined_discounts || 0) > 0 && (
+              <div className="flex justify-between text-success-700">
+                <span>Total Predefined Discounts</span>
+                <span>-{formatCurrency(predefined_discounts)}</span>
+              </div>
+            )}
+            {(parseFloat(cartDiscount) || 0) > 0 && (
+              <div className="flex justify-between text-danger-600">
+                <span>Additional Cart Discount</span>
+                <span>-{formatCurrency(cartDiscount)}</span>
+              </div>
+            )}
+            {tax > 0 && (
+              <div className="flex justify-between text-gray-500">
+                <span>Tax</span>
+                <span>{formatCurrency(tax)}</span>
+              </div>
+            )}
           </div>
-          {(parseFloat(cartDiscount) || 0) > 0 && (
-            <div className="flex justify-between text-sm text-danger-600">
-              <span>Discount</span>
-              <span>-{formatCurrency(cartDiscount)}</span>
-            </div>
-          )}
-          {tax > 0 && (
-            <div className="flex justify-between text-sm text-gray-500">
-              <span>Tax</span>
-              <span>{formatCurrency(tax)}</span>
-            </div>
-          )}
 
           {/* Total */}
           <div className="flex justify-between items-center pt-2 border-t border-gray-100">
-            <span className="text-base font-bold text-gray-900">Total</span>
+            <div>
+              <span className="text-base font-bold text-gray-900 block leading-tight">Final Total</span>
+              <span className="text-xs text-gray-400">
+                {distinct_items || items.length} distinct item{(distinct_items || items.length) !== 1 ? 's' : ''} ({total_quantity || items.reduce((s, i) => s + Number(i.quantity || 0), 0)} units)
+              </span>
+            </div>
             <span className="text-2xl font-bold text-primary-600">{formatCurrency(total)}</span>
           </div>
 
