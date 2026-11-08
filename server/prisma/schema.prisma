@@ -27,6 +27,12 @@ enum PaymentStatus {
   PENDING
 }
 
+enum PurchaseStatus {
+  ORDERED
+  RECEIVED
+  CANCELLED
+}
+
 enum InventoryChangeType {
   SALE
   RESTOCK
@@ -38,6 +44,18 @@ enum UnitCategory {
   COUNT
   WEIGHT
   VOLUME
+}
+
+enum AssetStatus {
+  ACTIVE
+  IN_REPAIR
+  DISPOSED
+  DEPRECIATED
+}
+
+enum OwnerTxType {
+  CONTRIBUTION
+  WITHDRAWAL
 }
 
 model User {
@@ -53,10 +71,14 @@ model User {
   created_at            DateTime  @default(now())
   updated_at            DateTime  @updatedAt
 
-  sales             Sale[]
-  inventory_logs    InventoryLog[]
-  auth_logs         AuthLog[]
-  customer_payments CustomerPayment[]
+  sales              Sale[]
+  inventory_logs     InventoryLog[]
+  auth_logs          AuthLog[]
+  customer_payments  CustomerPayment[]
+  purchases          Purchase[]
+  supplier_payments  SupplierPayment[]
+  expenses           Expense[]
+  owner_transactions OwnerTransaction[]
 }
 
 model Category {
@@ -92,6 +114,7 @@ model Product {
   category       Category       @relation(fields: [category_id], references: [id])
   sale_items     SaleItem[]
   inventory_logs InventoryLog[]
+  purchase_items PurchaseItem[]
 
   @@index([barcode])
   @@index([sku])
@@ -276,4 +299,171 @@ model PaystackPayment {
   updated_at          DateTime  @updatedAt
 
   sale Sale? @relation(fields: [sale_id], references: [id], onDelete: SetNull)
+}
+
+model Supplier {
+  id             String   @id @default(uuid())
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  contact_person String?
+  notes          String?
+  is_active      Boolean  @default(true)
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  purchases         Purchase[]
+  supplier_payments SupplierPayment[]
+
+  @@index([name])
+  @@index([phone])
+}
+
+model Purchase {
+  id              String         @id @default(uuid())
+  purchase_number String         @unique
+  supplier_id     String
+  user_id         String
+  status          PurchaseStatus @default(ORDERED)
+  payment_status  PaymentStatus  @default(PENDING)
+  subtotal        Decimal        @default(0) @db.Decimal(10, 2)
+  tax_amount      Decimal        @default(0) @db.Decimal(10, 2)
+  total_amount    Decimal        @db.Decimal(10, 2)
+  amount_paid     Decimal        @default(0) @db.Decimal(10, 2)
+  balance_due     Decimal        @default(0) @db.Decimal(10, 2)
+  received_at     DateTime?
+  notes           String?
+  created_at      DateTime       @default(now())
+  updated_at      DateTime       @updatedAt
+
+  supplier    Supplier                    @relation(fields: [supplier_id], references: [id], onDelete: Restrict)
+  user        User                        @relation(fields: [user_id], references: [id])
+  items       PurchaseItem[]
+  allocations SupplierPaymentAllocation[]
+
+  @@index([purchase_number])
+  @@index([supplier_id])
+  @@index([created_at])
+}
+
+model PurchaseItem {
+  id            String   @id @default(uuid())
+  purchase_id   String
+  product_id    String
+  product_name  String   @default("")
+  product_sku   String   @default("")
+  unit          String   @default("pcs")
+  quantity      Decimal  @db.Decimal(10, 3)
+  base_quantity Decimal  @default(1) @db.Decimal(14, 3)
+  unit_cost     Decimal  @db.Decimal(10, 2)
+  total_cost    Decimal  @db.Decimal(10, 2)
+  created_at    DateTime @default(now())
+
+  purchase Purchase @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
+  product  Product  @relation(fields: [product_id], references: [id], onDelete: Restrict)
+
+  @@index([purchase_id])
+  @@index([product_id])
+}
+
+model SupplierPayment {
+  id             String        @id @default(uuid())
+  supplier_id    String
+  user_id        String
+  amount         Decimal       @db.Decimal(10, 2)
+  payment_method PaymentMethod @default(CASH)
+  reference      String?
+  notes          String?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  supplier    Supplier                    @relation(fields: [supplier_id], references: [id], onDelete: Cascade)
+  user        User                        @relation(fields: [user_id], references: [id])
+  allocations SupplierPaymentAllocation[]
+
+  @@index([supplier_id])
+  @@index([created_at])
+}
+
+model SupplierPaymentAllocation {
+  id                  String   @id @default(uuid())
+  supplier_payment_id String
+  purchase_id         String
+  amount              Decimal  @db.Decimal(10, 2)
+  created_at          DateTime @default(now())
+
+  supplier_payment SupplierPayment @relation(fields: [supplier_payment_id], references: [id], onDelete: Cascade)
+  purchase         Purchase        @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
+
+  @@index([supplier_payment_id])
+  @@index([purchase_id])
+}
+
+model ExpenseCategory {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  is_active   Boolean  @default(true)
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  expenses Expense[]
+}
+
+model Expense {
+  id             String        @id @default(uuid())
+  category_id    String
+  user_id        String
+  amount         Decimal       @db.Decimal(10, 2)
+  payment_method PaymentMethod @default(CASH)
+  expense_date   DateTime      @default(now())
+  payee          String?
+  reference      String?
+  notes          String?
+  created_at     DateTime      @default(now())
+  updated_at     DateTime      @updatedAt
+
+  category ExpenseCategory @relation(fields: [category_id], references: [id], onDelete: Restrict)
+  user     User            @relation(fields: [user_id], references: [id])
+
+  @@index([category_id])
+  @@index([expense_date])
+  @@index([created_at])
+}
+
+model BusinessAsset {
+  id               String      @id @default(uuid())
+  name             String
+  asset_code       String?     @unique
+  category         String // Equipment, Vehicle, Electronics/Computers, Furniture & Fixture, Building/Leasehold
+  acquisition_cost Decimal     @db.Decimal(10, 2)
+  acquisition_date DateTime    @default(now())
+  current_value    Decimal     @db.Decimal(10, 2)
+  status           AssetStatus @default(ACTIVE)
+  location         String?
+  notes            String?
+  created_at       DateTime    @default(now())
+  updated_at       DateTime    @updatedAt
+
+  @@index([category])
+  @@index([status])
+}
+
+model OwnerTransaction {
+  id               String        @id @default(uuid())
+  user_id          String
+  type             OwnerTxType
+  amount           Decimal       @db.Decimal(10, 2)
+  payment_method   PaymentMethod @default(CASH)
+  transaction_date DateTime      @default(now())
+  reference        String?
+  notes            String?
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+
+  user User @relation(fields: [user_id], references: [id])
+
+  @@index([type])
+  @@index([transaction_date])
 }

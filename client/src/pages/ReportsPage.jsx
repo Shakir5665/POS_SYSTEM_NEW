@@ -28,6 +28,7 @@ const TABS = [
   { id: 'category', label: 'Category' },
   { id: 'cashier', label: 'Cashier Performance' },
   { id: 'profit', label: 'Profit' },
+  { id: 'financial-statement', label: 'Financial Statement (P&L)' },
 ]
 
 function formatDate(d) {
@@ -80,6 +81,7 @@ export default function ReportsPage() {
   const [catData, setCatData] = useState([])
   const [cashierData, setCashierData] = useState([])
   const [profitData, setProfitData] = useState([])
+  const [financialData, setFinancialData] = useState(null)
 
   const fetchTab = useCallback(
     async (tab) => {
@@ -105,6 +107,9 @@ export default function ReportsPage() {
         } else if (tab === 'profit') {
           const res = await reportsService.profit(params)
           setProfitData(res.data?.data ?? res.data ?? [])
+        } else if (tab === 'financial-statement') {
+          const res = await reportsService.financialStatement(params)
+          setFinancialData(res.data?.data ?? res.data)
         }
       } catch {
         toast.error('Failed to load report data.')
@@ -461,6 +466,145 @@ export default function ReportsPage() {
                       })}
                     </tbody>
                   </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Financial Statement Tab */}
+          {activeTab === 'financial-statement' && (
+            <div className="space-y-6">
+              {loading ? (
+                <Spinner />
+              ) : !financialData ? (
+                <p className="text-center text-gray-400 py-10">No financial data available</p>
+              ) : (
+                <div className="space-y-6">
+                  {/* P&L Metric Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                      <p className="text-sm text-gray-500">Gross Sales Revenue</p>
+                      <p className="text-2xl font-bold text-gray-900 mt-1">
+                        {formatCurrency(financialData.gross_sales)}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">Total billing volume</p>
+                    </div>
+
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                      <p className="text-sm text-gray-500">Cost of Goods Sold (COGS)</p>
+                      <p className="text-2xl font-bold text-gray-700 mt-1">
+                        {formatCurrency(financialData.cogs)}
+                      </p>
+                      <p className="text-xs text-gray-400 mt-1">Product acquisition cost</p>
+                    </div>
+
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                      <p className="text-sm text-gray-500">Gross Profit (Margin)</p>
+                      <p className="text-2xl font-bold text-primary-600 mt-1">
+                        {formatCurrency(financialData.gross_profit)}
+                      </p>
+                      <p className="text-xs text-primary-500 mt-1">
+                        Margin: {financialData.gross_profit_margin}%
+                      </p>
+                    </div>
+
+                    <div className={`border rounded-xl p-5 shadow-sm ${financialData.net_profit >= 0 ? 'bg-success-50/50 border-success-100' : 'bg-danger-50/50 border-danger-100'}`}>
+                      <p className="text-sm text-gray-600 font-medium">Net Profit (Operating)</p>
+                      <p className={`text-2xl font-bold mt-1 ${financialData.net_profit >= 0 ? 'text-success-700' : 'text-danger-700'}`}>
+                        {formatCurrency(financialData.net_profit)}
+                      </p>
+                      <p className="text-xs text-gray-500 mt-1">
+                        After OpEx: {financialData.net_profit_margin}%
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cash Flow & Position */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-white p-5 rounded-xl border border-gray-200 space-y-3">
+                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Sales Realization in Period</p>
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-sm text-gray-600">Immediate Cash / Digital Payments</span>
+                        <span className="text-sm font-mono font-bold text-success-600">
+                          {formatCurrency(financialData.cash_collected)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-sm text-gray-600">Uncollected Credit Extended</span>
+                        <span className="text-sm font-mono font-bold text-warning-700">
+                          {formatCurrency(financialData.credit_sales)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-sm font-medium text-gray-700">Total Period Billed</span>
+                        <span className="text-base font-mono font-bold text-gray-900">
+                          {formatCurrency(financialData.gross_sales)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-xl border border-gray-200 space-y-3">
+                      <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Global Working Debt Balance</p>
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-sm text-gray-600">Customer Receivables (Money owed to you)</span>
+                        <span className="text-sm font-mono font-bold text-primary-700">
+                          {formatCurrency(financialData.total_customer_receivables)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-2 border-b">
+                        <span className="text-sm text-gray-600">Supplier Payables (Money you owe vendors)</span>
+                        <span className="text-sm font-mono font-bold text-danger-600">
+                          {formatCurrency(financialData.total_supplier_payables)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-sm font-medium text-gray-700">Net Working Capital Stance</span>
+                        <span className={`text-base font-mono font-bold ${financialData.total_customer_receivables >= financialData.total_supplier_payables ? 'text-success-600' : 'text-danger-600'}`}>
+                          {formatCurrency(financialData.total_customer_receivables - financialData.total_supplier_payables)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expenses by Category Table */}
+                  <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-sm font-bold text-gray-900">Operating Expenses in Period</h3>
+                      <span className="text-sm font-bold text-danger-600 font-mono">
+                        Total OpEx: {formatCurrency(financialData.operating_expenses)}
+                      </span>
+                    </div>
+
+                    {financialData.expenses_by_category?.length > 0 ? (
+                      <div className="border border-gray-200 rounded-lg overflow-hidden">
+                        <table className="min-w-full divide-y divide-gray-200 text-sm">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-4 py-2 text-left text-xs font-medium text-gray-500">Category</th>
+                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">Amount</th>
+                              <th className="px-4 py-2 text-right text-xs font-medium text-gray-500">% of OpEx</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100 bg-white">
+                            {financialData.expenses_by_category.map((item, idx) => {
+                              const pct = financialData.operating_expenses > 0
+                                ? ((item.amount / financialData.operating_expenses) * 100).toFixed(1)
+                                : '0.0'
+                              return (
+                                <tr key={idx} className="hover:bg-gray-50">
+                                  <td className="px-4 py-2 font-medium text-gray-900">{item.category}</td>
+                                  <td className="px-4 py-2 text-right font-mono text-danger-600">{formatCurrency(item.amount)}</td>
+                                  <td className="px-4 py-2 text-right text-gray-500 text-xs">{pct}%</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-xs text-gray-400 py-3 text-center">No operating expenses recorded in this period.</p>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

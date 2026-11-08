@@ -12,6 +12,7 @@ async function listInventory({ page = 1, per_page = 20, search, status } = {}) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
       { sku: { contains: search, mode: 'insensitive' } },
+      { barcode: { contains: search, mode: 'insensitive' } },
     ]
   }
   if (status === 'out') {
@@ -27,9 +28,13 @@ async function listInventory({ page = 1, per_page = 20, search, status } = {}) {
         id: true,
         name: true,
         sku: true,
+        barcode: true,
         quantity: true,
         low_stock_threshold: true,
         price: true,
+        base_unit: true,
+        pricing_unit: true,
+        unit_category: true,
         category: { select: { id: true, name: true } },
         updated_at: true,
       },
@@ -69,9 +74,21 @@ async function getLowStockCount() {
   return result[0].count
 }
 
-async function getLowStock() {
+async function getLowStock(search) {
+  if (search) {
+    const term = `%${search}%`
+    return prisma.$queryRaw`
+      SELECT p.id, p.name, p.sku, p.barcode, p.quantity, p.low_stock_threshold, p.base_unit, p.pricing_unit,
+             json_build_object('id', c.id, 'name', c.name) as category
+      FROM "Product" p
+      JOIN "Category" c ON c.id = p.category_id
+      WHERE p.is_active = true AND p.quantity <= p.low_stock_threshold
+        AND (p.name ILIKE ${term} OR p.sku ILIKE ${term} OR (p.barcode IS NOT NULL AND p.barcode ILIKE ${term}))
+      ORDER BY p.quantity ASC
+    `
+  }
   return prisma.$queryRaw`
-    SELECT p.id, p.name, p.sku, p.quantity, p.low_stock_threshold,
+    SELECT p.id, p.name, p.sku, p.barcode, p.quantity, p.low_stock_threshold, p.base_unit, p.pricing_unit,
            json_build_object('id', c.id, 'name', c.name) as category
     FROM "Product" p
     JOIN "Category" c ON c.id = p.category_id

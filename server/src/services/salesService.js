@@ -134,13 +134,44 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
   const taxAmount = roundMoney(taxableAmount.mul(taxRate).div(100))
   const totalAmount = taxableAmount.plus(taxAmount)
 
-  // Validate payment
-  const amountPaid = toMoney(amount_paid)
-  if (payment_method === 'CASH') {
-    if (amountPaid.lt(totalAmount)) {
-      throw new ValidationError('Insufficient payment', [
-        { field: 'amount_paid', message: `Amount paid (${amountPaid.toFixed(2)}) is less than total (${totalAmount.toFixed(2)})` },
+  // Validate payment and compute amount_paid, balance_due, payment_status, change_given
+  let amountPaid = toMoney(amount_paid || 0)
+  let balanceDue = toMoney(0)
+  let changeGiven = toMoney(0)
+  let paymentStatus = 'COMPLETED'
+
+  if (payment_method === 'CREDIT') {
+    if (!customer_id) {
+      throw new ValidationError('Credit sales require a registered customer', [
+        { field: 'customer_id', message: 'Credit sales require a registered customer' },
       ])
+    }
+    if (amountPaid.lt(0)) {
+      throw new ValidationError('Amount paid cannot be negative')
+    }
+    if (amountPaid.gt(totalAmount)) {
+      throw new ValidationError('Amount paid cannot exceed total amount for credit sale', [
+        { field: 'amount_paid', message: `Amount paid (${amountPaid.toFixed(2)}) cannot exceed sale total (${totalAmount.toFixed(2)})` },
+      ])
+    }
+    balanceDue = totalAmount.minus(amountPaid)
+    paymentStatus = balanceDue.eq(0) ? 'COMPLETED' : (amountPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING')
+    changeGiven = toMoney(0)
+  } else if (payment_method === 'CASH') {
+    if (amountPaid.lt(totalAmount)) {
+      if (!customer_id) {
+        throw new ValidationError('Credit sales require a registered customer', [
+          { field: 'amount_paid', message: 'Amount paid is less than total. Partial payments or credit sales require a registered customer.' },
+        ])
+      }
+      // Partial cash payment for registered customer
+      balanceDue = totalAmount.minus(amountPaid)
+      paymentStatus = amountPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING'
+      changeGiven = toMoney(0)
+    } else {
+      balanceDue = toMoney(0)
+      paymentStatus = 'COMPLETED'
+      changeGiven = amountPaid.minus(totalAmount)
     }
   } else {
     // CARD or MOBILE_MONEY — verify via Paystack before proceeding
@@ -174,9 +205,11 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
         { field: 'amount_paid', message: `Paystack amount (${currencySymbol} ${paid.toFixed(2)}) does not match sale total (${currencySymbol} ${totalAmount.toFixed(2)})` },
       ])
     }
-  }
 
-  const changeGiven = payment_method === 'CASH' ? amountPaid.minus(totalAmount) : toMoney(0)
+    balanceDue = toMoney(0)
+    paymentStatus = 'COMPLETED'
+    changeGiven = toMoney(0)
+  }
 
   // Loyalty points (1 point per GHS 10 by default). Stored on the sale so a
   // refund reverses exactly what was earned, even if the rate changes later.
@@ -199,8 +232,10 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
         discount_amount: discountAmt,
         tax_amount: taxAmount,
         total_amount: totalAmount,
+        amount_paid: amountPaid,
+        balance_due: balanceDue,
         payment_method,
-        payment_status: 'COMPLETED',
+        payment_status: paymentStatus,
         loyalty_points_earned: pointsEarned,
         notes: notes || null,
       },
@@ -300,7 +335,7 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
   return getSaleById(sale.id)
 }
 
-const MAX_TRANSACTION_ID_ATTEMPTS = 5
+const MAX_TRANSACTION_ID_ATTEMPTS = 10
 
 async function withUniqueTransactionId(createSaleWithId) {
   for (let attempt = 1; ; attempt++) {
@@ -308,8 +343,12 @@ async function withUniqueTransactionId(createSaleWithId) {
     try {
       return await createSaleWithId(transaction_id)
     } catch (err) {
-      const isIdConflict = err.code === 'P2002' && String(err.meta?.target).includes('transaction_id')
+      const isIdConflict =
+        err.code === 'P2002' &&
+        (String(err.meta?.target).includes('transaction_id') ||
+         String(err.meta?.target).includes('sales_transaction_id_key'))
       if (!isIdConflict || attempt >= MAX_TRANSACTION_ID_ATTEMPTS) throw err
+      await new Promise((resolve) => setTimeout(resolve, Math.floor(Math.random() * 50) + 15))
     }
   }
 }
@@ -385,7 +424,7 @@ async function processRefund(saleId, userId) {
 
   // Card and mobile money refunds go through Paystack and only complete
   // when the refund.processed webhook confirms the money was returned
-  if (sale.payment_method !== 'CASH') {
+  if (sale.payment_method === 'CARD' || sale.payment_method === 'MOBILE_MONEY') {
     return requestPaystackRefund(sale, userId)
   }
 
@@ -465,11 +504,11 @@ async function failPaystackRefund(transactionReference) {
 }
 
 async function completeRefund(tx, sale, userId) {
-  // Mark the sale refunded only if it is still COMPLETED. If a concurrent
+  // Mark the sale refunded only if it is not yet REFUNDED. If a concurrent
   // refund got there first, nothing is updated and this one is rejected.
   const { count } = await tx.sale.updateMany({
-    where: { id: sale.id, payment_status: 'COMPLETED' },
-    data: { payment_status: 'REFUNDED', refund_requested_at: null, refund_requested_by: null },
+    where: { id: sale.id, payment_status: { in: ['COMPLETED', 'PARTIALLY_PAID', 'PENDING'] } },
+    data: { payment_status: 'REFUNDED', balance_due: 0, refund_requested_at: null, refund_requested_by: null },
   })
 
   if (count === 0) {

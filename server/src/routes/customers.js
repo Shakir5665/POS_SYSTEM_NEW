@@ -15,6 +15,13 @@ const customerValidation = [
   body('address').optional({ nullable: true }).trim(),
 ]
 
+const paymentValidation = [
+  body('amount').isFloat({ gt: 0 }).withMessage('Payment amount must be greater than 0'),
+  body('payment_method').optional().isIn(['CASH', 'MOBILE_MONEY', 'CARD']).withMessage('Payment method must be CASH, MOBILE_MONEY, or CARD'),
+  body('reference').optional({ nullable: true }).trim(),
+  body('notes').optional({ nullable: true }).trim(),
+]
+
 router.get(
   '/',
   [query('page').optional().isInt({ min: 1 }), query('per_page').optional().isInt({ min: 1, max: 100 })],
@@ -35,6 +42,32 @@ router.get(
   param('id').isUUID().withMessage('Invalid customer ID'),
   validate,
   customerController.getCustomerPurchases
+)
+router.get(
+  '/:id/credit-sales',
+  param('id').isUUID().withMessage('Invalid customer ID'),
+  validate,
+  customerController.getCustomerCreditSales
+)
+router.get(
+  '/:id/payments',
+  param('id').isUUID().withMessage('Invalid customer ID'),
+  validate,
+  customerController.getCustomerPayments
+)
+router.post(
+  '/:id/payments',
+  authorize(['ADMIN', 'MANAGER', 'CASHIER']),
+  param('id').isUUID().withMessage('Invalid customer ID'),
+  paymentValidation,
+  validate,
+  customerController.recordCustomerPayment
+)
+router.get(
+  '/:id/statement',
+  param('id').isUUID().withMessage('Invalid customer ID'),
+  validate,
+  customerController.getCustomerAccountStatement
 )
 
 module.exports = router

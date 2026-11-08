@@ -32,6 +32,16 @@ export default function InventoryPage() {
   const [page, setPage] = useState(1)
   const [activeTab, setActiveTab] = useState('all')
   const [stats, setStats] = useState({ total: 0, low: 0, out: 0 })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+
+  // Debounce search query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
 
   // Adjust/Restock modal state
   const [adjustTarget, setAdjustTarget] = useState(null)
@@ -43,10 +53,11 @@ export default function InventoryPage() {
     setIsLoading(true)
     try {
       let res
-      const params = { page, per_page: 20 }
+      const cleanSearch = debouncedSearch.trim() || undefined
+      const params = { page, per_page: 20, search: cleanSearch }
 
       if (activeTab === 'low') {
-        res = await inventoryService.lowStock()
+        res = await inventoryService.lowStock(cleanSearch)
         const data = res.data?.data || []
         setProducts(data)
         setMeta({ page: 1, total_pages: 1, total: data.length })
@@ -64,7 +75,7 @@ export default function InventoryPage() {
     } finally {
       setIsLoading(false)
     }
-  }, [page, activeTab])
+  }, [page, activeTab, debouncedSearch])
 
   // Load stats (total, low, out)
   useEffect(() => {
@@ -86,7 +97,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     setPage(1)
-  }, [activeTab])
+  }, [activeTab, debouncedSearch])
 
   function openAdjustModal(product) {
     setAdjustTarget(product)
@@ -156,7 +167,15 @@ export default function InventoryPage() {
       render: (val, row) => (
         <div>
           <p className="font-medium text-gray-900">{val}</p>
-          <p className="text-xs text-gray-400">{row.sku}</p>
+          <div className="flex items-center gap-2 text-xs text-gray-400">
+            <span>SKU: {row.sku || '—'}</span>
+            {row.barcode && (
+              <>
+                <span>•</span>
+                <span className="font-mono text-gray-500">Barcode: {row.barcode}</span>
+              </>
+            )}
+          </div>
         </div>
       ),
     },
@@ -187,9 +206,9 @@ export default function InventoryPage() {
       render: (val, row) => `${formatCurrency(val)}${row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}`,
     },
     {
-      key: 'quantity',
+      key: 'status',
       label: 'Status',
-      render: (val, row) => <StockStatusBadge quantity={val} threshold={row.low_stock_threshold} />,
+      render: (val, row) => <StockStatusBadge quantity={row.quantity} threshold={row.low_stock_threshold} />,
     },
     {
       key: 'id',
@@ -229,27 +248,62 @@ export default function InventoryPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
-          {TABS.map((tab) => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                activeTab === tab.key
-                  ? 'bg-white text-gray-900 shadow-sm'
-                  : 'text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              {tab.label}
-              {tab.key === 'low' && stats.low > 0 && (
-                <span className="ml-1.5 bg-warning-500 text-white text-xs rounded-full px-1.5 py-0.5">{stats.low}</span>
-              )}
-              {tab.key === 'out' && stats.out > 0 && (
-                <span className="ml-1.5 bg-danger-500 text-white text-xs rounded-full px-1.5 py-0.5">{stats.out}</span>
-              )}
-            </button>
-          ))}
+        {/* Controls: Tabs & Live Search */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+          {/* Tabs */}
+          <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            {TABS.map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
+                  activeTab === tab.key
+                    ? 'bg-white text-gray-900 shadow-sm'
+                    : 'text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                {tab.label}
+                {tab.key === 'low' && stats.low > 0 && (
+                  <span className="ml-1.5 bg-warning-500 text-white text-xs rounded-full px-1.5 py-0.5">{stats.low}</span>
+                )}
+                {tab.key === 'out' && stats.out > 0 && (
+                  <span className="ml-1.5 bg-danger-500 text-white text-xs rounded-full px-1.5 py-0.5">{stats.out}</span>
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Search Bar with scanner bounce protection */}
+          <div className="relative w-full sm:w-80">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <input
+              type="text"
+              role="searchbox"
+              placeholder="Search by name, SKU, or barcode..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                }
+              }}
+              className="block w-full pl-9 pr-8 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition shadow-xs"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Table */}

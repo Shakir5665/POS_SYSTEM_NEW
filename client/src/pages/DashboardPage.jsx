@@ -50,6 +50,7 @@ export default function DashboardPage() {
   const today = new Date().toISOString().split('T')[0]
 
   const [summary, setSummary] = useState(null)
+  const [dashboardMetrics, setDashboardMetrics] = useState(null)
   const [dailySales, setDailySales] = useState([])
   const [topProducts, setTopProducts] = useState([])
   const [categories, setCategories] = useState([])
@@ -68,8 +69,12 @@ export default function DashboardPage() {
   useEffect(() => {
     async function fetchSummary() {
       try {
-        const res = await reportsService.salesSummary({ start_date: today, end_date: today })
-        setSummary(res.data?.data ?? res.data)
+        const [sumRes, dashRes] = await Promise.all([
+          reportsService.salesSummary({ start_date: today, end_date: today }),
+          reportsService.dashboard(),
+        ])
+        setSummary(sumRes.data?.data ?? sumRes.data)
+        setDashboardMetrics(dashRes.data?.data ?? dashRes.data)
       } catch {
         setError('Failed to load summary data.')
       } finally {
@@ -132,7 +137,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* KPI cards */}
+        {/* KPI cards - Sales & Collections */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {loadingSummary ? (
             Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
@@ -140,8 +145,8 @@ export default function DashboardPage() {
             <>
               <KpiCard
                 title="Today's Revenue"
-                value={formatCurrency(summary?.total_revenue ?? 0)}
-                subtitle="All completed sales"
+                value={formatCurrency(dashboardMetrics?.today_revenue ?? summary?.total_revenue ?? 0)}
+                subtitle="Total value of goods sold"
                 color="bg-primary-100"
                 icon={
                   <svg className="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -150,40 +155,88 @@ export default function DashboardPage() {
                 }
               />
               <KpiCard
-                title="Today's Transactions"
-                value={summary?.transaction_count ?? 0}
-                subtitle="Completed sales"
+                title="Cash Collected Today"
+                value={formatCurrency(dashboardMetrics?.today_collections ?? summary?.total_collected ?? 0)}
+                subtitle="Physical cash & electronic receipts"
                 color="bg-success-100"
                 icon={
                   <svg className="w-6 h-6 text-success-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                }
+              />
+              <KpiCard
+                title="Today's Credit Sales"
+                value={formatCurrency(dashboardMetrics?.today_credit_sales ?? summary?.total_credit ?? 0)}
+                subtitle="Dispatched on customer credit"
+                color="bg-blue-100"
+                icon={
+                  <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                  </svg>
+                }
+              />
+              <KpiCard
+                title="Today's Transactions"
+                value={dashboardMetrics?.today_transactions ?? summary?.transaction_count ?? 0}
+                subtitle="Completed checkouts"
+                color="bg-emerald-100"
+                icon={
+                  <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-                  </svg>
-                }
-              />
-              <KpiCard
-                title="Low Stock Items"
-                value={loadingInventory ? '...' : lowStockItems.length}
-                subtitle="Below threshold"
-                color="bg-warning-100"
-                icon={
-                  <svg className="w-6 h-6 text-warning-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                  </svg>
-                }
-              />
-              <KpiCard
-                title="Total Products"
-                value={inventoryStatus?.total_products ?? (loadingInventory ? '...' : 0)}
-                subtitle="Active in catalog"
-                color="bg-purple-100"
-                icon={
-                  <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                   </svg>
                 }
               />
             </>
           )}
+        </div>
+
+        {/* KPI cards - Balance & Inventory */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          <KpiCard
+            title="Customer Receivables"
+            value={formatCurrency(dashboardMetrics?.total_customer_receivables ?? 0)}
+            subtitle="Outstanding credit due from customers"
+            color="bg-amber-100"
+            icon={
+              <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            title="Supplier Payables"
+            value={formatCurrency(dashboardMetrics?.total_supplier_payables ?? 0)}
+            subtitle="Outstanding payables due to vendors"
+            color="bg-red-100"
+            icon={
+              <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            title="Low Stock Alerts"
+            value={loadingInventory ? '...' : (dashboardMetrics?.low_stock_alerts ?? lowStockItems.length)}
+            subtitle="Products below reorder threshold"
+            color="bg-warning-100"
+            icon={
+              <svg className="w-6 h-6 text-warning-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            }
+          />
+          <KpiCard
+            title="Total Active Products"
+            value={inventoryStatus?.total_products ?? (loadingInventory ? '...' : 0)}
+            subtitle="Catalog items active in inventory"
+            color="bg-purple-100"
+            icon={
+              <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+            }
+          />
         </div>
 
         {/* Charts row */}

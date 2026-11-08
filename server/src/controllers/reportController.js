@@ -69,6 +69,16 @@ async function getProfitReport(req, res, next) {
   }
 }
 
+async function getFinancialStatement(req, res, next) {
+  try {
+    const { start_date, end_date } = req.query
+    const data = await reportService.getFinancialStatement({ start_date, end_date })
+    res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+}
+
 async function getDashboardSummary(req, res, next) {
   try {
     const data = await reportService.getDashboardSummary()
@@ -86,5 +96,6 @@ module.exports = {
   getCashierPerformance,
   getInventoryStatus,
   getProfitReport,
+  getFinancialStatement,
   getDashboardSummary,
 }

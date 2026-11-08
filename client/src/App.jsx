@@ -8,7 +8,10 @@ import ProductFormPage from './pages/ProductFormPage'
 import InventoryPage from './pages/InventoryPage'
 import CustomersPage from './pages/CustomersPage'
 import CustomerDetailPage from './pages/CustomerDetailPage'
+import SuppliersPage from './pages/SuppliersPage'
+import PurchasesPage from './pages/PurchasesPage'
 import SalesPage from './pages/SalesPage'
+import FinancePage from './pages/FinancePage'
 import DashboardPage from './pages/DashboardPage'
 import ReportsPage from './pages/ReportsPage'
 import UsersPage from './pages/UsersPage'
@@ -130,10 +133,34 @@ export default function App() {
         }
       />
       <Route
+        path="/suppliers"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <SuppliersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/purchases"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <PurchasesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/sales"
         element={
           <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
             <SalesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/finance"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <FinancePage />
           </ProtectedRoute>
         }
       />

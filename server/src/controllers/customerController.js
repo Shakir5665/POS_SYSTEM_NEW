@@ -63,4 +63,74 @@ async function getCustomerPurchases(req, res, next) {
   }
 }
 
-module.exports = { listCustomers, getCustomer, createCustomer, updateCustomer, getCustomerPurchases }
+async function getCustomerCreditSales(req, res, next) {
+  try {
+    const page = parseInt(req.query.page) || 1
+    const per_page = parseInt(req.query.per_page) || 20
+    const result = await customerService.getCustomerCreditSales(req.params.id, { page, per_page })
+    const sales = result.sales.map((s) => ({
+      ...s,
+      items_count: s._count?.sale_items ?? 0,
+      _count: undefined,
+    }))
+    res.json({
+      success: true,
+      data: sales,
+      meta: { page: result.page, per_page: result.per_page, total: result.total, total_pages: result.total_pages },
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function getCustomerPayments(req, res, next) {
+  try {
+    const page = parseInt(req.query.page) || 1
+    const per_page = parseInt(req.query.per_page) || 20
+    const result = await customerService.getCustomerPayments(req.params.id, { page, per_page })
+    res.json({
+      success: true,
+      data: result.payments,
+      meta: { page: result.page, per_page: result.per_page, total: result.total, total_pages: result.total_pages },
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function recordCustomerPayment(req, res, next) {
+  try {
+    const result = await customerService.recordCustomerPayment(req.params.id, req.body, req.user.id)
+    res.status(201).json({
+      success: true,
+      data: result,
+      message: 'Payment recorded and applied successfully',
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function getCustomerAccountStatement(req, res, next) {
+  try {
+    const result = await customerService.getCustomerAccountStatement(req.params.id)
+    res.json({
+      success: true,
+      data: result,
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+module.exports = {
+  listCustomers,
+  getCustomer,
+  createCustomer,
+  updateCustomer,
+  getCustomerPurchases,
+  getCustomerCreditSales,
+  getCustomerPayments,
+  recordCustomerPayment,
+  getCustomerAccountStatement,
+}

@@ -20,7 +20,8 @@ async function listInventory(req, res, next) {
 
 async function getLowStock(req, res, next) {
   try {
-    const items = await inventoryService.getLowStock()
+    const { search } = req.query
+    const items = await inventoryService.getLowStock(search)
     res.json({ success: true, data: items })
   } catch (err) {
     next(err)

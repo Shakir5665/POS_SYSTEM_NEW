@@ -18,93 +18,336 @@ import { useSettings } from '../hooks/useSettings'
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner'
 import { usePOSKeyboard } from '../hooks/usePOSKeyboard'
 
-// ─── Payment Modal (Cash Only) ──────────────────────────────────────────────────
-function PaymentModal({ isOpen, onClose, total, onConfirm, isLoading }) {
+// ─── Payment Modal (Cash, Credit & Partial Payments) ──────────────────────────
+function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuickCustomer, isLoading }) {
   const { currency_symbol: currencySymbol = 'GH₵' } = useSettings()
+  const [paymentMethod, setPaymentMethod] = useState('CASH')
   const [amountPaid, setAmountPaid] = useState('')
+  const [deposit, setDeposit] = useState('0')
   const [errors, setErrors] = useState({})
 
+  const cashVal = parseFloat(amountPaid) || 0
   const paidEnough = amountPaid !== '' && toPesewas(amountPaid) >= toPesewas(total)
+  const isPartial = customer && amountPaid !== '' && toPesewas(amountPaid) > 0 && toPesewas(amountPaid) < toPesewas(total)
   const change = paidEnough ? fromPesewas(toPesewas(amountPaid) - toPesewas(total)) : 0
+  const balanceDue = isPartial ? fromPesewas(toPesewas(total) - toPesewas(amountPaid)) : 0
 
-  function validateCash() {
-    const errs = {}
-    if (!amountPaid || !paidEnough) {
-      errs.amountPaid = `Amount must be at least ${formatCurrency(total)}`
+  const depositVal = parseFloat(deposit) || 0
+  const creditBalanceDue = Math.max(0, fromPesewas(toPesewas(total) - toPesewas(depositVal)))
+
+  function handleConfirm() {
+    if (paymentMethod === 'CASH') {
+      if (!customer && (!amountPaid || !paidEnough)) {
+        setErrors({ amountPaid: `Amount must be at least ${formatCurrency(total)}. Select a customer for partial or credit payments.` })
+        return
+      }
+      if (customer && amountPaid !== '' && cashVal < 0) {
+        setErrors({ amountPaid: 'Amount paid cannot be negative' })
+        return
+      }
+      onConfirm({
+        payment_method: 'CASH',
+        amount_paid: amountPaid === '' ? total : cashVal,
+      })
+    } else if (paymentMethod === 'CREDIT') {
+      if (!customer) {
+        setErrors({ general: 'A registered customer is required for credit sales.' })
+        return
+      }
+      if (depositVal < 0) {
+        setErrors({ deposit: 'Deposit cannot be negative' })
+        return
+      }
+      if (depositVal > total) {
+        setErrors({ deposit: `Deposit cannot exceed total amount (${formatCurrency(total)})` })
+        return
+      }
+      onConfirm({
+        payment_method: 'CREDIT',
+        amount_paid: depositVal,
+      })
     }
-    setErrors(errs)
-    return Object.keys(errs).length === 0
-  }
-
-  function handleCashConfirm() {
-    if (!validateCash()) return
-    onConfirm({ payment_method: 'CASH', amount_paid: parseFloat(amountPaid) })
   }
 
   useEffect(() => {
     function onKeyDown(e) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
         e.preventDefault()
-        handleCashConfirm()
+        handleConfirm()
       }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [amountPaid, total])
+  }, [amountPaid, deposit, paymentMethod, total, customer])
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Cash Payment" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Complete Payment" size="md">
       <div className="space-y-4">
-        {/* Total Due */}
-        <div className="bg-primary-50 border border-primary-100 rounded-lg p-4 text-center">
-          <p className="text-sm text-primary-600 font-medium">Amount Due</p>
-          <p className="text-3xl font-bold text-primary-700 mt-1">{formatCurrency(total)}</p>
-        </div>
-
-        {/* Cash: amount received */}
-        <div className="space-y-2">
-          <Input
-            label={`Cash Received (${currencySymbol})`}
-            type="number"
-            step="any"
-            autoFocus
-            value={amountPaid}
-            onChange={(e) => { setAmountPaid(e.target.value); setErrors({}) }}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                handleCashConfirm()
-              }
-            }}
-            placeholder={Number(total || 0).toFixed(2)}
-            error={errors.amountPaid}
-          />
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => { setAmountPaid(String(total)); setErrors({}) }}
-              className="px-2.5 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded border border-primary-200 transition"
-            >
-              Exact Cash ({formatCurrency(total)})
-            </button>
+        {/* Total Due & Customer Badge */}
+        <div className="bg-primary-50 border border-primary-100 rounded-xl p-4 flex items-center justify-between">
+          <div>
+            <p className="text-xs text-primary-600 font-semibold uppercase tracking-wider">Amount Due</p>
+            <p className="text-3xl font-bold text-primary-800 mt-0.5">{formatCurrency(total)}</p>
           </div>
-          {paidEnough && (
-            <div className="flex justify-between items-center bg-success-50 border border-success-100 rounded-lg px-3 py-2">
-              <span className="text-sm text-success-700 font-medium">Change</span>
-              <span className="font-bold text-success-700 text-lg">{formatCurrency(change)}</span>
-            </div>
-          )}
+          <div className="text-right">
+            {customer ? (
+              <div className="bg-white border border-primary-200 rounded-lg px-3 py-1.5 shadow-2xs">
+                <p className="text-xs font-bold text-gray-900">{customer.name}</p>
+                <p className="text-2xs text-success-700 font-medium">Registered Customer</p>
+              </div>
+            ) : (
+              <div className="bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5">
+                <p className="text-xs font-medium text-gray-600">Walk-in Customer</p>
+                <p className="text-2xs text-gray-400">Credit disabled</p>
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* Payment Method Tabs */}
+        <div className="flex border-b border-gray-200">
+          <button
+            type="button"
+            onClick={() => { setPaymentMethod('CASH'); setErrors({}) }}
+            className={`flex-1 py-2.5 text-sm font-semibold border-b-2 transition ${
+              paymentMethod === 'CASH'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Cash / Partial Payment
+          </button>
+          <button
+            type="button"
+            onClick={() => { setPaymentMethod('CREDIT'); setErrors({}) }}
+            className={`flex-1 py-2.5 text-sm font-semibold border-b-2 transition ${
+              paymentMethod === 'CREDIT'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700'
+            }`}
+          >
+            Customer Credit Sale
+          </button>
+        </div>
+
+        {errors.general && (
+          <div className="bg-danger-50 border border-danger-200 text-danger-700 rounded-lg p-3 text-xs">
+            {errors.general}
+          </div>
+        )}
+
+        {/* CASH / PARTIAL PAYMENT TAB */}
+        {paymentMethod === 'CASH' && (
+          <div className="space-y-3">
+            <Input
+              label={`Cash Received (${currencySymbol})`}
+              type="number"
+              step="any"
+              autoFocus
+              value={amountPaid}
+              onChange={(e) => { setAmountPaid(e.target.value); setErrors({}) }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleConfirm()
+                }
+              }}
+              placeholder={Number(total || 0).toFixed(2)}
+              error={errors.amountPaid}
+            />
+
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => { setAmountPaid(String(total)); setErrors({}) }}
+                className="px-2.5 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded border border-primary-200 transition"
+              >
+                Exact Amount ({formatCurrency(total)})
+              </button>
+            </div>
+
+            {/* Change banner */}
+            {paidEnough && (
+              <div className="flex justify-between items-center bg-success-50 border border-success-100 rounded-lg px-3 py-2">
+                <span className="text-sm text-success-700 font-medium">Change Returned</span>
+                <span className="font-bold text-success-700 text-lg">{formatCurrency(change)}</span>
+              </div>
+            )}
+
+            {/* Partial payment banner */}
+            {isPartial && (
+              <div className="bg-warning-50 border border-warning-200 rounded-lg p-3 text-sm space-y-1">
+                <div className="flex justify-between text-warning-800 font-semibold">
+                  <span>Partial Payment:</span>
+                  <span>{formatCurrency(cashVal)}</span>
+                </div>
+                <div className="flex justify-between text-danger-700 font-bold border-t border-warning-200 pt-1">
+                  <span>Balance Due (added to {customer.name}):</span>
+                  <span>{formatCurrency(balanceDue)}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* CREDIT SALE TAB */}
+        {paymentMethod === 'CREDIT' && (
+          <div className="space-y-3">
+            {!customer ? (
+              <div className="bg-warning-50 border border-warning-200 rounded-xl p-4 text-center space-y-2">
+                <p className="text-sm font-semibold text-warning-800">
+                  Registered Customer Required
+                </p>
+                <p className="text-xs text-gray-600">
+                  Credit sales cannot be issued to walk-in customers. Please select or quick-register a customer first.
+                </p>
+                <Button
+                  size="sm"
+                  variant="primary"
+                  onClick={() => {
+                    onClose()
+                    onOpenQuickCustomer?.()
+                  }}
+                >
+                  Quick Register Customer
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                  <p className="text-xs text-gray-500">Customer Account</p>
+                  <p className="text-sm font-bold text-gray-900">{customer.name}</p>
+                  <p className="text-xs text-gray-500">{customer.phone || customer.email || 'No phone recorded'}</p>
+                </div>
+
+                <Input
+                  label={`Initial Deposit / Down Payment (${currencySymbol})`}
+                  type="number"
+                  step="any"
+                  value={deposit}
+                  onChange={(e) => { setDeposit(e.target.value); setErrors({}) }}
+                  placeholder="0.00"
+                  error={errors.deposit}
+                />
+
+                <div className="bg-danger-50 border border-danger-200 rounded-lg p-3">
+                  <div className="flex justify-between text-sm font-bold text-danger-800">
+                    <span>Outstanding Debt to Record:</span>
+                    <span>{formatCurrency(creditBalanceDue)}</span>
+                  </div>
+                  <p className="text-2xs text-danger-600 mt-1">
+                    This amount will be added to {customer.name}&apos;s ledger balance.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Action buttons */}
         <div className="flex gap-3 pt-2">
           <Button variant="secondary" className="flex-1" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button variant="success" className="flex-1" onClick={handleCashConfirm} isLoading={isLoading}>
-            Confirm Payment
+          <Button
+            variant={paymentMethod === 'CREDIT' ? 'warning' : 'success'}
+            className="flex-1"
+            onClick={handleConfirm}
+            isLoading={isLoading}
+            disabled={paymentMethod === 'CREDIT' && !customer}
+          >
+            {paymentMethod === 'CREDIT' ? 'Confirm Credit Sale' : 'Confirm Payment'}
           </Button>
         </div>
       </div>
+    </Modal>
+  )
+}
+
+// ─── Quick Customer Registration Modal ──────────────────────────────────────────
+function QuickCustomerModal({ isOpen, onClose, onCustomerCreated }) {
+  const [name, setName] = useState('')
+  const [phone, setPhone] = useState('')
+  const [email, setEmail] = useState('')
+  const [address, setAddress] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSubmit(e) {
+    if (e) e.preventDefault()
+    if (!name.trim()) {
+      setError('Customer name is required')
+      return
+    }
+    setIsLoading(true)
+    setError('')
+    try {
+      const res = await customersService.create({
+        name: name.trim(),
+        phone: phone.trim() || undefined,
+        email: email.trim() || undefined,
+        address: address.trim() || undefined,
+      })
+      const newCust = res.data?.data || res.data
+      toast.success(`Customer "${newCust.name}" registered successfully!`)
+      onCustomerCreated(newCust)
+      onClose()
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.response?.data?.message || 'Failed to register customer'
+      setError(msg)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title="Quick Customer Registration" size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-danger-50 border border-danger-200 text-danger-700 rounded-lg p-3 text-xs">
+            {error}
+          </div>
+        )}
+        <Input
+          label="Customer Full Name *"
+          value={name}
+          onChange={(e) => { setName(e.target.value); setError('') }}
+          placeholder="e.g. Ama Osei"
+          autoFocus
+          required
+        />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Input
+            label="Phone Number"
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="e.g. 0244123456"
+          />
+          <Input
+            label="Email Address"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="e.g. ama@example.com"
+          />
+        </div>
+        <Input
+          label="Address / Location"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="e.g. Accra Central Market"
+        />
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" type="button" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button variant="primary" type="submit" isLoading={isLoading}>
+            Register & Select
+          </Button>
+        </div>
+      </form>
     </Modal>
   )
 }
@@ -750,10 +993,11 @@ export default function POSPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false)
   const [showReceiptModal, setShowReceiptModal] = useState(false)
   const [showCustomerModal, setShowCustomerModal] = useState(false)
+  const [showQuickCustomerModal, setShowQuickCustomerModal] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [completedSale, setCompletedSale] = useState(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const isAnyModalOpen = showPaymentModal || showReceiptModal || showCustomerModal || showClearConfirm
+  const isAnyModalOpen = showPaymentModal || showReceiptModal || showCustomerModal || showClearConfirm || showQuickCustomerModal
 
   const searchRef = useRef(null)
   const cartContainerRef = useRef(null)
@@ -1286,23 +1530,45 @@ export default function POSPage() {
           )}
         </div>
 
-        {/* Customer selector */}
-        <div className="px-4 py-2 border-b border-gray-100">
+        {/* Customer selector with Quick Register button */}
+        <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
           <button
             onClick={() => setShowCustomerModal(true)}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-gray-300 hover:border-primary-400 hover:bg-primary-50 transition text-left"
+            className="flex-1 flex items-center gap-2 px-3 py-2 rounded-lg border border-dashed border-gray-300 hover:border-primary-400 hover:bg-primary-50 transition text-left"
           >
-            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             {customer ? (
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-gray-900 truncate">{customer.name}</p>
-                <p className="text-xs text-gray-400">{customer.loyalty_points} loyalty points</p>
+                <p className="text-xs text-gray-400">{customer.phone || customer.email || 'Customer'} &bull; {customer.loyalty_points || 0} pts</p>
               </div>
             ) : (
               <span className="text-sm text-gray-400">Add customer (optional, F5)</span>
             )}
+          </button>
+          {customer && (
+            <button
+              onClick={() => setCustomer(null)}
+              className="p-2 text-gray-400 hover:text-danger-600 rounded-lg hover:bg-danger-50 transition"
+              title="Remove selected customer"
+              aria-label="Remove selected customer"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => setShowQuickCustomerModal(true)}
+            className="px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 rounded-lg flex items-center gap-1 text-sm font-medium transition shadow-xs flex-shrink-0"
+            title="Quick Register Customer (+)"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            <span>New</span>
           </button>
         </div>
 
@@ -1441,8 +1707,18 @@ export default function POSPage() {
           isOpen
           onClose={() => setShowPaymentModal(false)}
           total={total}
+          customer={customer}
           onConfirm={handlePaymentConfirm}
+          onOpenQuickCustomer={() => setShowQuickCustomerModal(true)}
           isLoading={isSubmitting}
+        />
+      )}
+
+      {showQuickCustomerModal && (
+        <QuickCustomerModal
+          isOpen
+          onClose={() => setShowQuickCustomerModal(false)}
+          onCustomerCreated={(newCust) => setCustomer(newCust)}
         />
       )}
 

@@ -5,6 +5,8 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
 import { Badge } from '../components/Badge'
 import { Table } from '../components/Table'
+import { Modal } from '../components/Modal'
+import { Input } from '../components/Input'
 import { Pagination } from '../components/Pagination'
 import { customersService } from '../services/customers'
 import { formatCurrency } from '../utils/formatCurrency'
@@ -13,6 +15,14 @@ const PAYMENT_BADGE = {
   CASH: 'default',
   MOBILE_MONEY: 'primary',
   CARD: 'success',
+  CREDIT: 'warning',
+}
+
+const STATUS_BADGE = {
+  COMPLETED: 'success',
+  PARTIALLY_PAID: 'warning',
+  PENDING: 'danger',
+  REFUNDED: 'default',
 }
 
 function InfoRow({ label, value }) {
@@ -24,50 +34,246 @@ function InfoRow({ label, value }) {
   )
 }
 
+// ─── Debt Repayment Modal ───────────────────────────────────────────────────────
+function DebtRepaymentModal({ isOpen, onClose, customer, onSuccess }) {
+  const [amount, setAmount] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('CASH')
+  const [reference, setReference] = useState('')
+  const [notes, setNotes] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const maxDebt = Number(customer?.outstanding_debt || 0)
+
+  async function handleSubmit(e) {
+    if (e) e.preventDefault()
+    const num = parseFloat(amount)
+    if (isNaN(num) || num <= 0) {
+      setError('Please enter a valid payment amount greater than zero')
+      return
+    }
+    if (num > maxDebt) {
+      setError(`Payment cannot exceed current outstanding debt of ${formatCurrency(maxDebt)}`)
+      return
+    }
+
+    setIsLoading(true)
+    setError('')
+    try {
+      await customersService.recordPayment(customer.id, {
+        amount: num,
+        payment_method: paymentMethod,
+        reference: reference.trim() || undefined,
+        notes: notes.trim() || undefined,
+      })
+      toast.success(`Payment of ${formatCurrency(num)} recorded and applied successfully!`)
+      onSuccess()
+      onClose()
+    } catch (err) {
+      const msg = err.response?.data?.error?.message || err.response?.data?.message || 'Failed to record repayment'
+      setError(msg)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`Record Debt Repayment — ${customer?.name}`} size="md">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {error && (
+          <div className="bg-danger-50 border border-danger-200 text-danger-700 rounded-lg p-3 text-xs">
+            {error}
+          </div>
+        )}
+
+        <div className="bg-primary-50 border border-primary-100 rounded-xl p-3 flex justify-between items-center">
+          <div>
+            <p className="text-2xs text-primary-600 font-semibold uppercase">Current Outstanding Debt</p>
+            <p className="text-xl font-bold text-danger-700">{formatCurrency(maxDebt)}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => { setAmount(String(maxDebt)); setError('') }}
+            className="text-xs bg-white border border-primary-200 text-primary-700 px-2.5 py-1 rounded-md font-medium hover:bg-primary-50 transition"
+          >
+            Pay Full Debt
+          </button>
+        </div>
+
+        <Input
+          label="Amount to Pay *"
+          type="number"
+          step="any"
+          value={amount}
+          onChange={(e) => { setAmount(e.target.value); setError('') }}
+          placeholder="0.00"
+          autoFocus
+          required
+        />
+
+        <div>
+          <label className="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
+          <div className="grid grid-cols-3 gap-2">
+            {['CASH', 'MOBILE_MONEY', 'CARD'].map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setPaymentMethod(m)}
+                className={`py-2 text-xs font-semibold rounded-lg border transition ${
+                  paymentMethod === m
+                    ? 'border-primary-600 bg-primary-50 text-primary-700'
+                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                {m.replace('_', ' ')}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Input
+          label="Payment Reference / Receipt #"
+          value={reference}
+          onChange={(e) => setReference(e.target.value)}
+          placeholder="e.g. Bank slip, MoMo Txn ID"
+        />
+
+        <Input
+          label="Notes"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Optional payment notes"
+        />
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Button variant="secondary" type="button" onClick={onClose} disabled={isLoading}>
+            Cancel
+          </Button>
+          <Button variant="success" type="submit" isLoading={isLoading}>
+            Confirm Repayment
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  )
+}
+
 export default function CustomerDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
 
   const [customer, setCustomer] = useState(null)
+  const [activeTab, setActiveTab] = useState('purchases') // purchases | credit_sales | repayments | statement
+
+  // Purchases
   const [purchases, setPurchases] = useState([])
-  const [meta, setMeta] = useState({ page: 1, total_pages: 1 })
-  const [page, setPage] = useState(1)
-  const [loadingCustomer, setLoadingCustomer] = useState(true)
+  const [purchasesMeta, setPurchasesMeta] = useState({ page: 1, total_pages: 1 })
+  const [purchasesPage, setPurchasesPage] = useState(1)
   const [loadingPurchases, setLoadingPurchases] = useState(true)
+
+  // Credit Sales
+  const [creditSales, setCreditSales] = useState([])
+  const [creditMeta, setCreditMeta] = useState({ page: 1, total_pages: 1 })
+  const [creditPage, setCreditPage] = useState(1)
+  const [loadingCreditSales, setLoadingCreditSales] = useState(false)
+
+  // Debt Repayments
+  const [repayments, setRepayments] = useState([])
+  const [repaymentsMeta, setRepaymentsMeta] = useState({ page: 1, total_pages: 1 })
+  const [repaymentsPage, setRepaymentsPage] = useState(1)
+  const [loadingRepayments, setLoadingRepayments] = useState(false)
+
+  // Statement
+  const [statementData, setStatementData] = useState(null)
+  const [loadingStatement, setLoadingStatement] = useState(false)
+
+  const [loadingCustomer, setLoadingCustomer] = useState(true)
   const [error, setError] = useState(null)
+  const [showRepaymentModal, setShowRepaymentModal] = useState(false)
+
+  const fetchCustomer = useCallback(async () => {
+    setLoadingCustomer(true)
+    try {
+      const res = await customersService.get(id)
+      setCustomer(res.data?.data ?? res.data)
+    } catch {
+      setError('Customer not found or could not be loaded.')
+    } finally {
+      setLoadingCustomer(false)
+    }
+  }, [id])
 
   useEffect(() => {
-    async function fetchCustomer() {
-      setLoadingCustomer(true)
-      try {
-        const res = await customersService.get(id)
-        setCustomer(res.data?.data ?? res.data)
-      } catch {
-        setError('Customer not found or could not be loaded.')
-      } finally {
-        setLoadingCustomer(false)
-      }
-    }
     fetchCustomer()
-  }, [id])
+  }, [fetchCustomer])
 
   const fetchPurchases = useCallback(async () => {
     setLoadingPurchases(true)
     try {
-      const res = await customersService.purchases(id, { page, per_page: 20 })
+      const res = await customersService.purchases(id, { page: purchasesPage, per_page: 20 })
       setPurchases(res.data?.data ?? res.data ?? [])
-      setMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
+      setPurchasesMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
     } catch {
       toast.error('Failed to load purchase history')
     } finally {
       setLoadingPurchases(false)
     }
-  }, [id, page])
+  }, [id, purchasesPage])
+
+  const fetchCreditSales = useCallback(async () => {
+    setLoadingCreditSales(true)
+    try {
+      const res = await customersService.creditSales(id, { page: creditPage, per_page: 20 })
+      setCreditSales(res.data?.data ?? res.data ?? [])
+      setCreditMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
+    } catch {
+      toast.error('Failed to load credit sales')
+    } finally {
+      setLoadingCreditSales(false)
+    }
+  }, [id, creditPage])
+
+  const fetchRepayments = useCallback(async () => {
+    setLoadingRepayments(true)
+    try {
+      const res = await customersService.payments(id, { page: repaymentsPage, per_page: 20 })
+      setRepayments(res.data?.data ?? res.data ?? [])
+      setRepaymentsMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
+    } catch {
+      toast.error('Failed to load debt repayments')
+    } finally {
+      setLoadingRepayments(false)
+    }
+  }, [id, repaymentsPage])
+
+  const fetchStatement = useCallback(async () => {
+    setLoadingStatement(true)
+    try {
+      const res = await customersService.statement(id)
+      setStatementData(res.data?.data ?? res.data)
+    } catch {
+      toast.error('Failed to load customer statement')
+    } finally {
+      setLoadingStatement(false)
+    }
+  }, [id])
 
   useEffect(() => {
-    fetchPurchases()
-  }, [fetchPurchases])
+    if (activeTab === 'purchases') fetchPurchases()
+    else if (activeTab === 'credit_sales') fetchCreditSales()
+    else if (activeTab === 'repayments') fetchRepayments()
+    else if (activeTab === 'statement') fetchStatement()
+  }, [activeTab, fetchPurchases, fetchCreditSales, fetchRepayments, fetchStatement])
 
+  function handleRepaymentSuccess() {
+    fetchCustomer()
+    if (activeTab === 'credit_sales') fetchCreditSales()
+    else if (activeTab === 'repayments') fetchRepayments()
+    else if (activeTab === 'statement') fetchStatement()
+    else fetchPurchases()
+  }
+
+  // Purchases columns
   const purchaseColumns = [
     {
       key: 'transaction_id',
@@ -96,6 +302,125 @@ export default function CustomerDetailPage() {
       key: 'payment_method',
       label: 'Payment',
       render: (v) => v ? <Badge variant={PAYMENT_BADGE[v] ?? 'default'}>{v.replace('_', ' ')}</Badge> : '—',
+    },
+  ]
+
+  // Credit Sales columns
+  const creditColumns = [
+    {
+      key: 'transaction_id',
+      label: 'Transaction ID',
+      render: (v) => <span className="font-mono text-xs text-primary-700 font-medium">{v}</span>,
+    },
+    {
+      key: 'created_at',
+      label: 'Date',
+      render: (v) =>
+        v
+          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '—',
+    },
+    {
+      key: 'total_amount',
+      label: 'Total Invoice',
+      render: (v) => <span className="font-semibold">{formatCurrency(v ?? 0)}</span>,
+    },
+    {
+      key: 'amount_paid',
+      label: 'Amount Paid',
+      render: (v) => <span className="text-success-700 font-medium">{formatCurrency(v ?? 0)}</span>,
+    },
+    {
+      key: 'balance_due',
+      label: 'Balance Due',
+      render: (v) => (
+        <span className={`font-bold ${Number(v) > 0 ? 'text-danger-600' : 'text-gray-400'}`}>
+          {formatCurrency(v ?? 0)}
+        </span>
+      ),
+    },
+    {
+      key: 'payment_status',
+      label: 'Status',
+      render: (v) => <Badge variant={STATUS_BADGE[v] ?? 'default'}>{v ? v.replace('_', ' ') : '—'}</Badge>,
+    },
+  ]
+
+  // Repayments columns
+  const repaymentColumns = [
+    {
+      key: 'created_at',
+      label: 'Date',
+      render: (v) =>
+        v
+          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : '—',
+    },
+    {
+      key: 'amount',
+      label: 'Amount Paid',
+      render: (v) => <span className="font-bold text-success-700">{formatCurrency(v ?? 0)}</span>,
+    },
+    {
+      key: 'payment_method',
+      label: 'Method',
+      render: (v) => <Badge variant={PAYMENT_BADGE[v] ?? 'default'}>{v?.replace('_', ' ') || 'CASH'}</Badge>,
+    },
+    {
+      key: 'reference',
+      label: 'Reference / Notes',
+      render: (v, row) => (
+        <div className="text-xs">
+          <p className="font-mono text-gray-800">{v || '—'}</p>
+          {row.notes && <p className="text-gray-400">{row.notes}</p>}
+        </div>
+      ),
+    },
+    {
+      key: 'user',
+      label: 'Received By',
+      render: (v) => <span className="text-xs text-gray-600">{v?.full_name || 'Staff'}</span>,
+    },
+  ]
+
+  // Statement columns
+  const statementColumns = [
+    {
+      key: 'date',
+      label: 'Date',
+      render: (v) =>
+        v
+          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
+          : '—',
+    },
+    {
+      key: 'reference',
+      label: 'Reference',
+      render: (v, row) => (
+        <div>
+          <span className="font-mono text-xs text-primary-700 font-medium">{v}</span>
+          <p className="text-2xs text-gray-400">{row.description}</p>
+        </div>
+      ),
+    },
+    {
+      key: 'debit',
+      label: 'Debit (+Debt)',
+      render: (v) => v > 0 ? <span className="text-danger-600 font-semibold">+{formatCurrency(v)}</span> : <span className="text-gray-300">—</span>,
+    },
+    {
+      key: 'credit',
+      label: 'Credit (-Payment)',
+      render: (v) => v > 0 ? <span className="text-success-700 font-semibold">-{formatCurrency(v)}</span> : <span className="text-gray-300">—</span>,
+    },
+    {
+      key: 'running_balance',
+      label: 'Running Balance',
+      render: (v) => (
+        <span className={`font-bold ${v > 0 ? 'text-danger-700' : 'text-gray-700'}`}>
+          {formatCurrency(v ?? 0)}
+        </span>
+      ),
     },
   ]
 
@@ -129,72 +454,199 @@ export default function CustomerDetailPage() {
                   <div className="h-4 bg-gray-200 rounded w-1/4" />
                 </div>
               </div>
-              <div className="h-4 bg-gray-200 rounded w-2/3" />
-              <div className="h-4 bg-gray-200 rounded w-1/2" />
             </div>
           ) : customer ? (
-            <div className="flex flex-col sm:flex-row sm:items-start gap-6">
-              {/* Avatar */}
-              <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-2xl font-bold flex-shrink-0">
-                {customer.name?.[0]?.toUpperCase() ?? '?'}
-              </div>
-
-              {/* Details */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-3 flex-wrap">
-                  <div>
-                    <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
-                    <p className="text-sm text-gray-500 mt-0.5">{customer.email ?? 'No email'}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <svg className="w-4 h-4 text-warning-500" fill="currentColor" viewBox="0 0 20 20">
-                      <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                    </svg>
-                    <span className="text-lg font-bold text-gray-800">{customer.loyalty_points ?? 0}</span>
-                    <span className="text-sm text-gray-500">loyalty points</span>
-                  </div>
+            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
+              <div className="flex items-start gap-4">
+                {/* Avatar */}
+                <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-2xl font-bold flex-shrink-0">
+                  {customer.name?.[0]?.toUpperCase() ?? '?'}
                 </div>
 
-                <dl className="mt-4">
-                  <InfoRow label="Phone" value={customer.phone} />
-                  <InfoRow label="Email" value={customer.email} />
-                  <InfoRow label="Address" value={customer.address} />
-                  <InfoRow
-                    label="Member Since"
-                    value={
-                      customer.created_at
-                        ? new Date(customer.created_at).toLocaleDateString('en-GH', {
-                            day: '2-digit',
-                            month: 'long',
-                            year: 'numeric',
-                          })
-                        : null
-                    }
-                  />
-                </dl>
+                {/* Details */}
+                <div>
+                  <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
+                  <p className="text-sm text-gray-500 mt-0.5">{customer.email ?? 'No email'}</p>
+                  <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-600">
+                    <div>
+                      <span className="font-medium text-gray-400">Phone: </span>
+                      <span>{customer.phone || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-400">Address: </span>
+                      <span>{customer.address || '—'}</span>
+                    </div>
+                    <div>
+                      <span className="font-medium text-gray-400">Loyalty: </span>
+                      <span className="font-bold text-gray-800">{customer.loyalty_points ?? 0} pts</span>
+                    </div>
+                  </dl>
+                </div>
+              </div>
+
+              {/* Outstanding Debt & Action Card */}
+              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 min-w-[280px]">
+                <div>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Outstanding Debt</p>
+                  <p className={`text-2xl font-black mt-0.5 ${Number(customer.outstanding_debt || 0) > 0 ? 'text-danger-600' : 'text-success-600'}`}>
+                    {formatCurrency(customer.outstanding_debt || 0)}
+                  </p>
+                  <p className="text-2xs text-gray-400 mt-0.5">
+                    {Number(customer.outstanding_debt || 0) > 0 ? 'Credit balance awaiting settlement' : 'Account is fully paid'}
+                  </p>
+                </div>
+                {Number(customer.outstanding_debt || 0) > 0 && (
+                  <Button
+                    variant="success"
+                    size="sm"
+                    onClick={() => setShowRepaymentModal(true)}
+                    className="flex-shrink-0"
+                  >
+                    Accept Repayment
+                  </Button>
+                )}
               </div>
             </div>
           ) : null}
         </div>
 
-        {/* Purchase history */}
+        {/* Tab navigation */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">Purchase History</h2>
+          <div className="flex border-b border-gray-100 px-6 gap-6 overflow-x-auto">
+            <button
+              onClick={() => setActiveTab('purchases')}
+              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                activeTab === 'purchases'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              All Purchases
+            </button>
+            <button
+              onClick={() => setActiveTab('credit_sales')}
+              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                activeTab === 'credit_sales'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Credit Invoices
+            </button>
+            <button
+              onClick={() => setActiveTab('repayments')}
+              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                activeTab === 'repayments'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Debt Repayments
+            </button>
+            <button
+              onClick={() => setActiveTab('statement')}
+              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
+                activeTab === 'statement'
+                  ? 'border-primary-600 text-primary-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Account Statement
+            </button>
           </div>
-          <Table
-            columns={purchaseColumns}
-            data={purchases}
-            isLoading={loadingPurchases}
-            emptyMessage="No purchases found for this customer."
-          />
-          {meta.total_pages > 1 && (
-            <div className="flex justify-end px-6 py-4 border-t border-gray-100">
-              <Pagination page={meta.page ?? page} total_pages={meta.total_pages} onPageChange={setPage} />
+
+          {/* TAB 1: ALL PURCHASES */}
+          {activeTab === 'purchases' && (
+            <div>
+              <Table
+                columns={purchaseColumns}
+                data={purchases}
+                isLoading={loadingPurchases}
+                emptyMessage="No purchases found for this customer."
+              />
+              {purchasesMeta.total_pages > 1 && (
+                <div className="flex justify-end px-6 py-4 border-t border-gray-100">
+                  <Pagination page={purchasesMeta.page ?? purchasesPage} total_pages={purchasesMeta.total_pages} onPageChange={setPurchasesPage} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 2: CREDIT INVOICES */}
+          {activeTab === 'credit_sales' && (
+            <div>
+              <Table
+                columns={creditColumns}
+                data={creditSales}
+                isLoading={loadingCreditSales}
+                emptyMessage="No credit sales or outstanding invoices found."
+              />
+              {creditMeta.total_pages > 1 && (
+                <div className="flex justify-end px-6 py-4 border-t border-gray-100">
+                  <Pagination page={creditMeta.page ?? creditPage} total_pages={creditMeta.total_pages} onPageChange={setCreditPage} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 3: DEBT REPAYMENTS */}
+          {activeTab === 'repayments' && (
+            <div>
+              <Table
+                columns={repaymentColumns}
+                data={repayments}
+                isLoading={loadingRepayments}
+                emptyMessage="No debt repayments recorded for this customer."
+              />
+              {repaymentsMeta.total_pages > 1 && (
+                <div className="flex justify-end px-6 py-4 border-t border-gray-100">
+                  <Pagination page={repaymentsMeta.page ?? repaymentsPage} total_pages={repaymentsMeta.total_pages} onPageChange={setRepaymentsPage} />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* TAB 4: ACCOUNT STATEMENT */}
+          {activeTab === 'statement' && (
+            <div>
+              {statementData && (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-gray-50/50 border-b border-gray-100 text-xs">
+                  <div className="bg-white p-3 rounded-lg border border-gray-200">
+                    <p className="text-gray-500 font-medium">Total Credit Granted</p>
+                    <p className="text-base font-bold text-gray-900 mt-0.5">{formatCurrency(statementData.total_credit_granted || 0)}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-gray-200">
+                    <p className="text-gray-500 font-medium">Total Repayments</p>
+                    <p className="text-base font-bold text-success-700 mt-0.5">{formatCurrency(statementData.total_repayments || 0)}</p>
+                  </div>
+                  <div className="bg-white p-3 rounded-lg border border-gray-200">
+                    <p className="text-gray-500 font-medium">Current Balance Due</p>
+                    <p className={`text-base font-bold mt-0.5 ${Number(statementData.current_balance || 0) > 0 ? 'text-danger-600' : 'text-gray-900'}`}>
+                      {formatCurrency(statementData.current_balance || 0)}
+                    </p>
+                  </div>
+                </div>
+              )}
+              <Table
+                columns={statementColumns}
+                data={statementData?.statement || []}
+                isLoading={loadingStatement}
+                emptyMessage="No ledger entries found."
+              />
             </div>
           )}
         </div>
       </div>
+
+      {/* Debt Repayment Modal */}
+      {showRepaymentModal && (
+        <DebtRepaymentModal
+          isOpen
+          onClose={() => setShowRepaymentModal(false)}
+          customer={customer}
+          onSuccess={handleRepaymentSuccess}
+        />
+      )}
     </DashboardLayout>
   )
 }

@@ -16,9 +16,9 @@ const saleValidation = [
   body('items.*.predefined_discount_applied').optional().isBoolean().withMessage('Predefined discount applied must be boolean'),
   body('items.*.discount').optional().isFloat({ min: 0 }).withMessage('Item discount must be >= 0'),
   body('payment_method')
-    .isIn(['CASH', 'MOBILE_MONEY', 'CARD'])
-    .withMessage('Payment method must be CASH, MOBILE_MONEY, or CARD'),
-  body('amount_paid').isFloat({ min: 0 }).withMessage('Amount paid must be >= 0'),
+    .isIn(['CASH', 'MOBILE_MONEY', 'CARD', 'CREDIT'])
+    .withMessage('Payment method must be CASH, MOBILE_MONEY, CARD, or CREDIT'),
+  body('amount_paid').optional().isFloat({ min: 0 }).withMessage('Amount paid must be >= 0'),
   body('discount_amount').optional().isFloat({ min: 0 }).withMessage('Discount must be >= 0'),
   body('customer_id').optional({ nullable: true }).isUUID().withMessage('Customer ID must be a valid UUID'),
 ]

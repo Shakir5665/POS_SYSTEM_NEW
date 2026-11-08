@@ -8,4 +8,6 @@ export const reportsService = {
   cashierPerformance: (params) => api.get('/reports/cashier-performance', { params }),
   inventoryStatus: () => api.get('/reports/inventory-status'),
   profit: (params) => api.get('/reports/profit', { params }),
+  financialStatement: (params) => api.get('/reports/financial-statement', { params }),
+  dashboard: () => api.get('/reports/dashboard'),
 }

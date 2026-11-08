@@ -15,5 +15,6 @@ router.get('/category-performance', reportController.getCategoryPerformance)
 router.get('/cashier-performance', reportController.getCashierPerformance)
 router.get('/inventory-status', reportController.getInventoryStatus)
 router.get('/profit', reportController.getProfitReport)
+router.get('/financial-statement', reportController.getFinancialStatement)
 
 module.exports = router
