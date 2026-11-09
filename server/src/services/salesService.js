@@ -211,7 +211,7 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     changeGiven = toMoney(0)
   }
 
-  // Loyalty points (1 point per GHS 10 by default). Stored on the sale so a
+  // Loyalty points (1 point per LKR 10 by default). Stored on the sale so a
   // refund reverses exactly what was earned, even if the rate changes later.
   let pointsEarned = 0
   if (customer_id) {

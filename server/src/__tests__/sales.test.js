@@ -231,7 +231,7 @@ describe('POST /api/sales — create sale', () => {
 
     expect(res.status).toBe(201)
 
-    // 3 * 10 = 30 GHS → 3 points at default rate of 10 GHS/point
+    // 3 * 10 = 30 LKR → 3 points at default rate of 10 LKR/point
     const afterCustomer = await prisma.customer.findUnique({ where: { id: testCustomer.id } })
     expect(afterCustomer.loyalty_points).toBeGreaterThan(beforePoints)
   })

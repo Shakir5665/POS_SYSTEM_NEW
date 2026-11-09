@@ -118,7 +118,7 @@ describe('Batch 8: Business Finance Management (Expenses, Assets & Owner Equity)
   })
 
   it('records owner capital contribution and drawings', async () => {
-    // 1. Contribution: GHS 10,000
+    // 1. Contribution: LKR 10,000
     const contribRes = await request(app)
       .post('/api/finance/owner-transactions')
       .set('Authorization', `Bearer ${adminToken}`)
@@ -133,7 +133,7 @@ describe('Batch 8: Business Finance Management (Expenses, Assets & Owner Equity)
     expect(contribRes.status).toBe(201)
     expect(Number(contribRes.body.data.amount)).toBe(10000)
 
-    // 2. Withdrawal (Drawings): GHS 1,500
+    // 2. Withdrawal (Drawings): LKR 1,500
     const withdrRes = await request(app)
       .post('/api/finance/owner-transactions')
       .set('Authorization', `Bearer ${adminToken}`)
