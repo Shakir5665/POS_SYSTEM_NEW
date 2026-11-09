@@ -16,7 +16,7 @@ describe('toPesewas', () => {
 })
 
 describe('cartTotals', () => {
-  it('adds 3 × GH₵ 0.10 to exactly GH₵ 0.30', () => {
+  it('adds 3 × LKR 0.10 to exactly LKR 0.30', () => {
     const { subtotal, total } = cartTotals([{ price: 0.1, quantity: 3 }], 0, 0)
     expect(subtotal).toBe(0.3) // floats give 0.30000000000000004
     expect(total).toBe(0.3)
@@ -53,7 +53,7 @@ describe('cartTotals', () => {
 })
 
 describe('cartTotals matches the server', () => {
-  it('charges 0.02 tax on GH₵ 0.30 at 5% (0.015 rounds up), like the server test', () => {
+  it('charges 0.02 tax on LKR 0.30 at 5% (0.015 rounds up), like the server test', () => {
     expect(cartTotals([{ price: '0.30', quantity: 1 }], 0, '5')).toMatchObject({ subtotal: 0.3, discount: 0, tax: 0.02, total: 0.32 })
   })
 

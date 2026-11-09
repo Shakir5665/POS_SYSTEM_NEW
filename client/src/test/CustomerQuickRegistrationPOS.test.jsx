@@ -38,7 +38,7 @@ vi.mock('../hooks/useAuth', () => ({
 
 vi.mock('../hooks/useSettings', () => ({
   useSettings: () => ({
-    currency_symbol: 'GH₵',
+    currency_symbol: 'LKR',
   }),
 }))
 

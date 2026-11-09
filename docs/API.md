@@ -310,7 +310,7 @@ Update settings. **Roles:** ADMIN
   "store_name": "GhanaShop POS",
   "store_address": "14 Liberation Road, Accra",
   "store_phone": "030-000-0000",
-  "currency_symbol": "GH₵",
+  "currency_symbol": "LKR",
   "tax_rate": "0",
   "loyalty_points_rate": "10",
   "receipt_footer": "Thank you for shopping with us!"

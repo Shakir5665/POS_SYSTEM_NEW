@@ -57,7 +57,7 @@ describe('SalesPage', () => {
 
     fireEvent.click(within(await rowFor('TXN-1')).getByText('Refund'))
     expect(screen.getByText(/give the customer the amount in cash/i)).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: /refund gh₵ 25\.00/i }))
+    fireEvent.click(screen.getByRole('button', { name: /refund lkr 25\.00/i }))
 
     await waitFor(() => expect(salesService.refund).toHaveBeenCalledWith('TXN-1'))
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith('Sale TXN-1 refunded'))
@@ -70,7 +70,7 @@ describe('SalesPage', () => {
 
     fireEvent.click(within(await rowFor('TXN-4')).getByText('Refund'))
     expect(screen.getByText(/paystack will return the amount/i)).toBeDefined()
-    fireEvent.click(screen.getByRole('button', { name: /refund gh₵ 25\.00/i }))
+    fireEvent.click(screen.getByRole('button', { name: /refund lkr 25\.00/i }))
 
     await waitFor(() => expect(toast.success).toHaveBeenCalledWith(expect.stringMatching(/paystack confirms/i)))
   })
@@ -80,7 +80,7 @@ describe('SalesPage', () => {
     render(<SalesPage />)
 
     fireEvent.click(within(await rowFor('TXN-4')).getByText('Refund'))
-    fireEvent.click(screen.getByRole('button', { name: /refund gh₵ 25\.00/i }))
+    fireEvent.click(screen.getByRole('button', { name: /refund lkr 25\.00/i }))
 
     await waitFor(() => expect(toast.error).toHaveBeenCalledWith('Paystack refused the refund'))
   })

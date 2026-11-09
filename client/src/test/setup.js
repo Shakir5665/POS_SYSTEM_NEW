@@ -6,6 +6,6 @@ beforeEach(() => {
   try {
     if (typeof localStorage !== 'undefined') localStorage.clear()
   } catch {}
-  setActiveCurrencySymbol('GH₵')
+  setActiveCurrencySymbol('LKR')
 })
 

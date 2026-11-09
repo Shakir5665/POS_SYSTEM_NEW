@@ -20,7 +20,7 @@ import { usePOSKeyboard } from '../hooks/usePOSKeyboard'
 
 // ─── Payment Modal (Cash, Credit & Partial Payments) ──────────────────────────
 function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuickCustomer, isLoading }) {
-  const { currency_symbol: currencySymbol = 'GH₵' } = useSettings()
+  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
   const [paymentMethod, setPaymentMethod] = useState('CASH')
   const [amountPaid, setAmountPaid] = useState('')
   const [deposit, setDeposit] = useState('0')

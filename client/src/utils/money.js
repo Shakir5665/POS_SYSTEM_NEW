@@ -1,17 +1,17 @@
 /**
  * Exact money arithmetic for the cart. Amounts are converted to whole
- * pesewas (integers) before any maths, so 3 × GH₵ 0.10 is exactly GH₵ 0.30.
+ * pesewas (integers) before any maths, so 3 × LKR 0.10 is exactly LKR 0.30.
  * The rules match the server's salesService so the screen shows the same
  * total the server will charge.
  */
 
-/** Convert GH₵ (number or numeric string) to whole pesewas. */
+/** Convert LKR (number or numeric string) to whole pesewas. */
 export function toPesewas(amount) {
   const n = Number(amount)
   return Number.isFinite(n) ? Math.round(n * 100) : 0
 }
 
-/** Convert whole pesewas back to GH₵. */
+/** Convert whole pesewas back to LKR. */
 export function fromPesewas(pesewas) {
   return pesewas / 100
 }
@@ -62,10 +62,10 @@ export function lineTotalPesewas(item) {
 }
 
 /**
- * Cart totals in GH₵. Tax is charged on (subtotal − cart discount) and
+ * Cart totals in LKR. Tax is charged on (subtotal − cart discount) and
  * rounded once, to the nearest pesewa, halves up.
  * @param {Array<{price, usual_price, our_price, quantity, discount, apply_predefined_discount}>} items
- * @param {number} cartDiscount - GH₵ (Additional Cart Discount)
+ * @param {number} cartDiscount - LKR (Additional Cart Discount)
  * @param {number|string} taxRate - percent, e.g. 12.5
  */
 export function cartTotals(items, cartDiscount, taxRate) {

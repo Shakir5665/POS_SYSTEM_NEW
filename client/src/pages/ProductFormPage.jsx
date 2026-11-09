@@ -10,7 +10,7 @@ import { useSettings } from '../hooks/useSettings'
 import { UOM_CONFIG, getUnitsForCategory, getBaseUnit, getDefaultPricingUnit } from '../utils/uom'
 
 export default function ProductFormPage() {
-  const { currency_symbol: currencySymbol = 'GH₵' } = useSettings()
+  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
   const navigate = useNavigate()
   const { id } = useParams()
   const isEditing = Boolean(id)

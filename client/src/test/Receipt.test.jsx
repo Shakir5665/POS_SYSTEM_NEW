@@ -102,12 +102,11 @@ describe('Receipt Component', () => {
     expect(printRoot.textContent).toContain('Soap')
   })
 
-  it('does not display currency symbols (e.g. LKR, GH₵, USD) on the receipt', () => {
+  it('does not display currency symbols (e.g. LKR, USD) on the receipt', () => {
     render(<Receipt sale={mockSale} onClose={vi.fn()} />)
 
     const printRoot = document.getElementById('print-root')
     expect(printRoot.textContent).not.toContain('LKR')
-    expect(printRoot.textContent).not.toContain('GH₵')
     expect(printRoot.textContent).not.toContain('USD')
     expect(printRoot.textContent).toContain('25.00')
     expect(printRoot.textContent).toContain('10.00')
