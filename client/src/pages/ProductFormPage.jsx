@@ -185,20 +185,20 @@ export default function ProductFormPage() {
 
     if (usualVal !== '') {
       if (isNaN(usual) || usual <= 0) {
-        pErrors.usual_price = 'Market price must be greater than 0'
+        pErrors.usual_price = 'MRKT_Price must be greater than 0'
       } else if (usual < 0) {
-        pErrors.usual_price = 'Market price cannot be negative'
+        pErrors.usual_price = 'MRKT_Price cannot be negative'
       }
     }
 
     if (ourVal !== '') {
       if (isNaN(our) || our < 0) {
-        pErrors.our_price = 'Our price must be non-negative'
+        pErrors.our_price = 'Our_price must be non-negative'
       } else {
         if (!isNaN(usual) && our > usual) {
-          pErrors.our_price = 'Our price cannot exceed market price'
+          pErrors.our_price = 'Our_price cannot exceed MRKT_Price'
         } else if (hasCost && cost !== null && our < cost) {
-          pErrors.our_price = 'Our price cannot be lower than cost price'
+          pErrors.our_price = 'Our_price cannot be lower than cost price'
         }
       }
     }
@@ -271,18 +271,18 @@ export default function ProductFormPage() {
     }
 
     if (!form.usual_price || isNaN(usual) || usual <= 0) {
-      errs.usual_price = 'Market price must be greater than 0'
+      errs.usual_price = 'MRKT_Price must be greater than 0'
     } else if (usual < 0) {
-      errs.usual_price = 'Market price cannot be negative'
+      errs.usual_price = 'MRKT_Price cannot be negative'
     }
 
     if (form.our_price === '' || isNaN(our) || our < 0) {
-      errs.our_price = 'Our price must be non-negative'
+      errs.our_price = 'Our_price must be non-negative'
     } else {
       if (!isNaN(usual) && our > usual) {
-        errs.our_price = 'Our price cannot exceed market price'
+        errs.our_price = 'Our_price cannot exceed MRKT_Price'
       } else if (hasCost && cost !== null && our < cost) {
-        errs.our_price = 'Our price cannot be lower than cost price'
+        errs.our_price = 'Our_price cannot be lower than cost price'
       }
     }
 
@@ -632,7 +632,7 @@ export default function ProductFormPage() {
 
               <div>
                 <Input
-                  label={`Market Price (${currencySymbol}) *`}
+                  label={`MRKT_Price (${currencySymbol}) *`}
                   type="number"
                   step="any"
                   value={form.usual_price}
@@ -651,7 +651,7 @@ export default function ProductFormPage() {
 
               <div>
                 <Input
-                  label={`Our Price (${currencySymbol}) *`}
+                  label={`Our_price (${currencySymbol}) *`}
                   type="number"
                   step="any"
                   value={form.our_price}
@@ -663,14 +663,14 @@ export default function ProductFormPage() {
               </div>
             </div>
 
-            {/* Dynamic Predefined Discount display */}
+            {/* Dynamic Discount display */}
             <div className="bg-primary-50/70 border border-primary-200 rounded-lg p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <p className="text-xs font-semibold text-primary-900 uppercase tracking-wider">
-                  Predefined Product Discount
+                  Discount
                 </p>
                 <p className="text-xs text-primary-700">
-                  Calculated automatically: Market Price ({currencySymbol} {numUsual.toFixed(2)}) − Our Price ({currencySymbol} {numOur.toFixed(2)})
+                  Calculated automatically: MRKT_Price ({currencySymbol} {numUsual.toFixed(2)}) − Our_price ({currencySymbol} {numOur.toFixed(2)})
                 </p>
               </div>
               <div className="flex items-baseline gap-1.5 bg-white px-3 py-1.5 rounded-md border border-primary-200 shadow-xs">

@@ -38,7 +38,9 @@ export function formatReceiptItem(item) {
 
   const predefinedApplied = item.predefined_discount_applied !== undefined
     ? Boolean(item.predefined_discount_applied)
-    : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01)
+    : (item.apply_predefined_discount !== undefined
+      ? Boolean(item.apply_predefined_discount)
+      : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01))
 
   let pricingFactor = 1
   if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
@@ -110,7 +112,10 @@ export function formatReceiptItem(item) {
   totalDiscount = Math.min(lineGross, Math.max(0, totalDiscount))
 
   const marketPrice = usualPrice != null ? usualPrice : unitPrice
-  const ourPriceVal = ourPrice != null ? ourPrice : unitPrice
+  // If predefined discount is unchecked (or disabled), show "our price" as same as "market price"
+  const ourPriceVal = predefinedApplied
+    ? (ourPrice != null ? ourPrice : unitPrice)
+    : marketPrice
 
   return {
     name,

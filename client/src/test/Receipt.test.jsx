@@ -136,7 +136,7 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     window.print = vi.fn()
   })
 
-  it('renders the 5 requested columns: Items (Count), Qty, Market Price, Our Price, Amount in 80mm table', () => {
+  it('renders the 5 requested columns: Items (Count), Qty, MRKT_Price, Our_price, Amount in 80mm table', () => {
     render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
 
     const printRoot = document.getElementById('print-root')
@@ -145,8 +145,8 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     // 1. Column header includes dynamic distinct item count: Items (2)
     expect(printRoot.textContent).toContain('Items (2)')
     expect(printRoot.textContent).toContain('Qty')
-    expect(printRoot.textContent).toContain('Market Price')
-    expect(printRoot.textContent).toContain('Our Price')
+    expect(printRoot.textContent).toContain('MRKT_Price')
+    expect(printRoot.textContent).toContain('Our_price')
     expect(printRoot.textContent).toContain('Amount')
 
     // 2. Chilli item values
@@ -164,13 +164,13 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     expect(printRoot.textContent).toContain('240.00') // Line Amount (2 * 120)
   })
 
-  it('renders the redesigned summary: Market Price Subtotal, Our Total Discount, and Grand Total', () => {
+  it('renders the redesigned summary: MRKT_Price Subtotal, Our Total Discount, and Grand Total', () => {
     render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
 
     const printRoot = document.getElementById('print-root')
 
-    // Market Price Subtotal = (2 * 120) + (2 * 150) = 240 + 300 = 540.00
-    expect(printRoot.textContent).toContain('Market Price Subtotal:')
+    // MRKT_Price Subtotal = (2 * 120) + (2 * 150) = 240 + 300 = 540.00
+    expect(printRoot.textContent).toContain('MRKT_Price Subtotal:')
     expect(printRoot.textContent).toContain('540.00')
 
     // Our Total Discount = Predefined (40 + 60 = 100) + Additional Cart Discount (10) = 110.00
@@ -226,7 +226,7 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
       '150.00',
       '120.00',
       '240.00',
-      'Market Price Subtotal:',
+      'MRKT_Price Subtotal:',
       '540.00',
       'Our Total Discount:',
       '-110.00',
@@ -237,6 +237,52 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
       expect(screenView.textContent).toContain(val)
       expect(printRoot.textContent).toContain(val)
     }
+  })
+
+  it('shows our price as same as market price when predefined discount is unchecked', () => {
+    const saleWithUncheckedDiscount = {
+      id: 'sale-unchecked-disc',
+      transaction_id: 'TXN-DISC-01',
+      created_at: '2026-11-09T10:00:00Z',
+      user: { full_name: 'Test Cashier' },
+      total_amount: '240.00',
+      total: '240.00',
+      items: [
+        {
+          product_name: 'Unchecked Product',
+          quantity: 2,
+          unit: 'pcs',
+          unit_price: 120.0,
+          usual_price: 120.0,
+          our_price: 100.0,
+          predefined_discount_applied: false,
+          predefined_discount_amount: 0,
+          total: 240.0,
+        },
+      ],
+      payment: {
+        payment_method: 'CASH',
+        amount_paid: '240.00',
+        change_given: '0.00',
+      },
+    }
+
+    const { items, summary } = getReceiptDataModel(saleWithUncheckedDiscount)
+    // Predefined discount unchecked => ourPrice must equal marketPrice (120.00)
+    expect(items[0].marketPrice).toBe(120.0)
+    expect(items[0].ourPrice).toBe(120.0)
+    expect(summary.totalPredefinedDiscounts).toBe(0)
+
+    render(<Receipt sale={saleWithUncheckedDiscount} onClose={vi.fn()} />)
+    const printRoot = document.getElementById('print-root')
+    expect(printRoot).not.toBeNull()
+    expect(printRoot.textContent).toContain('MRKT_Price')
+    expect(printRoot.textContent).toContain('Our_price')
+    // Both market price and our price column values show 120.00
+    const rows = printRoot.querySelectorAll('tbody tr')
+    expect(rows.length).toBe(1)
+    expect(rows[0].textContent).toContain('120.00')
+    expect(rows[0].textContent).not.toContain('100.00')
   })
 })
 

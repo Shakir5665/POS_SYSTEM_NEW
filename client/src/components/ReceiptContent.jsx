@@ -73,7 +73,7 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
           <div className="space-y-2" data-testid="receipt-items-58mm">
             <div className="flex justify-between font-bold uppercase text-[10px] text-gray-700 border-b border-gray-300 pb-1">
               <span>Items ({summary.distinctItems})</span>
-              <span>Qty &bull; Mkt &bull; Our &bull; Amt</span>
+              <span>Qty &bull; MRKT &bull; Our &bull; Amt</span>
             </div>
             {computedItems.map((item, idx) => (
               <div key={idx} className="receipt-table-row border-b border-dotted border-gray-200 pb-1 last:border-0">
@@ -94,8 +94,8 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
               <tr className="border-b border-gray-900 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-800">
                 <th className="text-left py-1 font-bold">Items ({summary.distinctItems})</th>
                 <th className="text-right py-1 pl-1 font-bold">Qty</th>
-                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Market Price</th>
-                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Our Price</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">MRKT_Price</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Our_price</th>
                 <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Amount</th>
               </tr>
             </thead>
@@ -124,7 +124,7 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
 
         {/* 1. Market Price Subtotal */}
         <div className="flex justify-between">
-          <span className="text-gray-700">Market Price Subtotal:</span>
+          <span className="text-gray-700">MRKT_Price Subtotal:</span>
           <span className="font-semibold">{fmt(summary.marketSubtotal)}</span>
         </div>
 

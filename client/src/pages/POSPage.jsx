@@ -749,8 +749,10 @@ export function CartItem({
           <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
             {hasPredefinedDiscount ? (
               <>
-                <span className="line-through text-gray-400">Market: {formatCurrency(usualPrice)}</span>
-                <span className="font-semibold text-primary-700">Our Price: {formatCurrency(ourPrice)}</span>
+                <span className="line-through text-gray-400">MRKT_Price: {formatCurrency(usualPrice)}</span>
+                <span className="font-semibold text-primary-700">
+                  Our_price: {formatCurrency(isPredefinedApplied ? ourPrice : usualPrice)}
+                </span>
               </>
             ) : (
               <span className="font-medium text-gray-700">{formatCurrency(usualPrice)}</span>
@@ -772,7 +774,7 @@ export function CartItem({
                   onChange={(e) => onToggleDiscount?.(item.product_id, e.target.checked)}
                   className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-gray-300"
                 />
-                <span>Predefined Discount</span>
+                <span>Discount</span>
               </label>
               <span className="font-bold text-success-700">
                 {isPredefinedApplied ? `-${formatCurrency(predefinedDiscountAmount)}` : 'Disabled'}
@@ -1602,12 +1604,12 @@ export default function POSPage() {
           {/* Breakdown summary */}
           <div className="space-y-1 pt-1 border-t border-gray-100 text-sm text-gray-600">
             <div className="flex justify-between">
-              <span>Market Price Subtotal</span>
+              <span>MRKT_Price Subtotal</span>
               <span>{formatCurrency(usual_subtotal != null ? usual_subtotal : subtotal)}</span>
             </div>
             {Number(predefined_discounts || 0) > 0 && (
               <div className="flex justify-between text-success-700">
-                <span>Total Predefined Discounts</span>
+                <span>Discount</span>
                 <span>-{formatCurrency(predefined_discounts)}</span>
               </div>
             )}
