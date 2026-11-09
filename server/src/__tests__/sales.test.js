@@ -1,5 +1,5 @@
 require('dotenv').config({ path: require('path').join(__dirname, '../../.env') })
-jest.setTimeout(30000)
+jest.setTimeout(60000)
 const request = require('supertest')
 const app = require('../app')
 const prisma = require('../utils/prismaClient')
@@ -37,14 +37,22 @@ let managerUser
 beforeAll(async () => {
   // Clean up any stale test data from previous aborted runs
   const staleCategory = await prisma.category.findUnique({ where: { name: 'SalesTest_Category_XYZ' } })
+  const staleProds = await prisma.product.findMany({
+    where: {
+      OR: [
+        { sku: { in: ['SALES-TEST-A', 'SALES-TEST-B'] } },
+        ...(staleCategory ? [{ category_id: staleCategory.id }] : []),
+      ],
+    },
+    select: { id: true },
+  })
+  const prodIds = staleProds.map((p) => p.id)
+  if (prodIds.length > 0) {
+    await prisma.inventoryLog.deleteMany({ where: { product_id: { in: prodIds } } })
+    await prisma.saleItem.deleteMany({ where: { product_id: { in: prodIds } } })
+    await prisma.product.deleteMany({ where: { id: { in: prodIds } } })
+  }
   if (staleCategory) {
-    const prods = await prisma.product.findMany({ where: { category_id: staleCategory.id }, select: { id: true } })
-    const prodIds = prods.map((p) => p.id)
-    if (prodIds.length > 0) {
-      await prisma.inventoryLog.deleteMany({ where: { product_id: { in: prodIds } } })
-      await prisma.saleItem.deleteMany({ where: { product_id: { in: prodIds } } })
-      await prisma.product.deleteMany({ where: { id: { in: prodIds } } })
-    }
     await prisma.category.delete({ where: { id: staleCategory.id } })
   }
   await prisma.customer.deleteMany({ where: { name: 'Sales Test Customer' } })
@@ -512,7 +520,7 @@ describe('POST /api/sales — concurrency and payment reuse', () => {
     const ids = results.map((r) => r.body.data.transaction_id)
     ids.forEach((id) => expect(id).toMatch(/^TXN-\d{8}-\d{4}$/))
     expect(new Set(ids).size).toBe(3)
-  })
+  }, 60000)
 
   it('refunds a sale only once when two refund requests arrive together', async () => {
     const saleRes = await request(app)

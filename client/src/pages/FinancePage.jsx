@@ -423,24 +423,32 @@ export default function FinancePage() {
         {/* ----------------- TAB: OVERVIEW ----------------- */}
         {activeTab === 'overview' && summary && (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
                 <p className="text-sm font-medium text-gray-500">Total Operating Expenses</p>
                 <p className="text-2xl font-bold text-danger-600 mt-1">{formatCurrency(summary.total_expenses)}</p>
-                <p className="text-xs text-gray-400 mt-1">Rent, utilities, staff & logistics</p>
+                <p className="text-xs text-gray-400 mt-1">Rent, utilities & logistics</p>
               </div>
 
               <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
                 <p className="text-sm font-medium text-gray-500">Business Assets Valuation</p>
                 <p className="text-2xl font-bold text-primary-600 mt-1">{formatCurrency(summary.total_asset_value)}</p>
-                <p className="text-xs text-gray-400 mt-1">Equipment, counters & electronics</p>
+                <p className="text-xs text-gray-400 mt-1">Equipment & electronics</p>
               </div>
 
               <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
-                <p className="text-sm font-medium text-gray-500">Net Owner Capital (Equity)</p>
+                <p className="text-sm font-medium text-gray-500">Net Owner Capital</p>
                 <p className="text-2xl font-bold text-success-600 mt-1">{formatCurrency(summary.net_capital)}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Contributions: {formatCurrency(summary.total_contributions)}
+                  In: {formatCurrency(summary.total_contributions)} | Out: {formatCurrency(summary.total_withdrawals || 0)}
+                </p>
+              </div>
+
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
+                <p className="text-sm font-medium text-gray-500">Total Business Equity</p>
+                <p className="text-2xl font-bold text-emerald-700 mt-1">{formatCurrency(summary.total_equity ?? summary.net_capital)}</p>
+                <p className="text-xs text-gray-400 mt-1">
+                  Capital + Profit: {formatCurrency(summary.retained_earnings || 0)}
                 </p>
               </div>
 
@@ -470,17 +478,29 @@ export default function FinancePage() {
                 </div>
 
                 <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Liabilities & Capital</p>
+                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Liabilities & Equity</p>
                   <div className="flex justify-between text-sm py-1 border-b">
                     <span className="text-gray-600">Supplier Payables (Debt)</span>
                     <span className="font-mono font-medium text-danger-600">
                       {formatCurrency(summary.total_supplier_payables)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm py-1">
-                    <span className="text-gray-600">Net Owner Capital Balance</span>
-                    <span className="font-mono font-bold text-success-600">
+                  <div className="flex justify-between text-sm py-1 border-b">
+                    <span className="text-gray-600">Contributed Owner Capital</span>
+                    <span className="font-mono font-medium text-success-600">
                       {formatCurrency(summary.net_capital)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm py-1 border-b">
+                    <span className="text-gray-600">Retained Earnings (Operating Profit)</span>
+                    <span className="font-mono font-medium text-gray-900">
+                      {formatCurrency(summary.retained_earnings || 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm py-1 font-bold">
+                    <span className="text-gray-800">Total Business Equity</span>
+                    <span className="font-mono text-emerald-700">
+                      {formatCurrency(summary.total_equity ?? summary.net_capital)}
                     </span>
                   </div>
                 </div>

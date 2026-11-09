@@ -230,7 +230,7 @@ describe('Keyboard Navigation', () => {
     expect(selectSpy).toHaveBeenCalled()
   })
 
-  it('moves focus to the Additional Cart Discount on Enter in quantity input', () => {
+  it('moves focus to the next item quantity on Enter, and to Additional Cart Discount only on the last item', () => {
     render(
       <div>
         <MultiItemCart />
@@ -239,13 +239,25 @@ describe('Keyboard Navigation', () => {
     )
 
     const qty0 = screen.getByTestId('cart-qty-p1')
+    const qty1 = screen.getByTestId('cart-qty-p2')
+    const qty2 = screen.getByTestId('cart-qty-p3')
     const discountInput = screen.getByTestId('additional-cart-discount-input')
-    const focusSpy = vi.spyOn(discountInput, 'focus')
+    const discountFocusSpy = vi.spyOn(discountInput, 'focus')
 
+    // 1. Enter on first item (qty0) moves focus to second item (qty1)
     qty0.focus()
     fireEvent.keyDown(qty0, { key: 'Enter' })
+    expect(document.activeElement).toBe(qty1)
+    expect(discountFocusSpy).not.toHaveBeenCalled()
 
-    expect(focusSpy).toHaveBeenCalled()
+    // 2. Enter on second item (qty1) moves focus to third item (qty2)
+    fireEvent.keyDown(qty1, { key: 'Enter' })
+    expect(document.activeElement).toBe(qty2)
+    expect(discountFocusSpy).not.toHaveBeenCalled()
+
+    // 3. Enter on LAST item (qty2) moves focus to Additional Cart Discount
+    fireEvent.keyDown(qty2, { key: 'Enter' })
+    expect(discountFocusSpy).toHaveBeenCalled()
   })
 
   it('moves focus to the previous item quantity on ArrowUp', () => {

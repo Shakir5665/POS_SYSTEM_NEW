@@ -25,6 +25,17 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
   const [amountPaid, setAmountPaid] = useState('')
   const [deposit, setDeposit] = useState('0')
   const [errors, setErrors] = useState({})
+  const amountPaidInputRef = useRef(null)
+
+  useEffect(() => {
+    if (isOpen) {
+      const timer = setTimeout(() => {
+        amountPaidInputRef.current?.focus()
+        amountPaidInputRef.current?.select?.()
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+  }, [isOpen])
 
   const cashVal = parseFloat(amountPaid) || 0
   const paidEnough = amountPaid !== '' && toPesewas(amountPaid) >= toPesewas(total)
@@ -140,6 +151,9 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
         {paymentMethod === 'CASH' && (
           <div className="space-y-3">
             <Input
+              ref={amountPaidInputRef}
+              id="amount-paid-input"
+              data-testid="amount-paid-input"
               label={`Cash Received (${currencySymbol})`}
               type="number"
               step="any"
@@ -667,43 +681,52 @@ export function CartItem({
   }
 
   function handleQtyKeyDown(e) {
+    const allQtyInputs = Array.from(document.querySelectorAll('input[data-field="qty"]'))
+    const currentIndex = allQtyInputs.indexOf(e.target)
+
     if (e.key === 'ArrowDown') {
       e.preventDefault()
-      if (index < itemCount - 1) {
-        const nextInput = document.getElementById(`cart-qty-${index + 1}`)
-        if (nextInput) {
-          nextInput.focus()
-          nextInput.select()
-        }
+      if (currentIndex >= 0 && currentIndex < allQtyInputs.length - 1) {
+        const nextInput = allQtyInputs[currentIndex + 1]
+        nextInput?.focus()
+        nextInput?.select?.()
       } else {
         qtyInputRef.current?.focus()
-        qtyInputRef.current?.select()
+        qtyInputRef.current?.select?.()
       }
       return
     }
 
     if (e.key === 'ArrowUp') {
       e.preventDefault()
-      if (index > 0) {
-        const prevInput = document.getElementById(`cart-qty-${index - 1}`)
-        if (prevInput) {
-          prevInput.focus()
-          prevInput.select()
-        }
+      if (currentIndex > 0) {
+        const prevInput = allQtyInputs[currentIndex - 1]
+        prevInput?.focus()
+        prevInput?.select?.()
       } else {
         qtyInputRef.current?.focus()
-        qtyInputRef.current?.select()
+        qtyInputRef.current?.select?.()
       }
       return
     }
 
     if (e.key === 'Enter') {
       e.preventDefault()
-      // Intended workflow: Cashier enters product quantity -> Press Enter -> Focus moves to Additional Cart Discount
+      // If there is another product line in the cart after this one, advance focus to it
+      if (currentIndex >= 0 && currentIndex < allQtyInputs.length - 1) {
+        const nextInput = allQtyInputs[currentIndex + 1]
+        if (nextInput) {
+          nextInput.focus()
+          nextInput.select?.()
+          return
+        }
+      }
+
+      // If this is the LAST product line in the cart, advance focus to Additional Cart Discount
       const cartDiscountInput = document.querySelector('[data-testid="additional-cart-discount-input"]')
       if (cartDiscountInput) {
         cartDiscountInput.focus()
-        cartDiscountInput.select()
+        cartDiscountInput.select?.()
       }
       return
     }

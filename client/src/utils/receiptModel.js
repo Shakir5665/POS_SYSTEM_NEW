@@ -109,16 +109,21 @@ export function formatReceiptItem(item) {
   lineTotal = Math.max(0, lineTotal)
   totalDiscount = Math.min(lineGross, Math.max(0, totalDiscount))
 
+  const marketPrice = usualPrice != null ? usualPrice : unitPrice
+  const ourPriceVal = ourPrice != null ? ourPrice : unitPrice
+
   return {
     name,
     qty,
     unitLabel,
     unitPrice,
     usualPrice,
-    ourPrice,
+    ourPrice: ourPriceVal,
+    marketPrice,
     predefinedApplied,
     predefinedDiscountAmount,
     usualLineGross,
+    marketLineGross: usualLineGross != null ? usualLineGross : lineGross,
     lineGross,
     unitDiscount,
     totalDiscount,
@@ -174,6 +179,7 @@ export function calculateReceiptSummary(sale, computedItems = []) {
   // 3. Gross Subtotal at selling price
   const computedGross = computedItems.reduce((sum, it) => sum + (it.lineGross || 0), 0)
   const grossSubtotal = sale.gross_subtotal != null ? Number(sale.gross_subtotal) : Number(computedGross.toFixed(2))
+  const marketSubtotalVal = usualSubtotal != null ? usualSubtotal : grossSubtotal
 
   // 4. Line-level manual discounts
   const computedProductDiscounts = computedItems.reduce((sum, it) => sum + (it.totalDiscount || 0), 0)
@@ -204,16 +210,20 @@ export function calculateReceiptSummary(sale, computedItems = []) {
     : (sale.amount_paid != null ? Number(sale.amount_paid) : finalTotal)
   const outstandingBalance = Math.max(0, Number((finalTotal - amountPaid).toFixed(2)))
 
+  // Combined Our Total Discount = Total Predefined Discounts + Additional Cart Discount + any manual item discounts
+  const ourTotalDiscount = Number((totalPredefinedDiscounts + additionalCartDiscount + totalProductDiscounts).toFixed(2))
+
   return {
     distinctItems,
     totalQuantity: Number(totalQuantity.toFixed(3)),
-    usualSubtotal,
-    marketSubtotal: usualSubtotal,
+    usualSubtotal: marketSubtotalVal,
+    marketSubtotal: marketSubtotalVal,
     totalPredefinedDiscounts,
     grossSubtotal,
     totalProductDiscounts,
     additionalCartDiscount,
     totalDiscounts,
+    ourTotalDiscount,
     applicableTaxes,
     finalTotal,
     grandTotal: finalTotal,

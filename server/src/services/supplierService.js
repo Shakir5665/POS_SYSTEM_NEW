@@ -310,7 +310,7 @@ async function recordSupplierPayment(supplierId, { amount, payment_method = 'CAS
       allocations,
       allocated_amount: paymentAmount.minus(remaining).toNumber(),
     }
-  })
+  }, { maxWait: 10000, timeout: 30000 })
 }
 
 async function getSupplierAccountStatement(supplierId) {

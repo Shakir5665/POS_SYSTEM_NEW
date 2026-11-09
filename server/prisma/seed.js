@@ -18,6 +18,17 @@ async function main() {
   console.log('This deletes ALL existing data (users, products, customers, sales, settings) and inserts sample data.')
 
   // Clean up existing data (in reverse FK order)
+  await prisma.ownerTransaction.deleteMany()
+  await prisma.expense.deleteMany()
+  await prisma.expenseCategory.deleteMany()
+  await prisma.businessAsset.deleteMany()
+  await prisma.supplierPaymentAllocation.deleteMany()
+  await prisma.supplierPayment.deleteMany()
+  await prisma.purchaseItem.deleteMany()
+  await prisma.purchase.deleteMany()
+  await prisma.supplier.deleteMany()
+  await prisma.customerPaymentAllocation.deleteMany()
+  await prisma.customerPayment.deleteMany()
   await prisma.authLog.deleteMany()
   await prisma.inventoryLog.deleteMany()
   await prisma.payment.deleteMany()
@@ -78,6 +89,20 @@ async function main() {
     }),
   ])
   console.log('Users created')
+
+  // Sample initial owner capital (Opening Capital Injection)
+  await prisma.ownerTransaction.create({
+    data: {
+      user_id: admin.id,
+      type: 'CONTRIBUTION',
+      amount: 25000.0,
+      payment_method: 'CASH',
+      reference: 'INIT-CAPITAL-001',
+      notes: 'Initial store opening capital investment',
+      transaction_date: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+    },
+  })
+  console.log('Sample initial owner capital recorded')
 
   // Categories
   const categoryData = [

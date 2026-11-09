@@ -247,7 +247,7 @@ async function createPurchase({
     }
 
     return purchase
-  })
+  }, { maxWait: 10000, timeout: 30000 })
 }
 
 async function receivePurchase(id, userId) {
@@ -306,7 +306,7 @@ async function receivePurchase(id, userId) {
         items: true,
       },
     })
-  })
+  }, { maxWait: 10000, timeout: 30000 })
 }
 
 async function cancelPurchase(id, userId) {

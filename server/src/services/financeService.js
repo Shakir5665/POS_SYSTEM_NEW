@@ -298,11 +298,11 @@ async function listOwnerTransactions({ page = 1, per_page = 20, type, start_date
     }),
     prisma.ownerTransaction.count({ where }),
     prisma.ownerTransaction.aggregate({
-      where: { type: 'CONTRIBUTION' },
+      where: { ...where, type: 'CONTRIBUTION' },
       _sum: { amount: true },
     }),
     prisma.ownerTransaction.aggregate({
-      where: { type: 'WITHDRAWAL' },
+      where: { ...where, type: 'WITHDRAWAL' },
       _sum: { amount: true },
     }),
   ])
@@ -358,7 +358,7 @@ async function createOwnerTransaction({ user_id, type, amount, payment_method = 
 // ------------------- Executive Financial Overview -------------------
 
 async function getFinanceSummary() {
-  const [expenseAgg, assetAgg, contribAgg, withdrAgg, supplierDebtAgg, customerDebtAgg] = await Promise.all([
+  const [expenseAgg, assetAgg, contribAgg, withdrAgg, supplierDebtAgg, customerDebtAgg, salesAgg, cogsAgg] = await Promise.all([
     prisma.expense.aggregate({ _sum: { amount: true } }),
     prisma.businessAsset.aggregate({
       where: { status: 'ACTIVE' },
@@ -380,6 +380,17 @@ async function getFinanceSummary() {
       where: { balance_due: { gt: 0 } },
       _sum: { balance_due: true },
     }),
+    prisma.sale.aggregate({
+      where: { payment_status: { not: 'REFUNDED' } },
+      _sum: { total_amount: true },
+    }),
+    prisma.$queryRaw`
+      SELECT COALESCE(SUM(COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0))), 0)::float as cogs
+      FROM "SaleItem" si
+      JOIN "Product" p ON p.id = si.product_id
+      JOIN "Sale" s ON s.id = si.sale_id
+      WHERE s.payment_status != 'REFUNDED'
+    `,
   ])
 
   const total_expenses = expenseAgg._sum.amount ? Number(expenseAgg._sum.amount) : 0
@@ -390,12 +401,21 @@ async function getFinanceSummary() {
   const total_supplier_payables = supplierDebtAgg._sum.balance_due ? Number(supplierDebtAgg._sum.balance_due) : 0
   const total_customer_receivables = customerDebtAgg._sum.balance_due ? Number(customerDebtAgg._sum.balance_due) : 0
 
+  // Total Business Equity = Net Contributed Capital + Accumulated Retained Earnings (Net Sales - COGS - Expenses)
+  const net_sales = Number(salesAgg._sum.total_amount || 0)
+  const cogs = Number(cogsAgg[0]?.cogs || 0)
+  const gross_profit = Number((net_sales - cogs).toFixed(2))
+  const retained_earnings = Number((gross_profit - total_expenses).toFixed(2))
+  const total_equity = Number((new Decimal(net_capital).plus(new Decimal(retained_earnings))).toFixed(2))
+
   return {
     total_expenses,
     total_asset_value,
     total_contributions,
     total_withdrawals,
     net_capital,
+    retained_earnings,
+    total_equity,
     total_supplier_payables,
     total_customer_receivables,
   }

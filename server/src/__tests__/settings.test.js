@@ -13,6 +13,15 @@ async function login(username) {
 }
 
 beforeAll(async () => {
+  const staleUsers = await prisma.user.findMany({
+    where: { username: { in: ['settings_test_admin', 'settings_test_cashier'] } }
+  })
+  if (staleUsers.length > 0) {
+    const staleIds = staleUsers.map(u => u.id)
+    await prisma.authLog.deleteMany({ where: { user_id: { in: staleIds } } })
+    await prisma.user.deleteMany({ where: { id: { in: staleIds } } })
+  }
+
   originalRows = await prisma.settings.findMany()
   const password_hash = await bcrypt.hash('testpass123', 4)
   adminUser = await prisma.user.create({
@@ -27,12 +36,16 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Put receipt_footer back as it was (the only setting this file changes)
-  const footer = originalRows.find((r) => r.key === 'receipt_footer')
-  if (footer) await prisma.settings.update({ where: { key: 'receipt_footer' }, data: { value: footer.value } })
-  else await prisma.settings.deleteMany({ where: { key: 'receipt_footer' } })
-  const ids = [adminUser.id, cashierUser.id]
-  await prisma.authLog.deleteMany({ where: { user_id: { in: ids } } })
-  await prisma.user.deleteMany({ where: { id: { in: ids } } })
+  if (Array.isArray(originalRows)) {
+    const footer = originalRows.find((r) => r.key === 'receipt_footer')
+    if (footer) await prisma.settings.update({ where: { key: 'receipt_footer' }, data: { value: footer.value } })
+    else await prisma.settings.deleteMany({ where: { key: 'receipt_footer' } })
+  }
+  const ids = [adminUser?.id, cashierUser?.id].filter(Boolean)
+  if (ids.length > 0) {
+    await prisma.authLog.deleteMany({ where: { user_id: { in: ids } } })
+    await prisma.user.deleteMany({ where: { id: { in: ids } } })
+  }
   await prisma.$disconnect()
 })
 

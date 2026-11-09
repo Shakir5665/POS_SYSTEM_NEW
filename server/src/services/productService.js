@@ -325,7 +325,7 @@ async function deleteCategory(id) {
       data: { category_id: null },
     })
     await tx.category.delete({ where: { id } })
-  })
+  }, { maxWait: 10000, timeout: 30000 })
 
   return { id, affected_products: affectedCount }
 }

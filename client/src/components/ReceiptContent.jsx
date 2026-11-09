@@ -6,7 +6,7 @@ import { getReceiptDataModel } from '../utils/receiptModel'
  * Shared 1:1 between on-screen modal review and thermal print portal (58mm & 80mm).
  * Currency symbol/code is omitted in receipts per retail receipt formatting.
  */
-export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
+export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidth = '80mm' }) {
   if (!sale) return null
 
   const fmt = (v) => formatAmount(v)
@@ -22,9 +22,20 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
   } = sale
 
   const paymentObj = payment || (sale.payments?.[0] ?? null)
+  const is58mm = paperWidth === '58mm'
 
   return (
-    <div className={`receipt-body font-mono text-gray-900 ${isPrint ? 'text-xs p-1 max-w-[80mm] mx-auto w-full' : 'text-sm'}`}>
+    <div
+      className={`receipt-body font-mono text-gray-900 ${
+        isPrint
+          ? is58mm
+            ? 'text-[11px] p-1 max-w-[58mm] mx-auto w-full'
+            : 'text-xs p-1 max-w-[80mm] mx-auto w-full'
+          : 'text-sm'
+      }`}
+      data-testid="receipt-content"
+      data-paper-width={paperWidth}
+    >
       {/* Store Header */}
       <div className="text-center mb-3">
         <p className="font-bold text-base">{settings.store_name || 'NexTill Store'}</p>
@@ -55,101 +66,77 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
         </div>
       </div>
 
-      {/* Items Section */}
-      <div className="border-t border-dashed border-gray-400 py-2 text-xs space-y-2">
-        <div className="flex justify-between font-bold uppercase tracking-wider text-[11px] text-gray-700 border-b border-gray-200 pb-1">
-          <span>Items</span>
-          <span>Qty &bull; Price &bull; Amount</span>
-        </div>
-        {computedItems.map((item, idx) => {
-          const hasDiscount = item.usualPrice != null && item.ourPrice != null && item.usualPrice > item.ourPrice
-          const unitSavings = hasDiscount ? Number((item.usualPrice - item.ourPrice).toFixed(2)) : 0
-
-          return (
-            <div key={idx} className="receipt-table-row py-1 border-b border-dotted border-gray-200 last:border-0">
-              <div className="font-semibold text-gray-900 break-words">{item.name}</div>
-              <div className="flex justify-between text-gray-700 mt-0.5">
-                <span>{item.qty}{item.unitLabel} × {fmt(item.unitPrice)}</span>
-                <span className="font-medium whitespace-nowrap">
-                  {item.totalDiscount > 0 ? `= ${fmt(item.lineGross)}` : fmt(item.lineTotal)}
-                </span>
-              </div>
-              {hasDiscount && (
-                <div className="flex justify-between text-[11px] text-gray-500 mt-0.5">
-                  <span>Market Price: {fmt(item.usualPrice)} | Our Price: {fmt(item.ourPrice)}</span>
-                  {item.predefinedApplied && (
-                    <span className="text-success-700 print:text-black font-medium">
-                      Savings: {fmt(unitSavings)}/unit {item.predefinedDiscountAmount > 0 ? `(-${fmt(item.predefinedDiscountAmount)})` : ''}
-                    </span>
-                  )}
-                </div>
-              )}
-              {item.totalDiscount > 0 && (
-                <div className="flex justify-between text-red-600 print:text-black mt-0.5">
-                  <span className="truncate pr-1">Discount ({fmt(item.unitDiscount)} × {item.qty}):</span>
-                  <span className="font-medium whitespace-nowrap">-{fmt(item.totalDiscount)}</span>
-                </div>
-              )}
-              {item.totalDiscount > 0 && (
-                <div className="flex justify-between font-bold text-gray-900 mt-0.5">
-                  <span>Line Total:</span>
-                  <span className="whitespace-nowrap">{fmt(item.lineTotal)}</span>
-                </div>
-              )}
+      {/* ── 5-Column Item Table (Task 2.1 & 2.2) ── */}
+      <div className="border-t border-dashed border-gray-400 py-2 text-xs">
+        {is58mm ? (
+          /* 58mm Compact Layout: Product name on top line, 4 numeric columns underneath */
+          <div className="space-y-2" data-testid="receipt-items-58mm">
+            <div className="flex justify-between font-bold uppercase text-[10px] text-gray-700 border-b border-gray-300 pb-1">
+              <span>Items ({summary.distinctItems})</span>
+              <span>Qty &bull; Mkt &bull; Our &bull; Amt</span>
             </div>
-          )
-        })}
+            {computedItems.map((item, idx) => (
+              <div key={idx} className="receipt-table-row border-b border-dotted border-gray-200 pb-1 last:border-0">
+                <div className="font-semibold text-gray-900 break-words">{item.name}</div>
+                <div className="flex justify-between text-[11px] text-gray-700 mt-0.5">
+                  <span className="font-medium">{item.qty}{item.unitLabel}</span>
+                  <span className="text-gray-500">{fmt(item.marketPrice)}</span>
+                  <span className="text-gray-800 font-medium">{fmt(item.ourPrice)}</span>
+                  <span className="font-bold text-gray-900 text-right">{fmt(item.lineTotal)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* 80mm Standard Layout: Full 5-Column Grid Table */
+          <table className="w-full text-xs border-collapse" data-testid="receipt-items-80mm">
+            <thead>
+              <tr className="border-b border-gray-900 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-800">
+                <th className="text-left py-1 font-bold">Items ({summary.distinctItems})</th>
+                <th className="text-right py-1 pl-1 font-bold">Qty</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Market Price</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Our Price</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              {computedItems.map((item, idx) => (
+                <tr key={idx} className="receipt-table-row border-b border-dotted border-gray-200 last:border-0 align-top">
+                  <td className="text-left py-1 pr-1 font-medium text-gray-900 break-words">{item.name}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-700">{item.qty}{item.unitLabel}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-500">{fmt(item.marketPrice)}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-900 font-medium">{fmt(item.ourPrice)}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap font-bold text-gray-900">{fmt(item.lineTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
-      {/* Financial Summary */}
+      {/* ── Financial Summary (Task 2.3) ── */}
       <div className="border-t border-dashed border-gray-400 pt-2 text-xs space-y-1">
-        {/* Distinct Items */}
+        {/* Distinct Items Summary Line */}
         <div className="flex justify-between text-gray-600">
           <span>Distinct Items:</span>
-          <span>{summary.distinctItems || computedItems.length} ({summary.totalQuantity || computedItems.reduce((s, i) => s + i.qty, 0)} units)</span>
+          <span>{summary.distinctItems} ({summary.totalQuantity} units)</span>
         </div>
 
-        {/* 1. Market Price Subtotal / Gross Subtotal */}
+        {/* 1. Market Price Subtotal */}
         <div className="flex justify-between">
-          <span className="text-gray-600">
-            {summary.usualSubtotal != null ? 'Market Price Subtotal:' : 'Gross Subtotal:'}
-          </span>
-          <span className="font-semibold">{fmt(summary.usualSubtotal != null ? summary.usualSubtotal : summary.grossSubtotal)}</span>
+          <span className="text-gray-700">Market Price Subtotal:</span>
+          <span className="font-semibold">{fmt(summary.marketSubtotal)}</span>
         </div>
 
-        {/* 2. Total Predefined Discounts */}
-        {summary.totalPredefinedDiscounts > 0 && (
+        {/* 2. Our Total Discount (Combined: Predefined Discounts + Additional Cart Discount + Manual item discounts) */}
+        {summary.ourTotalDiscount > 0 && (
           <div className="flex justify-between text-success-700 print:text-black">
-            <span>Predefined Discounts:</span>
-            <span className="font-semibold">-{fmt(summary.totalPredefinedDiscounts)}</span>
+            <span>Our Total Discount:</span>
+            <span className="font-semibold">-{fmt(summary.ourTotalDiscount)}</span>
           </div>
         )}
 
-        {/* 3. Additional Cart Discount */}
-        {summary.additionalCartDiscount > 0 && (
-          <div className="flex justify-between text-red-600 print:text-black">
-            <span>Additional Cart Discount:</span>
-            <span className="font-semibold">-{fmt(summary.additionalCartDiscount)}</span>
-          </div>
-        )}
-
-        {/* 4. Total Line / Product Discounts */}
-        {summary.totalProductDiscounts > 0 && (
-          <div className="flex justify-between text-red-600 print:text-black">
-            <span>Total Product Discounts:</span>
-            <span className="font-semibold">-{fmt(summary.totalProductDiscounts)}</span>
-          </div>
-        )}
-
-        {/* 5. Total Discounts */}
-        {summary.totalDiscounts > 0 && (
-          <div className="flex justify-between text-gray-800 font-bold print:text-black">
-            <span>Total Discounts:</span>
-            <span>-{fmt(summary.totalDiscounts)}</span>
-          </div>
-        )}
-
-        {/* 5. Applicable Taxes */}
+        {/* 3. Applicable Taxes (if any) */}
         {summary.applicableTaxes > 0 && (
           <div className="flex justify-between text-gray-600">
             <span>Applicable Taxes:</span>
@@ -157,10 +144,10 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
           </div>
         )}
 
-        {/* 6. Grand Total */}
+        {/* 4. Grand Total */}
         <div className="flex justify-between font-bold text-base border-t border-gray-900 pt-1 mt-1">
           <span>Grand Total:</span>
-          <span>{fmt(summary.finalTotal)}</span>
+          <span>{fmt(summary.grandTotal)}</span>
         </div>
 
         {/* Payment Breakdown */}
