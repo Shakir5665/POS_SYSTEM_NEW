@@ -16,7 +16,7 @@ import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
 import { reportsService } from '../services/reports'
-import { formatCurrency } from '../utils/formatCurrency'
+import { formatCurrency, formatCompactCurrency, formatCompactNumber } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
 
 const PIE_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#0891B2']
@@ -48,9 +48,9 @@ function Spinner() {
   )
 }
 
-function KpiCard({ label, value }) {
+function KpiCard({ label, value, tooltip }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm" title={tooltip}>
       <p className="text-sm text-gray-500">{label}</p>
       <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
     </div>
@@ -252,11 +252,31 @@ export default function ReportsPage() {
                 <p className="text-center text-gray-400 py-10">No data available</p>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                  <KpiCard label="Total Revenue" value={formatCurrency(summaryData.total_revenue ?? 0)} />
-                  <KpiCard label="Transactions" value={summaryData.transaction_count ?? 0} />
-                  <KpiCard label="Average Sale" value={formatCurrency(summaryData.average_sale ?? 0)} />
-                  <KpiCard label="Total Discount" value={formatCurrency(summaryData.total_discount ?? 0)} />
-                  <KpiCard label="Total Tax" value={formatCurrency(summaryData.total_tax ?? 0)} />
+                  <KpiCard
+                    label="Total Revenue"
+                    value={formatCompactCurrency(summaryData.total_revenue ?? 0)}
+                    tooltip={formatCurrency(summaryData.total_revenue ?? 0)}
+                  />
+                  <KpiCard
+                    label="Transactions"
+                    value={summaryData.transaction_count != null && summaryData.transaction_count >= 1000 ? formatCompactNumber(summaryData.transaction_count) : (summaryData.transaction_count ?? 0)}
+                    tooltip={String(summaryData.transaction_count ?? 0)}
+                  />
+                  <KpiCard
+                    label="Average Sale"
+                    value={formatCompactCurrency(summaryData.average_sale ?? 0)}
+                    tooltip={formatCurrency(summaryData.average_sale ?? 0)}
+                  />
+                  <KpiCard
+                    label="Total Discount"
+                    value={formatCompactCurrency(summaryData.total_discount ?? 0)}
+                    tooltip={formatCurrency(summaryData.total_discount ?? 0)}
+                  />
+                  <KpiCard
+                    label="Total Tax"
+                    value={formatCompactCurrency(summaryData.total_tax ?? 0)}
+                    tooltip={formatCurrency(summaryData.total_tax ?? 0)}
+                  />
                 </div>
               )}
             </div>
@@ -492,36 +512,39 @@ export default function ReportsPage() {
                 <div className="space-y-6">
                   {/* P&L Metric Cards */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm" title={formatCurrency(financialData.gross_sales)}>
                       <p className="text-sm text-gray-500">Gross Sales Revenue</p>
                       <p className="text-2xl font-bold text-gray-900 mt-1">
-                        {formatCurrency(financialData.gross_sales)}
+                        {formatCompactCurrency(financialData.gross_sales)}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">Total billing volume</p>
                     </div>
 
-                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm" title={formatCurrency(financialData.cogs)}>
                       <p className="text-sm text-gray-500">Cost of Goods Sold (COGS)</p>
                       <p className="text-2xl font-bold text-gray-700 mt-1">
-                        {formatCurrency(financialData.cogs)}
+                        {formatCompactCurrency(financialData.cogs)}
                       </p>
                       <p className="text-xs text-gray-400 mt-1">Product acquisition cost</p>
                     </div>
 
-                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm">
+                    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm" title={formatCurrency(financialData.gross_profit)}>
                       <p className="text-sm text-gray-500">Gross Profit (Margin)</p>
                       <p className="text-2xl font-bold text-primary-600 mt-1">
-                        {formatCurrency(financialData.gross_profit)}
+                        {formatCompactCurrency(financialData.gross_profit)}
                       </p>
                       <p className="text-xs text-primary-500 mt-1">
                         Margin: {financialData.gross_profit_margin}%
                       </p>
                     </div>
 
-                    <div className={`border rounded-xl p-5 shadow-sm ${financialData.net_profit >= 0 ? 'bg-success-50/50 border-success-100' : 'bg-danger-50/50 border-danger-100'}`}>
+                    <div
+                      className={`border rounded-xl p-5 shadow-sm ${financialData.net_profit >= 0 ? 'bg-success-50/50 border-success-100' : 'bg-danger-50/50 border-danger-100'}`}
+                      title={formatCurrency(financialData.net_profit)}
+                    >
                       <p className="text-sm text-gray-600 font-medium">Net Profit (Operating)</p>
                       <p className={`text-2xl font-bold mt-1 ${financialData.net_profit >= 0 ? 'text-success-700' : 'text-danger-700'}`}>
-                        {formatCurrency(financialData.net_profit)}
+                        {formatCompactCurrency(financialData.net_profit)}
                       </p>
                       <p className="text-xs text-gray-500 mt-1">
                         After OpEx: {financialData.net_profit_margin}%
@@ -535,20 +558,20 @@ export default function ReportsPage() {
                       <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Sales Realization in Period</p>
                       <div className="flex justify-between items-center py-2 border-b">
                         <span className="text-sm text-gray-600">Immediate Cash / Digital Payments</span>
-                        <span className="text-sm font-mono font-bold text-success-600">
-                          {formatCurrency(financialData.cash_collected)}
+                        <span className="text-sm font-mono font-bold text-success-600" title={formatCurrency(financialData.cash_collected)}>
+                          {formatCompactCurrency(financialData.cash_collected)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b">
                         <span className="text-sm text-gray-600">Uncollected Credit Extended</span>
-                        <span className="text-sm font-mono font-bold text-warning-700">
-                          {formatCurrency(financialData.credit_sales)}
+                        <span className="text-sm font-mono font-bold text-warning-700" title={formatCurrency(financialData.credit_sales)}>
+                          {formatCompactCurrency(financialData.credit_sales)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-1">
                         <span className="text-sm font-medium text-gray-700">Total Period Billed</span>
-                        <span className="text-base font-mono font-bold text-gray-900">
-                          {formatCurrency(financialData.gross_sales)}
+                        <span className="text-base font-mono font-bold text-gray-900" title={formatCurrency(financialData.gross_sales)}>
+                          {formatCompactCurrency(financialData.gross_sales)}
                         </span>
                       </div>
                     </div>
@@ -557,20 +580,23 @@ export default function ReportsPage() {
                       <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Global Working Debt Balance</p>
                       <div className="flex justify-between items-center py-2 border-b">
                         <span className="text-sm text-gray-600">Customer Receivables (Money owed to you)</span>
-                        <span className="text-sm font-mono font-bold text-primary-700">
-                          {formatCurrency(financialData.total_customer_receivables)}
+                        <span className="text-sm font-mono font-bold text-primary-700" title={formatCurrency(financialData.total_customer_receivables)}>
+                          {formatCompactCurrency(financialData.total_customer_receivables)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-2 border-b">
                         <span className="text-sm text-gray-600">Supplier Payables (Money you owe vendors)</span>
-                        <span className="text-sm font-mono font-bold text-danger-600">
-                          {formatCurrency(financialData.total_supplier_payables)}
+                        <span className="text-sm font-mono font-bold text-danger-600" title={formatCurrency(financialData.total_supplier_payables)}>
+                          {formatCompactCurrency(financialData.total_supplier_payables)}
                         </span>
                       </div>
                       <div className="flex justify-between items-center py-1">
                         <span className="text-sm font-medium text-gray-700">Net Working Capital Stance</span>
-                        <span className={`text-base font-mono font-bold ${financialData.total_customer_receivables >= financialData.total_supplier_payables ? 'text-success-600' : 'text-danger-600'}`}>
-                          {formatCurrency(financialData.total_customer_receivables - financialData.total_supplier_payables)}
+                        <span
+                          className={`text-base font-mono font-bold ${financialData.total_customer_receivables >= financialData.total_supplier_payables ? 'text-success-600' : 'text-danger-600'}`}
+                          title={formatCurrency(financialData.total_customer_receivables - financialData.total_supplier_payables)}
+                        >
+                          {formatCompactCurrency(financialData.total_customer_receivables - financialData.total_supplier_payables)}
                         </span>
                       </div>
                     </div>
@@ -580,8 +606,8 @@ export default function ReportsPage() {
                   <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden p-4 space-y-3">
                     <div className="flex justify-between items-center">
                       <h3 className="text-sm font-bold text-gray-900">Operating Expenses in Period</h3>
-                      <span className="text-sm font-bold text-danger-600 font-mono">
-                        Total OpEx: {formatCurrency(financialData.operating_expenses)}
+                      <span className="text-sm font-bold text-danger-600 font-mono" title={formatCurrency(financialData.operating_expenses)}>
+                        Total OpEx: {formatCompactCurrency(financialData.operating_expenses)}
                       </span>
                     </div>
 

@@ -8,7 +8,7 @@ import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
 import { suppliersService } from '../services/suppliers'
-import { formatCurrency } from '../utils/formatCurrency'
+import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 
 const EMPTY_SUPPLIER_FORM = {
   name: '',
@@ -259,7 +259,7 @@ export default function SuppliersPage() {
           </div>
           <div className="bg-danger-50 rounded-xl border border-danger-100 p-4">
             <p className="text-sm text-danger-700 font-medium">Total Payables Due</p>
-            <p className="text-2xl font-bold text-danger-700 mt-1">{formatCurrency(totalPayables)}</p>
+            <p className="text-2xl font-bold text-danger-700 mt-1" title={formatCurrency(totalPayables)}>{formatCompactCurrency(totalPayables)}</p>
             <p className="text-xs text-danger-500 mt-0.5">Supplier debt to be settled</p>
           </div>
           <div className="bg-white rounded-xl border border-gray-200 p-4">
@@ -464,22 +464,22 @@ export default function SuppliersPage() {
             <>
               {/* Summary Cards */}
               <div className="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                <div>
+                <div title={formatCurrency(statementData.summary.total_purchased)}>
                   <p className="text-xs text-gray-500">Total Invoiced</p>
                   <p className="text-base font-bold text-gray-900 mt-0.5">
-                    {formatCurrency(statementData.summary.total_purchased)}
+                    {formatCompactCurrency(statementData.summary.total_purchased)}
                   </p>
                 </div>
-                <div>
+                <div title={formatCurrency(statementData.summary.total_paid)}>
                   <p className="text-xs text-gray-500">Total Settled</p>
                   <p className="text-base font-bold text-success-600 mt-0.5">
-                    {formatCurrency(statementData.summary.total_paid)}
+                    {formatCompactCurrency(statementData.summary.total_paid)}
                   </p>
                 </div>
-                <div>
+                <div title={formatCurrency(statementData.summary.current_balance)}>
                   <p className="text-xs text-gray-500">Current Balance Due</p>
                   <p className={`text-base font-bold mt-0.5 ${statementData.summary.current_balance > 0 ? 'text-danger-600' : 'text-gray-900'}`}>
-                    {formatCurrency(statementData.summary.current_balance)}
+                    {formatCompactCurrency(statementData.summary.current_balance)}
                   </p>
                 </div>
               </div>
