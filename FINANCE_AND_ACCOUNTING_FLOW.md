@@ -4,7 +4,7 @@ This document provides a comprehensive, implementation-level explanation of how 
 
 ---
 
-## 1. Introduction
+## 1. Introduction    
 
 NexTill is designed as a **retail business management and point-of-sale system** with integrated transactional financial tracking. It is built to support day-to-day retail operations (fast checkout, inventory replenishment, credit sales, expense control, and owner drawings) while upholding strict financial integrity.
 
