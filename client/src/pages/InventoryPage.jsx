@@ -9,7 +9,7 @@ import { Badge } from '../components/Badge'
 import { Modal } from '../components/Modal'
 import { inventoryService } from '../services/inventory'
 import { formatCurrency } from '../utils/formatCurrency'
-import { formatQuantityWithUnit, getUnitsForCategory, toBaseQuantity, getUnitCategory, getAllUnitsFlat } from '../utils/uom'
+import { formatQuantityWithUnit, toBaseQuantity, getUnitCategory, getAllUnitsFlat } from '../utils/uom'
 
 const TABS = [
   { key: 'all', label: 'All Products' },

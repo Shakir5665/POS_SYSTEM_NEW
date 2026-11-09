@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useCart } from '../hooks/useCart'
@@ -46,7 +46,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
   const depositVal = parseFloat(deposit) || 0
   const creditBalanceDue = Math.max(0, fromPesewas(toPesewas(total) - toPesewas(depositVal)))
 
-  function handleConfirm() {
+  const handleConfirm = useCallback(() => {
     if (paymentMethod === 'CASH') {
       if (!customer && (!amountPaid || !paidEnough)) {
         setErrors({ amountPaid: `Amount must be at least ${formatCurrency(total)}. Select a customer for partial or credit payments.` })
@@ -78,7 +78,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
         amount_paid: depositVal,
       })
     }
-  }
+  }, [paymentMethod, customer, amountPaid, paidEnough, total, cashVal, onConfirm, depositVal])
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -89,7 +89,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [amountPaid, deposit, paymentMethod, total, customer])
+  }, [handleConfirm])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Complete Payment" size="md">
@@ -548,13 +548,11 @@ export function InlineCustomerSelector({ customer, onSelect, onOpenQuickCustomer
 export function CartItem({
   item,
   index = 0,
-  itemCount = 1,
   allCartItems = [],
   productData = null,
   onUpdate,
   onRemove,
   onToggleDiscount,
-  onDiscountChange,
   onUnitChange,
   isSelected,
   isLastAdded,
@@ -934,7 +932,6 @@ export default function POSPage() {
     usual_subtotal,
     predefined_discounts,
     subtotal,
-    discount,
     tax,
     total,
     distinct_items,
@@ -1266,8 +1263,6 @@ export default function POSPage() {
       setIsSubmitting(false)
     }
   }
-
-  const itemCount = items.length
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">

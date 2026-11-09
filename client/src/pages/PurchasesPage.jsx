@@ -41,7 +41,7 @@ export default function PurchasesPage() {
 
   // View Details Modal
   const [selectedPurchase, setSelectedPurchase] = useState(null)
-  const [detailsLoading, setDetailsLoading] = useState(false)
+  const [, setDetailsLoading] = useState(false)
   const [receivingId, setReceivingId] = useState(null)
 
   const fetchPurchases = useCallback(async () => {

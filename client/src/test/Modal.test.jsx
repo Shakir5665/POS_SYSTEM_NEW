@@ -26,8 +26,6 @@ describe('Modal Focus Trap', () => {
       </Modal>
     )
 
-    const input1 = screen.getByTestId('input-1')
-    const btn2 = screen.getByTestId('btn-2')
     const closeBtn = screen.getByRole('button', { name: /close/i })
 
     // Simulate focus on closeBtn (which is first focusable element in header)

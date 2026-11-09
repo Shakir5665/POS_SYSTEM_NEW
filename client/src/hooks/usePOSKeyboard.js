@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 
 /**
  * State machine and shortcut handler for the keyboard-first POS experience.
@@ -20,20 +20,14 @@ export function usePOSKeyboard({
   const [selectedCartIndex, setSelectedCartIndex] = useState(-1)
   const [activeZone, setActiveZone] = useState('SEARCH') // 'SEARCH' | 'PRODUCTS' | 'CART'
 
-  // Reset indices when lists change
-  useEffect(() => {
-    if (selectedProductIndex >= products.length) {
-      setSelectedProductIndex(Math.max(0, products.length - 1))
-    }
-  }, [products.length, selectedProductIndex])
+  // Derive clamped values during render:
+  const safeProductIndex = products.length === 0
+    ? 0
+    : Math.min(selectedProductIndex, products.length - 1)
 
-  useEffect(() => {
-    if (cartItems.length === 0) {
-      setSelectedCartIndex(-1)
-    } else if (selectedCartIndex >= cartItems.length) {
-      setSelectedCartIndex(cartItems.length - 1)
-    }
-  }, [cartItems.length, selectedCartIndex])
+  const safeCartIndex = cartItems.length === 0
+    ? -1
+    : Math.min(selectedCartIndex, cartItems.length - 1)
 
   useEffect(() => {
     function handleKeyDown(e) {
@@ -90,32 +84,32 @@ export function usePOSKeyboard({
       if (activeZone === 'PRODUCTS') {
         if (e.key === 'ArrowRight') {
           e.preventDefault()
-          setSelectedProductIndex((i) => Math.min(products.length - 1, i + 1))
+          setSelectedProductIndex(Math.min(products.length - 1, safeProductIndex + 1))
           return
         }
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
-          setSelectedProductIndex((i) => Math.max(0, i - 1))
+          setSelectedProductIndex(Math.max(0, safeProductIndex - 1))
           return
         }
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          setSelectedProductIndex((i) => Math.min(products.length - 1, i + 4)) // assume ~4 columns
+          setSelectedProductIndex(Math.min(products.length - 1, safeProductIndex + 4)) // assume ~4 columns
           return
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          if (selectedProductIndex < 4) {
+          if (safeProductIndex < 4) {
             setActiveZone('SEARCH')
             searchRef.current?.focus()
           } else {
-            setSelectedProductIndex((i) => Math.max(0, i - 4))
+            setSelectedProductIndex(Math.max(0, safeProductIndex - 4))
           }
           return
         }
         if (e.key === 'Enter') {
           e.preventDefault()
-          const prod = products[selectedProductIndex]
+          const prod = products[safeProductIndex]
           if (prod) onAddProduct?.(prod)
           return
         }
@@ -134,16 +128,16 @@ export function usePOSKeyboard({
 
       // Cart navigation
       if (activeZone === 'CART' && cartItems.length > 0) {
-        const currentItem = cartItems[selectedCartIndex >= 0 ? selectedCartIndex : 0]
+        const currentItem = cartItems[safeCartIndex >= 0 ? safeCartIndex : 0]
 
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          setSelectedCartIndex((i) => Math.min(cartItems.length - 1, i + 1))
+          setSelectedCartIndex(Math.min(cartItems.length - 1, (safeCartIndex >= 0 ? safeCartIndex : 0) + 1))
           return
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          setSelectedCartIndex((i) => Math.max(0, i - 1))
+          setSelectedCartIndex(Math.max(0, (safeCartIndex >= 0 ? safeCartIndex : 0) - 1))
           return
         }
         if (e.key === '+' || e.key === '=') {
@@ -195,8 +189,8 @@ export function usePOSKeyboard({
   }, [
     products,
     cartItems,
-    selectedProductIndex,
-    selectedCartIndex,
+    safeProductIndex,
+    safeCartIndex,
     activeZone,
     isModalOpen,
     onAddProduct,
@@ -210,9 +204,9 @@ export function usePOSKeyboard({
   ])
 
   return {
-    selectedProductIndex,
+    selectedProductIndex: safeProductIndex,
     setSelectedProductIndex,
-    selectedCartIndex,
+    selectedCartIndex: safeCartIndex,
     setSelectedCartIndex,
     activeZone,
     setActiveZone,

@@ -141,7 +141,7 @@ describe('Batch 9: Dashboard and Financial Reports UI', () => {
       },
     })
 
-    const { container } = render(
+    render(
       <MemoryRouter>
         <DashboardPage />
       </MemoryRouter>

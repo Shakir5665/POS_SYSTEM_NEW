@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
@@ -52,22 +52,22 @@ export default function ProductFormPage() {
   const [imagePreview, setImagePreview] = useState(null)
 
   // Load categories with optional auto-select
-  async function loadCategories(selectId = null) {
+  const loadCategories = useCallback(async (selectId = null) => {
     try {
       const res = await productsService.categories()
       const list = res.data?.data || []
       setCategories(list)
       if (selectId) {
-        setField('category_id', selectId)
+        setForm((prev) => ({ ...prev, category_id: selectId }))
       }
     } catch {
       toast.error('Failed to load categories')
     }
-  }
+  }, [])
 
   useEffect(() => {
     loadCategories()
-  }, [])
+  }, [loadCategories])
 
   function openCategoryModal(mode, category = null) {
     setCategoryModal({

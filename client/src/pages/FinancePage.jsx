@@ -26,7 +26,7 @@ export default function FinancePage() {
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [expenseMeta, setExpenseMeta] = useState({ page: 1, total_pages: 1, total: 0, total_expenses_amount: 0 })
-  const [expensePage, setExpensePage] = useState(1)
+  const [expensePage] = useState(1)
   const [selectedCategory, setSelectedCategory] = useState('')
   const [expenseSearch, setExpenseSearch] = useState('')
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
@@ -43,7 +43,7 @@ export default function FinancePage() {
   // ------------------ Assets State ------------------
   const [assets, setAssets] = useState([])
   const [assetMeta, setAssetMeta] = useState({ page: 1, total_pages: 1, total: 0, total_current_value: 0 })
-  const [assetPage, setAssetPage] = useState(1)
+  const [assetPage] = useState(1)
   const [assetModalOpen, setAssetModalOpen] = useState(false)
   const [assetForm, setAssetForm] = useState({
     name: '',
@@ -59,7 +59,7 @@ export default function FinancePage() {
   // ------------------ Owner Equity State ------------------
   const [transactions, setTransactions] = useState([])
   const [equityMeta, setEquityMeta] = useState({ page: 1, total_pages: 1, total: 0, summary: {} })
-  const [equityPage, setEquityPage] = useState(1)
+  const [equityPage] = useState(1)
   const [equityModalOpen, setEquityModalOpen] = useState(false)
   const [equityForm, setEquityForm] = useState({
     type: 'CONTRIBUTION',
