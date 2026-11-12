@@ -86,6 +86,15 @@ export function usePOSKeyboard({
       // If another input is focused, don't intercept standard editing keys
       if (isInputFocused) return
 
+      // Shortcut 'S' / 's' to activate product search
+      if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        setActiveZone('SEARCH')
+        searchRef.current?.focus()
+        searchRef.current?.select()
+        return
+      }
+
       // Product grid navigation
       if (activeZone === 'PRODUCTS') {
         if (e.key === 'ArrowRight') {

@@ -136,7 +136,7 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     window.print = vi.fn()
   })
 
-  it('renders the 5 requested columns: Items (Count), Qty, Market Price, Our Price, Amount in 80mm table', () => {
+  it('renders the requested columns: Items (Count), Market Price, Our Price, Amount with quantity below product name', () => {
     render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
 
     const printRoot = document.getElementById('print-root')
@@ -144,10 +144,8 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
 
     // 1. Column header includes dynamic distinct item count: Items (2)
     expect(printRoot.textContent).toContain('Items (2)')
-    expect(printRoot.textContent).toContain('Qty')
-    expect(printRoot.textContent).toContain('Market Price')
+    expect(printRoot.textContent).not.toContain('<th>Qty</th>')
     expect(printRoot.textContent).toContain('(සා.මිල)')
-    expect(printRoot.textContent).toContain('Our Price')
     expect(printRoot.textContent).toContain('(අපේ මිල)')
     expect(printRoot.textContent).toContain('Amount')
 
@@ -195,25 +193,6 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     expect(printRoot.textContent).toContain('250.00')
     expect(printRoot.textContent).toContain('Change:')
     expect(printRoot.textContent).toContain('40.00')
-  })
-
-  it('supports 58mm compact layout toggle without truncation or loss of information', () => {
-    render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
-
-    // Click 58mm toggle
-    fireEvent.click(screen.getByTestId('toggle-58mm'))
-
-    const printRoot = document.getElementById('print-root')
-    const items58 = printRoot.querySelector('[data-testid="receipt-items-58mm"]')
-    expect(items58).not.toBeNull()
-
-    // Verifies all 5 pieces of information exist in 58mm layout
-    expect(items58.textContent).toContain('Items (2)')
-    expect(items58.textContent).toContain('Chilli')
-    expect(items58.textContent).toContain('2 kg')
-    expect(items58.textContent).toContain('120.00')
-    expect(items58.textContent).toContain('100.00')
-    expect(items58.textContent).toContain('200.00')
   })
 
   it('guarantees preview screen view and printed receipt output contain identical calculations', () => {

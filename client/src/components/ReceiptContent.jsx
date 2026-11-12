@@ -3,10 +3,10 @@ import { getReceiptDataModel } from '../utils/receiptModel'
 
 /**
  * Pure presentation component for receipt rendering.
- * Shared 1:1 between on-screen modal review and thermal print portal (58mm & 80mm).
+ * Shared 1:1 between on-screen modal review and thermal print portal.
  * Currency symbol/code is omitted in receipts per retail receipt formatting.
  */
-export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidth = '80mm' }) {
+export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
   if (!sale) return null
 
   const fmt = (v) => formatAmount(v)
@@ -22,19 +22,15 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
   } = sale
 
   const paymentObj = payment || (sale.payments?.[0] ?? null)
-  const is58mm = paperWidth === '58mm'
 
   return (
     <div
       className={`receipt-body font-mono text-gray-900 ${
         isPrint
-          ? is58mm
-            ? 'text-[11px] p-1 max-w-[58mm] mx-auto w-full'
-            : 'text-xs p-1 max-w-[80mm] mx-auto w-full'
+          ? 'text-xs p-1 max-w-[80mm] mx-auto w-full'
           : 'text-sm'
       }`}
       data-testid="receipt-content"
-      data-paper-width={paperWidth}
     >
       {/* Store Header */}
       <div className="text-center mb-3">
@@ -55,68 +51,45 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
         </div>
         <div className="flex justify-between items-baseline gap-2">
           <div className="truncate">
-            <span className="text-gray-600">Cashier: </span>
+            <span className="text-gray-600">CASHR: </span>
             <span className="font-medium">{user?.full_name || '—'}</span>
           </div>
           <div className="text-right truncate text-gray-700">
-            <span className="text-gray-600">Customer: </span>
+            <span className="text-gray-600">CUSTMR: </span>
             <span className="font-medium">{customer?.name || 'Walk-in'}</span>
           </div>
         </div>
       </div>
 
-      {/* ── 5-Column Item Table (Task 2.1 & 2.2) ── */}
+      {/* ── Item Table ── */}
       <div className="border-t border-dashed border-gray-400 py-2 text-xs">
-        {is58mm ? (
-          /* 58mm Compact Layout: Product name on top line, 4 numeric columns underneath */
-          <div className="space-y-2" data-testid="receipt-items-58mm">
-            <div className="flex justify-between font-bold text-[10px] text-gray-700 border-b border-gray-300 pb-1">
-              <span>Items ({summary.distinctItems})</span>
-              <span className="text-right">Qty &bull; Mkt(සා.මිල) &bull; Our(අපේ මිල) &bull; Amt</span>
-            </div>
+        <table className="w-full text-xs border-collapse table-fixed" data-testid="receipt-items">
+          <thead>
+            <tr className="border-b border-gray-900 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-800">
+              <th className="text-left py-1 font-bold w-[28%]">Items ({summary.distinctItems})</th>
+              <th className="text-right py-1 px-1.5 font-bold w-[21%]">
+                <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(සා.මිල)</div>
+              </th>
+              <th className="text-right py-1 px-1.5 font-bold w-[23%]">
+                <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(අපේ මිල)</div>
+              </th>
+              <th className="text-right py-1 pl-1.5 font-bold w-[28%]">Amount</th>
+            </tr>
+          </thead>
+          <tbody>
             {computedItems.map((item, idx) => (
-              <div key={idx} className="receipt-table-row border-b border-dotted border-gray-200 pb-1 last:border-0">
-                <div className="font-semibold text-gray-900 break-words">{item.name}</div>
-                <div className="flex justify-between text-[11px] text-gray-700 mt-0.5">
-                  <span className="font-medium">{item.qty}{item.unitLabel}</span>
-                  <span className="text-gray-500">{fmt(item.marketPrice)}</span>
-                  <span className="text-gray-800 font-medium">{fmt(item.ourPrice)}</span>
-                  <span className="font-bold text-gray-900 text-right">{fmt(item.lineTotal)}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          /* 80mm Standard Layout: Full 5-Column Grid Table */
-          <table className="w-full text-xs border-collapse table-fixed" data-testid="receipt-items-80mm">
-            <thead>
-              <tr className="border-b border-gray-900 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-800">
-                <th className="text-left py-1 font-bold w-[30%]">Items ({summary.distinctItems})</th>
-                <th className="text-right py-1 pl-1 font-bold w-[13%]">Qty</th>
-                <th className="text-right py-1 pl-1 font-bold w-[19%]">
-                  
-                  <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(සා.මිල)</div>
-                </th>
-                <th className="text-right py-1 pl-1 font-bold w-[19%]">
-                  
-                  <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(අපේ මිල)</div>
-                </th>
-                <th className="text-right py-1 pl-1 font-bold w-[19%]">Amount</th>
+              <tr key={idx} className="receipt-table-row border-b border-dotted border-gray-200 last:border-0 align-top">
+                <td className="text-left py-1 pr-1 font-medium text-gray-900 break-words">
+                  <div>{item.name}</div>
+                  <div className="text-[11px] text-gray-600 print:text-black font-normal">{item.qty}{item.unitLabel}</div>
+                </td>
+                <td className="text-right py-1 px-1.5 whitespace-nowrap text-gray-500">{fmt(item.marketPrice)}</td>
+                <td className="text-right py-1 px-1.5 whitespace-nowrap text-gray-900 font-medium">{fmt(item.ourPrice)}</td>
+                <td className="text-right py-1 pl-1.5 whitespace-nowrap font-bold text-gray-900">{fmt(item.lineTotal)}</td>
               </tr>
-            </thead>
-            <tbody>
-              {computedItems.map((item, idx) => (
-                <tr key={idx} className="receipt-table-row border-b border-dotted border-gray-200 last:border-0 align-top">
-                  <td className="text-left py-1 pr-1 font-medium text-gray-900 break-words">{item.name}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-700">{item.qty}{item.unitLabel}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-500">{fmt(item.marketPrice)}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-900 font-medium">{fmt(item.ourPrice)}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap font-bold text-gray-900">{fmt(item.lineTotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* ── Financial Summary ── */}

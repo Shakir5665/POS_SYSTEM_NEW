@@ -1278,7 +1278,7 @@ export default function POSPage() {
             <div>
               <h1 className="text-lg font-bold text-gray-900 leading-tight">Point of Sale</h1>
               <p className="text-xs text-gray-400">
-                <kbd className="bg-gray-200 px-1 rounded text-xs">F1</kbd> Search &nbsp;
+                <kbd className="bg-gray-200 px-1 rounded text-xs">S</kbd> or <kbd className="bg-gray-200 px-1 rounded text-xs">F1</kbd> Search &nbsp;
                 <kbd className="bg-gray-200 px-1 rounded text-xs">F2</kbd> Pay &nbsp;
                 <kbd className="bg-gray-200 px-1 rounded text-xs">F4</kbd> Clear
               </p>
@@ -1346,10 +1346,11 @@ export default function POSPage() {
                 e.preventDefault()
                 e.stopPropagation()
                 handleSearchSubmit()
+                searchRef.current?.focus()
                 return
               }
             }}
-            placeholder="Search by name, SKU, or scan barcode… (F1)"
+            placeholder="Search by name, SKU, or scan barcode… (S / F1)"
             className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
           {searchQuery && (
