@@ -681,6 +681,16 @@ export function CartItem({
   }
 
   function handleQtyKeyDown(e) {
+    if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault()
+      const searchInput = document.querySelector('input[placeholder*="Search by name"]') || document.querySelector('input[placeholder*="Search"]')
+      if (searchInput) {
+        searchInput.focus()
+        searchInput.select?.()
+      }
+      return
+    }
+
     const allQtyInputs = Array.from(document.querySelectorAll('input[data-field="qty"]'))
     const currentIndex = allQtyInputs.indexOf(e.target)
 

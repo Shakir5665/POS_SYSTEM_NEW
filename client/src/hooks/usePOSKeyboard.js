@@ -72,6 +72,27 @@ export function usePOSKeyboard({
         return
       }
 
+      // Shortcut 'S' / 's' to immediately activate product search (even from quantity editing box)
+      if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // If product search input is already focused, let user type 's' or 'S' normally
+        if (document.activeElement === searchRef.current) {
+          return
+        }
+
+        // If customer search text input is focused, let user type 's' or 'S' normally
+        if (document.activeElement?.getAttribute('data-testid') === 'customer-search-inline-input') {
+          return
+        }
+
+        e.preventDefault()
+        setActiveZone('SEARCH')
+        if (searchRef.current) {
+          searchRef.current.focus()
+          searchRef.current.select?.()
+        }
+        return
+      }
+
       const isInputFocused =
         document.activeElement &&
         (document.activeElement.tagName === 'INPUT' ||
@@ -85,15 +106,6 @@ export function usePOSKeyboard({
 
       // If another input is focused, don't intercept standard editing keys
       if (isInputFocused) return
-
-      // Shortcut 'S' / 's' to activate product search
-      if ((e.key === 's' || e.key === 'S') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault()
-        setActiveZone('SEARCH')
-        searchRef.current?.focus()
-        searchRef.current?.select()
-        return
-      }
 
       // Product grid navigation
       if (activeZone === 'PRODUCTS') {
