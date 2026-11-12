@@ -146,7 +146,9 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     expect(printRoot.textContent).toContain('Items (2)')
     expect(printRoot.textContent).toContain('Qty')
     expect(printRoot.textContent).toContain('Market Price')
+    expect(printRoot.textContent).toContain('(සා.මිල)')
     expect(printRoot.textContent).toContain('Our Price')
+    expect(printRoot.textContent).toContain('(අපේ මිල)')
     expect(printRoot.textContent).toContain('Amount')
 
     // 2. Chilli item values
@@ -164,21 +166,29 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     expect(printRoot.textContent).toContain('240.00') // Line Amount (2 * 120)
   })
 
-  it('renders the redesigned summary: Market Price Subtotal, Our Total Discount, and Grand Total', () => {
+  it('renders the redesigned summary: Our Price, Total Discount box, and Grand Total with Sinhala labels', () => {
     render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
 
     const printRoot = document.getElementById('print-root')
 
-    // Market Price Subtotal = (2 * 120) + (2 * 150) = 240 + 300 = 540.00
-    expect(printRoot.textContent).toContain('Market Price Subtotal:')
-    expect(printRoot.textContent).toContain('540.00')
+    // Distinct Items summary line should be removed
+    expect(printRoot.textContent).not.toContain('Distinct Items:')
 
-    // Our Total Discount = Predefined (40 + 60 = 100) + Additional Cart Discount (10) = 110.00
-    expect(printRoot.textContent).toContain('Our Total Discount:')
-    expect(printRoot.textContent).toContain('-110.00')
+    // Market Price Subtotal should be removed
+    expect(printRoot.textContent).not.toContain('Market Price Subtotal:')
 
-    // Grand Total = 540.00 - 110.00 = 430.00 (or matches sale total)
-    expect(printRoot.textContent).toContain('Grand Total:')
+    // Our Price Total with Sinhala = (2 * 100) + (2 * 120) = 440.00
+    expect(printRoot.textContent).toContain('Our Price (අපේ මිල):')
+    expect(printRoot.textContent).toContain('440.00')
+
+    // Total Discount (වට්ටම) in separate box = Predefined (40 + 60 = 100) + Cart Discount (10) = 110.00
+    const discountBox = printRoot.querySelector('[data-testid="discount-box"]')
+    expect(discountBox).not.toBeNull()
+    expect(discountBox.textContent).toContain('Total Discount (වට්ටම):')
+    expect(discountBox.textContent).toContain('-110.00')
+
+    // Grand Total with Sinhala
+    expect(printRoot.textContent).toContain('Grand Total (මුළු එකතුව):')
 
     // Payment details
     expect(printRoot.textContent).toContain('Amount Paid:')
@@ -226,11 +236,11 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
       '150.00',
       '120.00',
       '240.00',
-      'Market Price Subtotal:',
-      '540.00',
-      'Our Total Discount:',
+      'Our Price (අපේ මිල):',
+      '440.00',
+      'Total Discount (වට්ටම):',
       '-110.00',
-      'Grand Total:',
+      'Grand Total (මුළු එකතුව):',
     ]
 
     for (const val of checkValues) {

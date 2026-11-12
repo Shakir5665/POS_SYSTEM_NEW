@@ -111,10 +111,12 @@ export function formatReceiptItem(item) {
 
   const marketPrice = usualPrice != null ? usualPrice : unitPrice
   const ourPriceVal = ourPrice != null ? ourPrice : unitPrice
+  const ourLineGross = Number((pricingQty * ourPriceVal).toFixed(2))
 
   return {
     name,
     qty,
+    pricingQty,
     unitLabel,
     unitPrice,
     usualPrice,
@@ -124,6 +126,7 @@ export function formatReceiptItem(item) {
     predefinedDiscountAmount,
     usualLineGross,
     marketLineGross: usualLineGross != null ? usualLineGross : lineGross,
+    ourLineGross,
     lineGross,
     unitDiscount,
     totalDiscount,
@@ -148,6 +151,7 @@ export function calculateReceiptSummary(sale, computedItems = []) {
       usualSubtotal: 0,
       totalPredefinedDiscounts: 0,
       grossSubtotal: 0,
+      ourPriceTotal: 0,
       totalProductDiscounts: 0,
       additionalCartDiscount: 0,
       totalDiscounts: 0,
@@ -176,7 +180,15 @@ export function calculateReceiptSummary(sale, computedItems = []) {
   )
   const totalPredefinedDiscounts = Number(computedPredefinedDiscounts.toFixed(2))
 
-  // 3. Gross Subtotal at selling price
+  // 3. Our Price Total & Gross Subtotal
+  const computedOurPrice = computedItems.reduce(
+    (sum, it) => sum + (it.ourLineGross != null ? it.ourLineGross : (it.lineGross || 0)),
+    0
+  )
+  const ourPriceTotal = computedItems.length > 0
+    ? Number(computedOurPrice.toFixed(2))
+    : (sale.subtotal != null ? Number(sale.subtotal) : (sale.gross_subtotal != null ? Number(sale.gross_subtotal) : 0))
+
   const computedGross = computedItems.reduce((sum, it) => sum + (it.lineGross || 0), 0)
   const grossSubtotal = sale.gross_subtotal != null ? Number(sale.gross_subtotal) : Number(computedGross.toFixed(2))
   const marketSubtotalVal = usualSubtotal != null ? usualSubtotal : grossSubtotal
@@ -220,6 +232,7 @@ export function calculateReceiptSummary(sale, computedItems = []) {
     marketSubtotal: marketSubtotalVal,
     totalPredefinedDiscounts,
     grossSubtotal,
+    ourPriceTotal,
     totalProductDiscounts,
     additionalCartDiscount,
     totalDiscounts,
