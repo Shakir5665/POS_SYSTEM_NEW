@@ -386,7 +386,7 @@ async function getSaleById(id) {
   return sale
 }
 
-async function listSales({ page = 1, per_page = 20, start_date, end_date, user_id, customer_id } = {}) {
+async function listSales({ page = 1, per_page = 20, start_date, end_date, user_id, customer_id, search } = {}) {
   const skip = (page - 1) * per_page
   const take = Math.min(per_page, 100)
 
@@ -402,6 +402,16 @@ async function listSales({ page = 1, per_page = 20, start_date, end_date, user_i
   }
   if (user_id) where.user_id = user_id
   if (customer_id) where.customer_id = customer_id
+
+  if (search && search.trim()) {
+    const q = search.trim()
+    where.OR = [
+      { transaction_id: { contains: q, mode: 'insensitive' } },
+      { customer: { name: { contains: q, mode: 'insensitive' } } },
+      { user: { full_name: { contains: q, mode: 'insensitive' } } },
+      { user: { username: { contains: q, mode: 'insensitive' } } },
+    ]
+  }
 
   const [sales, total] = await Promise.all([
     prisma.sale.findMany({

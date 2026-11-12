@@ -8,6 +8,7 @@ import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
 import { usersService } from '../services/users'
+import { useAuth } from '../hooks/useAuth'
 
 const ROLE_BADGE = {
   ADMIN: 'danger',
@@ -42,6 +43,9 @@ function LockIcon({ className = '' }) {
 }
 
 export default function UsersPage() {
+  const { user: currentUser } = useAuth()
+  const isAdmin = currentUser?.role === 'ADMIN'
+
   const [users, setUsers] = useState([])
   const [meta, setMeta] = useState({ page: 1, total_pages: 1 })
   const [page, setPage] = useState(1)
@@ -51,6 +55,8 @@ export default function UsersPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [resetOpen, setResetOpen] = useState(false)
+  const [deleteTarget, setDeleteTarget] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const [editTarget, setEditTarget] = useState(null)
   const [createForm, setCreateForm] = useState(EMPTY_CREATE)
@@ -199,6 +205,23 @@ export default function UsersPage() {
     }
   }
 
+  // Delete permanently (ADMIN only)
+  async function handleDeleteUser() {
+    if (!deleteTarget) return
+    setDeleting(true)
+    try {
+      await usersService.delete(deleteTarget.id)
+      toast.success(`User ${deleteTarget.full_name} permanently deleted`)
+      setDeleteTarget(null)
+      fetchUsers()
+    } catch (err) {
+      const msg = err?.response?.data?.error?.message ?? 'Failed to delete user'
+      toast.error(msg)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
   const columns = [
     {
       key: 'full_name',
@@ -258,6 +281,15 @@ export default function UsersPage() {
               isLoading={unlocking === row.id}
             >
               Unlock
+            </Button>
+          )}
+          {isAdmin && row.id !== currentUser?.id && (
+            <Button
+              size="sm"
+              variant="danger"
+              onClick={() => setDeleteTarget(row)}
+            >
+              Delete
             </Button>
           )}
         </div>
@@ -441,6 +473,31 @@ export default function UsersPage() {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete User Permanently Modal (ADMIN only) */}
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete User Permanently" size="sm">
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">
+            Are you sure you want to permanently delete user <strong className="text-gray-900">{deleteTarget?.full_name}</strong> (@{deleteTarget?.username})?
+          </p>
+          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+            <strong>Warning:</strong> This action cannot be undone. Associated sales, purchases, and logs will be safely reassigned to your admin account to preserve audit records.
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="danger"
+              isLoading={deleting}
+              onClick={handleDeleteUser}
+            >
+              Delete Permanently
+            </Button>
+          </div>
+        </div>
       </Modal>
     </DashboardLayout>
   )

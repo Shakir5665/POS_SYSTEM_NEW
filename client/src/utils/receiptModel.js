@@ -41,9 +41,14 @@ export function formatReceiptItem(item) {
     : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01)
 
   let pricingFactor = 1
-  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+  const unitStr = (item.unit || item.base_unit || '').toLowerCase()
+  const pricingUnitStr = (item.pricing_unit || '').toLowerCase()
+  const isWeight = item.unit_category === 'WEIGHT' || ['g', 'kg'].includes(unitStr) || ['g', 'kg'].includes(pricingUnitStr)
+  const isVolume = item.unit_category === 'VOLUME' || ['ml', 'l'].includes(unitStr) || ['ml', 'l'].includes(pricingUnitStr)
+
+  if (isWeight || isVolume) {
+    const factorSelling = unitStr === 'g' || unitStr === 'ml' ? 1 : 1000
+    const factorPricing = pricingUnitStr === 'g' || pricingUnitStr === 'ml' ? 1 : 1000
     pricingFactor = factorSelling / factorPricing
   }
   const pricingQty = qty * pricingFactor
@@ -109,9 +114,12 @@ export function formatReceiptItem(item) {
   lineTotal = Math.max(0, lineTotal)
   totalDiscount = Math.min(lineGross, Math.max(0, totalDiscount))
 
-  const marketPrice = usualPrice != null ? usualPrice : unitPrice
-  const ourPriceVal = ourPrice != null ? ourPrice : unitPrice
-  const ourLineGross = Number((pricingQty * ourPriceVal).toFixed(2))
+  const unitMarket = usualPrice != null ? usualPrice : unitPrice
+  const unitOur = ourPrice != null ? ourPrice : unitPrice
+
+  const marketPrice = Number((pricingQty * unitMarket).toFixed(2))
+  const ourPriceVal = Number((pricingQty * unitOur).toFixed(2))
+  const ourLineGross = ourPriceVal
 
   return {
     name,
@@ -120,6 +128,8 @@ export function formatReceiptItem(item) {
     unitLabel,
     unitPrice,
     usualPrice,
+    unitMarketPrice: unitMarket,
+    unitOurPrice: unitOur,
     ourPrice: ourPriceVal,
     marketPrice,
     predefinedApplied,

@@ -1,6 +1,6 @@
 const bcrypt = require('bcrypt')
 const prisma = require('../utils/prismaClient')
-const { NotFoundError, ConflictError } = require('../utils/errors')
+const { NotFoundError, ConflictError, ValidationError } = require('../utils/errors')
 
 const BCRYPT_COST = 12
 
@@ -63,4 +63,24 @@ async function unlockUser(id) {
   await prisma.user.update({ where: { id }, data: { failed_login_attempts: 0, locked_until: null } })
 }
 
-module.exports = { listUsers, createUser, updateUser, resetPassword, unlockUser }
+/** Permanently delete user account and reassign activity records to admin to maintain financial integrity. */
+async function deleteUser(id, currentUserId) {
+  if (id === currentUserId) {
+    throw new ValidationError('Cannot delete your own account')
+  }
+  await findUserOrThrow(id)
+
+  return prisma.$transaction(async (tx) => {
+    await tx.sale.updateMany({ where: { user_id: id }, data: { user_id: currentUserId } })
+    await tx.purchase.updateMany({ where: { user_id: id }, data: { user_id: currentUserId } })
+    await tx.expense.updateMany({ where: { user_id: id }, data: { user_id: currentUserId } })
+    await tx.customerPayment.updateMany({ where: { user_id: id }, data: { user_id: currentUserId } })
+    await tx.supplierPayment.updateMany({ where: { user_id: id }, data: { user_id: currentUserId } })
+    await tx.inventoryLog.updateMany({ where: { user_id: id }, data: { user_id: currentUserId } })
+    await tx.ownerTransaction.updateMany({ where: { user_id: id }, data: { user_id: currentUserId } })
+    await tx.authLog.deleteMany({ where: { user_id: id } })
+    return tx.user.delete({ where: { id } })
+  })
+}
+
+module.exports = { listUsers, createUser, updateUser, resetPassword, unlockUser, deleteUser }
