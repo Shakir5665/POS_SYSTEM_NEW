@@ -983,53 +983,6 @@ export function CartItem({
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
-            {usualPrice > ourPrice && (
-              <span className="line-through text-gray-400">Market: {formatCurrency(usualPrice)}</span>
-            )}
-            <label className="font-semibold text-primary-700 inline-flex items-center gap-1">
-              <span>Our Price:</span>
-              <input
-                ref={ourPriceInputRef}
-                data-testid={`cart-our-price-${item.product_id}`}
-                data-field="our-price"
-                type="text"
-                inputMode="decimal"
-                aria-label={`Our price for ${item.name}`}
-                value={ourPriceDraft}
-                onChange={(e) => handleOurPriceChange(e.target.value)}
-                onBlur={() => commitOurPrice(ourPriceDraft)}
-                onKeyDown={(e) => {
-                  if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
-                    e.preventDefault()
-                    const searchInput = document.querySelector('input[placeholder*="Search by name"]') || document.querySelector('input[placeholder*="Search"]')
-                    searchInput?.focus()
-                    searchInput?.select?.()
-                    return
-                  }
-                  if (e.key === 'ArrowLeft') {
-                    e.preventDefault()
-                    commitOurPrice(ourPriceDraft)
-                    qtyInputRef.current?.focus()
-                    qtyInputRef.current?.select?.()
-                    return
-                  }
-                  if (e.key === 'Enter') {
-                    e.preventDefault()
-                    commitOurPrice(e.target.value)
-                    qtyInputRef.current?.focus()
-                    qtyInputRef.current?.select?.()
-                  }
-                }}
-                className="w-[4.5rem] px-1.5 py-0.5 rounded border border-primary-200 bg-white text-xs font-semibold text-primary-800 text-right focus:outline-none focus:ring-2 focus:ring-primary-500"
-              />
-            </label>
-            <span>/ {item.pricing_unit || 'pcs'}</span>
-            <span className="text-gray-300">•</span>
-            <span className="font-medium text-gray-700">
-              Active: {formatCurrency(activeSellingPrice)}
-            </span>
-          </div>
 
           {hasPredefinedDiscount && (
             <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/70 border border-primary-100 rounded-md px-2 py-1">
@@ -1061,8 +1014,8 @@ export function CartItem({
       </div>
 
       <div className="flex items-center justify-between mt-2.5 gap-2">
-        {/* Quantity control with - / + buttons */}
-        <div className="flex items-center gap-1.5">
+        {/* Quantity control with - / + buttons and Our Price editing box */}
+        <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shadow-xs focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
             <button
               type="button"
@@ -1109,19 +1062,9 @@ export function CartItem({
             </button>
           </div>
 
-          {/* Red Out of stock indicator beside the + button when stock limit is reached */}
-          {isAtStockLimit && (
-            <span
-              data-testid={`out-of-stock-badge-${item.product_id}`}
-              className="text-xs font-semibold text-danger-600 bg-danger-50 border border-danger-200 px-1.5 py-0.5 rounded whitespace-nowrap"
-            >
-              Out of stock
-            </span>
-          )}
-
           {/* Unit pill switchers for Weight / Volume */}
           {item.unit_category === 'WEIGHT' && (
-            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs ml-1">
+            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'g')}
@@ -1140,7 +1083,7 @@ export function CartItem({
           )}
 
           {item.unit_category === 'VOLUME' && (
-            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs ml-1">
+            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'ml')}
@@ -1159,7 +1102,57 @@ export function CartItem({
           )}
 
           {item.unit_category === 'COUNT' && (
-            <span className="text-xs text-gray-400 font-medium ml-1">{item.unit || item.base_unit || 'pcs'}</span>
+            <span className="text-xs text-gray-400 font-medium">{item.unit || item.base_unit || 'pcs'}</span>
+          )}
+
+          {/* Our Price editing box directly next to the product count box */}
+          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-0.5 shadow-xs focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
+            <span className="text-xs text-gray-400 font-medium">@</span>
+            <input
+              ref={ourPriceInputRef}
+              data-testid={`cart-our-price-${item.product_id}`}
+              data-field="our-price"
+              type="text"
+              inputMode="decimal"
+              aria-label={`Our price for ${item.name}`}
+              value={ourPriceDraft}
+              onChange={(e) => handleOurPriceChange(e.target.value)}
+              onBlur={() => commitOurPrice(ourPriceDraft)}
+              onKeyDown={(e) => {
+                if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                  e.preventDefault()
+                  const searchInput = document.querySelector('input[placeholder*="Search by name"]') || document.querySelector('input[placeholder*="Search"]')
+                  searchInput?.focus()
+                  searchInput?.select?.()
+                  return
+                }
+                if (e.key === 'ArrowLeft') {
+                  e.preventDefault()
+                  commitOurPrice(ourPriceDraft)
+                  qtyInputRef.current?.focus()
+                  qtyInputRef.current?.select?.()
+                  return
+                }
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  commitOurPrice(e.target.value)
+                  qtyInputRef.current?.focus()
+                  qtyInputRef.current?.select?.()
+                }
+              }}
+              className="w-14 text-right text-xs font-semibold text-primary-800 bg-transparent focus:outline-none"
+            />
+            <span className="text-3xs text-gray-400 font-normal">/{item.pricing_unit || 'pcs'}</span>
+          </div>
+
+          {/* Red Out of stock indicator beside the + button when stock limit is reached */}
+          {isAtStockLimit && (
+            <span
+              data-testid={`out-of-stock-badge-${item.product_id}`}
+              className="text-xs font-semibold text-danger-600 bg-danger-50 border border-danger-200 px-1.5 py-0.5 rounded whitespace-nowrap"
+            >
+              Out of stock
+            </span>
           )}
         </div>
 
@@ -1979,21 +1972,31 @@ export default function POSPage() {
                     )}
                     <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
                     <p className="text-xs text-gray-400 mb-1">{product.sku}</p>
-                    <div className="flex items-center justify-between mt-1">
+                    <div className="mt-1.5 space-y-1">
                       <div>
                         {Number(product.usual_price) > Number(product.our_price || product.price) && (
-                          <span className="text-xs text-gray-400 line-through mr-1">
+                          <span className="text-xs text-gray-400 line-through mr-1 block">
                             {formatCurrency(product.usual_price)}
                           </span>
                         )}
-                        <span className="text-sm font-bold text-primary-600">
+                        <span className="text-sm font-bold text-primary-600 block">
                           {formatCurrency(product.our_price || product.price)}
                           {product.pricing_unit && product.pricing_unit !== 'pcs' ? ` / ${product.pricing_unit}` : ''}
                         </span>
                       </div>
-                      <Badge variant={isOut ? 'danger' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'warning' : 'success'}>
-                        {isOut ? 'Out' : formatQuantityWithUnit(product.quantity, product.base_unit)}
-                      </Badge>
+
+                      {/* Existing Quantity below the price */}
+                      <div className="flex items-center justify-between text-xs pt-0.5 border-t border-gray-100">
+                        <div className="flex items-center gap-1 text-gray-500">
+                          <span className="font-normal text-gray-400">Qty:</span>
+                          <span className={`font-semibold ${isOut ? 'text-danger-600' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'text-warning-600' : 'text-gray-800'}`}>
+                            {formatQuantityWithUnit(product.quantity, product.base_unit)}
+                          </span>
+                        </div>
+                        <Badge variant={isOut ? 'danger' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'warning' : 'success'}>
+                          {isOut ? 'Out' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'Low' : 'In Stock'}
+                        </Badge>
+                      </div>
                     </div>
                   </button>
                 )
