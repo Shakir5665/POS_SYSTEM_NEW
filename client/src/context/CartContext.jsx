@@ -36,6 +36,7 @@ function cartReducer(state, action) {
             quantity: initialQty,
             discount: '',
             apply_predefined_discount: true,
+            catalog_our_price: product.our_price ?? product.price,
           },
         ],
       }
@@ -82,6 +83,17 @@ function cartReducer(state, action) {
             quantity: clampedQty,
           }
         }),
+      }
+    }
+    case 'UPDATE_OUR_PRICE': {
+      const { product_id, our_price } = action.payload
+      return {
+        ...state,
+        items: state.items.map((i) =>
+          i.product_id === product_id
+            ? { ...i, our_price, price: our_price === '' ? i.price : our_price }
+            : i
+        ),
       }
     }
     case 'UPDATE_DISCOUNT':
@@ -149,6 +161,7 @@ export function CartProvider({ children }) {
   function togglePredefinedDiscount(product_id, applied) { dispatch({ type: 'TOGGLE_PREDEFINED_DISCOUNT', payload: { product_id, applied } }) }
   function updateUnit(product_id, newUnit) { dispatch({ type: 'UPDATE_UNIT', payload: { product_id, newUnit } }) }
   function updateDiscount(product_id, discount) { dispatch({ type: 'UPDATE_DISCOUNT', payload: { product_id, discount } }) }
+  function updateOurPrice(product_id, our_price) { dispatch({ type: 'UPDATE_OUR_PRICE', payload: { product_id, our_price } }) }
   function setCartDiscount(amount) { dispatch({ type: 'SET_CART_DISCOUNT', payload: amount }) }
   function setCustomer(customer) { dispatch({ type: 'SET_CUSTOMER', payload: customer }) }
   function clearCart() { dispatch({ type: 'CLEAR_CART' }) }
@@ -171,6 +184,7 @@ export function CartProvider({ children }) {
         togglePredefinedDiscount,
         updateUnit,
         updateDiscount,
+        updateOurPrice,
         setCartDiscount,
         setCustomer,
         clearCart,

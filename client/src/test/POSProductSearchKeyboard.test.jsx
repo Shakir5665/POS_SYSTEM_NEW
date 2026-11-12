@@ -220,8 +220,8 @@ describe('Batch 2: POS Product Search & Keyboard Interaction', () => {
     // Type "Coca" -> matches both Coca-Cola (index 0) and Coca-Cola Diet (index 1)
     fireEvent.change(searchInput, { target: { value: 'Coca' } })
 
-    // Arrow down to highlight the second product (Coca-Cola Diet)
-    fireEvent.keyDown(searchInput, { key: 'ArrowDown' })
+    // Two matches sit on one row in the lg (4-col) grid; ArrowRight moves to the next card
+    fireEvent.keyDown(searchInput, { key: 'ArrowRight' })
 
     // Press Enter
     fireEvent.keyDown(searchInput, { key: 'Enter' })

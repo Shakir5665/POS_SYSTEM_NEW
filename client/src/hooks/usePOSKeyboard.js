@@ -1,4 +1,17 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
+
+/** Matches the POS product grid: 2 / sm:3 / lg:4 columns. */
+export function getPosProductColumnCount() {
+  const w = typeof window !== 'undefined' ? window.innerWidth : 1024
+  if (w >= 1024) return 4
+  if (w >= 640) return 3
+  return 2
+}
+
+function clampIndex(i, length) {
+  if (length <= 0) return 0
+  return Math.min(length - 1, Math.max(0, i))
+}
 
 /**
  * State machine and shortcut handler for the keyboard-first POS experience.
@@ -19,6 +32,15 @@ export function usePOSKeyboard({
   const [selectedProductIndex, setSelectedProductIndex] = useState(0)
   const [selectedCartIndex, setSelectedCartIndex] = useState(-1)
   const [activeZone, setActiveZone] = useState('SEARCH') // 'SEARCH' | 'PRODUCTS' | 'CART'
+  const [productColumnCount, setProductColumnCount] = useState(getPosProductColumnCount)
+
+  useEffect(() => {
+    function onResize() {
+      setProductColumnCount(getPosProductColumnCount())
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   // Reset indices when lists change
   useEffect(() => {
@@ -99,48 +121,55 @@ export function usePOSKeyboard({
           document.activeElement.tagName === 'TEXTAREA' ||
           document.activeElement.tagName === 'SELECT')
 
-      // If search input is focused, search input's onKeyDown handles ArrowUp/Down and Enter directly
+      // If search input is focused, search input's onKeyDown handles arrows and Enter directly
       if (document.activeElement === searchRef.current) {
         return
       }
 
-      // If another input is focused, don't intercept standard editing keys
+      // If another input is focused (cart qty, our-price, discount), don't intercept
       if (isInputFocused) return
 
-      // Product grid navigation
-      if (activeZone === 'PRODUCTS') {
+      const cols = productColumnCount || 2
+
+      // Product grid: left / right / up / down. Skip while the cart list is the active zone
+      // so existing cart arrow, +/-, Delete, and U shortcuts stay unchanged.
+      if (activeZone !== 'CART' && products.length > 0) {
         if (e.key === 'ArrowRight') {
           e.preventDefault()
-          setSelectedProductIndex((i) => Math.min(products.length - 1, i + 1))
+          setActiveZone('PRODUCTS')
+          setSelectedProductIndex((i) => clampIndex(i + 1, products.length))
           return
         }
         if (e.key === 'ArrowLeft') {
           e.preventDefault()
-          setSelectedProductIndex((i) => Math.max(0, i - 1))
+          setActiveZone('PRODUCTS')
+          setSelectedProductIndex((i) => clampIndex(i - 1, products.length))
           return
         }
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          setSelectedProductIndex((i) => Math.min(products.length - 1, i + 4)) // assume ~4 columns
+          setActiveZone('PRODUCTS')
+          setSelectedProductIndex((i) => clampIndex(i + cols, products.length))
           return
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          if (selectedProductIndex < 4) {
+          if (selectedProductIndex < cols) {
             setActiveZone('SEARCH')
             searchRef.current?.focus()
           } else {
-            setSelectedProductIndex((i) => Math.max(0, i - 4))
+            setActiveZone('PRODUCTS')
+            setSelectedProductIndex((i) => clampIndex(i - cols, products.length))
           }
           return
         }
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && activeZone === 'PRODUCTS') {
           e.preventDefault()
           const prod = products[selectedProductIndex]
           if (prod) onAddProduct?.(prod)
           return
         }
-        if (e.key === 'Tab') {
+        if (e.key === 'Tab' && activeZone === 'PRODUCTS') {
           e.preventDefault()
           if (cartItems.length > 0) {
             setActiveZone('CART')
@@ -219,6 +248,7 @@ export function usePOSKeyboard({
     selectedProductIndex,
     selectedCartIndex,
     activeZone,
+    productColumnCount,
     isModalOpen,
     onAddProduct,
     onUpdateCartQuantity,
@@ -237,5 +267,6 @@ export function usePOSKeyboard({
     setSelectedCartIndex,
     activeZone,
     setActiveZone,
+    productColumnCount,
   }
 }

@@ -166,6 +166,32 @@ describe('Input Validation and Negative Rejections', () => {
     expect(toggle.checked).toBe(false)
     expect(screen.getByText('Disabled')).toBeDefined()
   })
+
+  it('lets the cashier edit our price for this cart line only', () => {
+    const onOurPriceChange = vi.fn()
+    const discountedItem = {
+      ...item,
+      usual_price: 60,
+      our_price: 50,
+      catalog_our_price: 50,
+      apply_predefined_discount: true,
+    }
+    render(
+      <CartItem
+        item={discountedItem}
+        index={0}
+        itemCount={1}
+        onUpdate={vi.fn()}
+        onOurPriceChange={onOurPriceChange}
+      />
+    )
+
+    const priceInput = screen.getByTestId('cart-our-price-prod-val')
+    expect(priceInput.value).toBe('50')
+
+    fireEvent.change(priceInput, { target: { value: '45.5' } })
+    expect(onOurPriceChange).toHaveBeenCalledWith('prod-val', 45.5)
+  })
 })
 
 describe('Keyboard Navigation', () => {

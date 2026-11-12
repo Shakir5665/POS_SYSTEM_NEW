@@ -555,12 +555,17 @@ export function CartItem({
   onRemove,
   onToggleDiscount,
   onDiscountChange,
+  onOurPriceChange,
   onUnitChange,
   isSelected,
   isLastAdded,
 }) {
   const qtyInputRef = useRef(null)
+  const ourPriceInputRef = useRef(null)
   const [stockError, setStockError] = useState('')
+  const [ourPriceDraft, setOurPriceDraft] = useState(() =>
+    String(item.our_price != null ? item.our_price : item.price ?? '')
+  )
 
   const maxStock = getAvailableStockForItem(item, allCartItems, productData)
   const current = item.quantity === '' ? 0 : parseFloat(item.quantity)
@@ -590,6 +595,12 @@ export function CartItem({
       qtyInputRef.current?.select()
     }
   }, [isLastAdded])
+
+  useEffect(() => {
+    if (document.activeElement === ourPriceInputRef.current) return
+    const next = item.our_price != null ? item.our_price : item.price
+    setOurPriceDraft(next == null ? '' : String(next))
+  }, [item.our_price, item.price])
 
   function handleDecrement() {
     setStockError('')
@@ -680,6 +691,45 @@ export function CartItem({
     }
   }
 
+  function commitOurPrice(raw) {
+    let val = String(raw ?? '').trim()
+    if (val === '' || val === '.') {
+      const fallback = item.catalog_our_price != null ? item.catalog_our_price : (item.our_price != null ? item.our_price : item.price)
+      setOurPriceDraft(String(fallback ?? ''))
+      onOurPriceChange?.(item.product_id, fallback)
+      return
+    }
+    val = val.replace(/[^\d.]/g, '')
+    const parts = val.split('.')
+    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('')
+    if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2)
+    const num = parseFloat(val)
+    if (isNaN(num) || num < 0) {
+      const fallback = item.catalog_our_price != null ? item.catalog_our_price : (item.our_price != null ? item.our_price : item.price)
+      setOurPriceDraft(String(fallback ?? ''))
+      onOurPriceChange?.(item.product_id, fallback)
+      return
+    }
+    const normalized = Number(num.toFixed(2))
+    setOurPriceDraft(String(normalized))
+    onOurPriceChange?.(item.product_id, normalized)
+  }
+
+  function handleOurPriceChange(raw) {
+    let val = String(raw ?? '')
+    if (val.includes('-')) val = val.replace(/-/g, '')
+    val = val.replace(/[^\d.]/g, '')
+    const parts = val.split('.')
+    if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('')
+    if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2)
+    setOurPriceDraft(val)
+    if (val === '' || val === '.') return
+    const num = parseFloat(val)
+    if (!isNaN(num) && num >= 0) {
+      onOurPriceChange?.(item.product_id, Number(num.toFixed(2)))
+    }
+  }
+
   function handleQtyKeyDown(e) {
     if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
       e.preventDefault()
@@ -688,6 +738,13 @@ export function CartItem({
         searchInput.focus()
         searchInput.select?.()
       }
+      return
+    }
+
+    if (e.key === 'ArrowRight') {
+      e.preventDefault()
+      ourPriceInputRef.current?.focus()
+      ourPriceInputRef.current?.select?.()
       return
     }
 
@@ -757,14 +814,46 @@ export function CartItem({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
           <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
-            {hasPredefinedDiscount ? (
-              <>
-                <span className="line-through text-gray-400">Market: {formatCurrency(usualPrice)}</span>
-                <span className="font-semibold text-primary-700">Our Price: {formatCurrency(ourPrice)}</span>
-              </>
-            ) : (
-              <span className="font-medium text-gray-700">{formatCurrency(usualPrice)}</span>
+            {usualPrice > ourPrice && (
+              <span className="line-through text-gray-400">Market: {formatCurrency(usualPrice)}</span>
             )}
+            <label className="font-semibold text-primary-700 inline-flex items-center gap-1">
+              <span>Our Price:</span>
+              <input
+                ref={ourPriceInputRef}
+                data-testid={`cart-our-price-${item.product_id}`}
+                data-field="our-price"
+                type="text"
+                inputMode="decimal"
+                aria-label={`Our price for ${item.name}`}
+                value={ourPriceDraft}
+                onChange={(e) => handleOurPriceChange(e.target.value)}
+                onBlur={() => commitOurPrice(ourPriceDraft)}
+                onKeyDown={(e) => {
+                  if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+                    e.preventDefault()
+                    const searchInput = document.querySelector('input[placeholder*="Search by name"]') || document.querySelector('input[placeholder*="Search"]')
+                    searchInput?.focus()
+                    searchInput?.select?.()
+                    return
+                  }
+                  if (e.key === 'ArrowLeft') {
+                    e.preventDefault()
+                    commitOurPrice(ourPriceDraft)
+                    qtyInputRef.current?.focus()
+                    qtyInputRef.current?.select?.()
+                    return
+                  }
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    commitOurPrice(e.target.value)
+                    qtyInputRef.current?.focus()
+                    qtyInputRef.current?.select?.()
+                  }
+                }}
+                className="w-[4.5rem] px-1.5 py-0.5 rounded border border-primary-200 bg-white text-xs font-semibold text-primary-800 text-right focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+            </label>
             <span>/ {item.pricing_unit || 'pcs'}</span>
             <span className="text-gray-300">•</span>
             <span className="font-medium text-gray-700">
@@ -953,6 +1042,7 @@ export default function POSPage() {
     togglePredefinedDiscount,
     updateUnit,
     updateDiscount,
+    updateOurPrice,
     setCartDiscount,
     setCustomer,
     clearCart,
@@ -1105,6 +1195,8 @@ export default function POSPage() {
     setSelectedProductIndex,
     selectedCartIndex,
     activeZone,
+    setActiveZone,
+    productColumnCount,
   } = usePOSKeyboard({
     products,
     cartItems: items,
@@ -1216,6 +1308,14 @@ export default function POSPage() {
       toast.error(`Please enter a quantity for ${unentered.name}`)
       return
     }
+    const badPrice = items.find((i) => {
+      const p = parseFloat(i.our_price)
+      return i.our_price === '' || isNaN(p) || p < 0
+    })
+    if (badPrice) {
+      toast.error(`Please enter a valid our price for ${badPrice.name}`)
+      return
+    }
 
     // Verify all cart items against available stock before opening payment modal
     for (const item of items) {
@@ -1241,6 +1341,7 @@ export default function POSPage() {
           quantity: parseFloat(i.quantity) || 0,
           unit: i.unit,
           predefined_discount_applied: i.apply_predefined_discount !== false,
+          our_price: parseFloat(i.our_price),
           discount: parseFloat(i.discount) || 0,
         })),
         customer_id: customer?.id || null,
@@ -1338,16 +1439,34 @@ export default function POSPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
+              const cols = productColumnCount || 2
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
                 if (products.length > 0) {
-                  setSelectedProductIndex((i) => Math.min(products.length - 1, i + 1))
+                  setActiveZone('PRODUCTS')
+                  setSelectedProductIndex((i) => Math.min(products.length - 1, i + cols))
                 }
                 return
               }
               if (e.key === 'ArrowUp') {
                 e.preventDefault()
                 if (products.length > 0) {
+                  setSelectedProductIndex((i) => Math.max(0, i - cols))
+                }
+                return
+              }
+              if (e.key === 'ArrowRight') {
+                e.preventDefault()
+                if (products.length > 0) {
+                  setActiveZone('PRODUCTS')
+                  setSelectedProductIndex((i) => Math.min(products.length - 1, i + 1))
+                }
+                return
+              }
+              if (e.key === 'ArrowLeft') {
+                e.preventDefault()
+                if (products.length > 0) {
+                  setActiveZone('PRODUCTS')
                   setSelectedProductIndex((i) => Math.max(0, i - 1))
                 }
                 return
@@ -1557,6 +1676,7 @@ export default function POSPage() {
                   }}
                   onToggleDiscount={togglePredefinedDiscount}
                   onDiscountChange={updateDiscount}
+                  onOurPriceChange={updateOurPrice}
                   onUnitChange={(pid, unit) => updateUnit(pid, unit)}
                 />
               ))}
