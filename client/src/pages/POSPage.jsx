@@ -495,9 +495,11 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
             </svg>
             <div className="truncate">
               <span className="text-sm font-semibold text-gray-900">{customer.name}</span>
-              <span className="text-xs text-gray-500 ml-1.5">
-                {customer.phone || customer.email || ''} &bull; {customer.loyalty_points || 0} pts
-              </span>
+              {(customer.phone || customer.email) && (
+                <span className="text-xs text-gray-500 ml-1.5">
+                  ({customer.phone || customer.email})
+                </span>
+              )}
             </div>
           </div>
           <button
@@ -683,11 +685,6 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold text-sm text-gray-900 truncate">{c.name}</p>
-                        {c.loyalty_points > 0 && (
-                          <span className="text-3xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-semibold flex-shrink-0">
-                            {c.loyalty_points} pts
-                          </span>
-                        )}
                       </div>
                       <p className="text-xs text-gray-500 truncate mt-0.5">
                         {c.phone || c.email || 'No contact info'}

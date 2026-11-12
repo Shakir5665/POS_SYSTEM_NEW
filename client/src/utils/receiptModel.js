@@ -53,10 +53,20 @@ export function formatReceiptItem(item) {
   }
   const pricingQty = qty * pricingFactor
 
-  const usualLineGross = usualPrice != null ? Number((pricingQty * usualPrice).toFixed(2)) : null
-  const predefinedDiscountAmount = item.predefined_discount_amount != null
-    ? Number(item.predefined_discount_amount)
-    : (predefinedApplied && usualPrice != null && ourPrice != null ? Number((Math.max(0, usualPrice - ourPrice) * pricingQty).toFixed(2)) : 0)
+  const unitMarket = usualPrice != null ? usualPrice : unitPrice
+  const unitOur = ourPrice != null ? ourPrice : unitPrice
+
+  const marketPrice = Number((pricingQty * unitMarket).toFixed(2))
+  const ourPriceVal = Number((pricingQty * unitOur).toFixed(2))
+  const ourLineGross = ourPriceVal
+  const usualLineGross = marketPrice
+
+  let predefinedDiscountAmount = 0
+  if (predefinedApplied && marketPrice > ourPriceVal) {
+    predefinedDiscountAmount = Number((marketPrice - ourPriceVal).toFixed(2))
+  } else if (item.predefined_discount_amount != null) {
+    predefinedDiscountAmount = Number(item.predefined_discount_amount)
+  }
 
   // Determine line gross at unit_price
   let lineGross = 0
@@ -113,13 +123,6 @@ export function formatReceiptItem(item) {
 
   lineTotal = Math.max(0, lineTotal)
   totalDiscount = Math.min(lineGross, Math.max(0, totalDiscount))
-
-  const unitMarket = usualPrice != null ? usualPrice : unitPrice
-  const unitOur = ourPrice != null ? ourPrice : unitPrice
-
-  const marketPrice = Number((pricingQty * unitMarket).toFixed(2))
-  const ourPriceVal = Number((pricingQty * unitOur).toFixed(2))
-  const ourLineGross = ourPriceVal
 
   return {
     name,
