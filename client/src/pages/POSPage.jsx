@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useCart } from '../hooks/useCart'
@@ -367,37 +367,105 @@ function QuickCustomerModal({ isOpen, onClose, onCustomerCreated }) {
 }
 
 // ─── Customer Search Modal ─────────────────────────────────────────────────────
-export function InlineCustomerSelector({ customer, onSelect, onOpenQuickCustomer }) {
+export function InlineCustomerSelector({ customer, customersList = [], onSelect, onOpenQuickCustomer }) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [results, setResults] = useState([])
-  const [isLoading, setIsLoading] = useState(false)
+  const [localCustomers, setLocalCustomers] = useState(customersList)
+  const [selectedIndex, setSelectedIndex] = useState(0)
   const containerRef = useRef(null)
   const inputRef = useRef(null)
 
+  // Sync when prop updates
   useEffect(() => {
-    if (!isOpen) return
+    if (customersList && customersList.length > 0) {
+      setLocalCustomers(customersList)
+    }
+  }, [customersList])
 
+  // Fallback initial fetch if parent hasn't loaded customers yet
+  useEffect(() => {
+    if (customersList && customersList.length > 0) return
     let cancelled = false
-    setIsLoading(true)
+    customersService.list({ per_page: 100 })
+      .then((res) => {
+        if (!cancelled && res.data?.data) {
+          setLocalCustomers(res.data.data)
+        }
+      })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [customersList])
+
+  // Background search to discover uncached customers in database without blocking UI
+  useEffect(() => {
+    if (!isOpen || !query.trim()) return
     const timeout = setTimeout(async () => {
       try {
         const res = await customersService.list({ search: query.trim(), per_page: 30 })
-        if (!cancelled) {
-          setResults(res.data?.data || [])
+        const serverResults = res.data?.data || []
+        if (serverResults.length > 0) {
+          setLocalCustomers((prev) => {
+            const map = new Map(prev.map((c) => [c.id, c]))
+            serverResults.forEach((c) => map.set(c.id, c))
+            return Array.from(map.values())
+          })
         }
       } catch {
-        if (!cancelled) setResults([])
-      } finally {
-        if (!cancelled) setIsLoading(false)
+        // ignore
       }
-    }, query.trim() ? 250 : 0)
-
-    return () => {
-      cancelled = true
-      clearTimeout(timeout)
-    }
+    }, 350)
+    return () => clearTimeout(timeout)
   }, [isOpen, query])
+
+  // Instant in-memory relevance ranking
+  const sortedResults = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    if (!q) return localCustomers.slice(0, 10)
+
+    const scored = []
+    for (const c of localCustomers) {
+      const name = (c.name || '').toLowerCase()
+      const phone = (c.phone || '').toLowerCase()
+      const email = (c.email || '').toLowerCase()
+
+      let score = 0
+      if (name === q || phone === q) {
+        score = 100 // exact match
+      } else if (name.startsWith(q) || phone.startsWith(q)) {
+        score = 80 // prefix match
+      } else if (name.includes(q) || phone.includes(q)) {
+        score = 50 // substring match
+      } else if (email.includes(q)) {
+        score = 30 // email match
+      }
+
+      if (score > 0) {
+        scored.push({ customer: c, score })
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score)
+    return scored.slice(0, 10).map((s) => s.customer)
+  }, [localCustomers, query])
+
+  // Reset selected highlight index: highlight top customer match if query is typed
+  useEffect(() => {
+    if (query.trim() && sortedResults.length > 0) {
+      setSelectedIndex(1)
+    } else {
+      setSelectedIndex(0)
+    }
+  }, [query, sortedResults.length])
+
+  // Auto-scroll highlighted dropdown item into view
+  useEffect(() => {
+    if (isOpen) {
+      const el = document.getElementById(`customer-search-item-${selectedIndex}`)
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [selectedIndex, isOpen])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -460,14 +528,67 @@ export function InlineCustomerSelector({ customer, onSelect, onOpenQuickCustomer
             data-testid="customer-search-inline-input"
             value={query}
             onFocus={() => setIsOpen(true)}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value)
+              setIsOpen(true)
+            }}
+            onKeyDown={(e) => {
+              if (!isOpen) {
+                if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                  setIsOpen(true)
+                  return
+                }
+                return
+              }
+
+              const totalItems = 1 + sortedResults.length
+
+              if (e.key === 'ArrowDown') {
+                e.preventDefault()
+                setSelectedIndex((prev) => (prev + 1) % totalItems)
+                return
+              }
+
+              if (e.key === 'ArrowUp') {
+                e.preventDefault()
+                setSelectedIndex((prev) => (prev - 1 + totalItems) % totalItems)
+                return
+              }
+
+              if (e.key === 'Escape') {
+                e.preventDefault()
+                setIsOpen(false)
+                return
+              }
+
+              if (e.key === 'Enter') {
+                e.preventDefault()
+                e.stopPropagation()
+                if (selectedIndex === 0) {
+                  onSelect(null)
+                  setIsOpen(false)
+                  setQuery('')
+                } else {
+                  const selectedCust = sortedResults[selectedIndex - 1]
+                  if (selectedCust) {
+                    onSelect(selectedCust)
+                    setIsOpen(false)
+                    setQuery('')
+                  }
+                }
+                return
+              }
+            }}
             placeholder="Search customer by name or phone (F5)..."
             className="w-full pl-8 pr-8 py-1.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
           />
           {query && (
             <button
               type="button"
-              onClick={() => setQuery('')}
+              onClick={() => {
+                setQuery('')
+                setSelectedIndex(0)
+              }}
               className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -479,65 +600,114 @@ export function InlineCustomerSelector({ customer, onSelect, onOpenQuickCustomer
       )}
 
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-xl z-50 overflow-hidden text-sm max-h-64 flex flex-col">
+        <div
+          data-testid="customer-search-dropdown"
+          className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 divide-y divide-gray-100 max-h-72 overflow-y-auto"
+        >
+          {/* Walk-in option */}
           <div
+            id="customer-search-item-0"
+            data-testid="customer-search-item-walk-in"
+            onMouseDown={(e) => e.preventDefault()}
+            onMouseEnter={() => setSelectedIndex(0)}
             onClick={() => {
               onSelect(null)
               setIsOpen(false)
               setQuery('')
             }}
-            className="px-3 py-2 border-b border-gray-100 hover:bg-gray-50 cursor-pointer flex items-center justify-between text-gray-700 font-medium"
+            className={`px-3 py-2.5 cursor-pointer flex items-center justify-between transition select-none ${
+              selectedIndex === 0
+                ? 'bg-primary-50 text-primary-950 font-semibold border-l-4 border-primary-600 pl-[8px]'
+                : 'text-gray-700 hover:bg-gray-50'
+            }`}
           >
-            <span>Walk-in Customer (None)</span>
-            <span className="text-2xs text-gray-400">Cash/card only</span>
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                </svg>
+              </div>
+              <div>
+                <span className="text-sm font-medium">Walk-in Customer (None)</span>
+                <p className="text-2xs text-gray-400">Cash / Immediate payment only</p>
+              </div>
+            </div>
+            <span className="text-2xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">Default</span>
           </div>
 
-          <div className="overflow-y-auto flex-1 divide-y divide-gray-50">
-            {isLoading && (
-              <p className="text-xs text-gray-400 text-center py-3">Searching customers...</p>
-            )}
-            {!isLoading && results.length === 0 && (
-              <div className="py-4 text-center px-3">
-                <p className="text-xs text-gray-500">No customers found.</p>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsOpen(false)
-                    onOpenQuickCustomer?.()
-                  }}
-                  className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 font-semibold"
-                >
-                  + Quick Register Customer
-                </button>
-              </div>
-            )}
-            {!isLoading && results.map((c) => (
-              <div
-                key={c.id}
+          {/* Customer results */}
+          {sortedResults.length === 0 && query.trim() ? (
+            <div className="py-4 text-center px-3">
+              <p className="text-xs text-gray-500">No customers found for "{query}".</p>
+              <button
+                type="button"
                 onClick={() => {
-                  onSelect(c)
                   setIsOpen(false)
-                  setQuery('')
+                  onOpenQuickCustomer?.()
                 }}
-                className={`px-3 py-2 cursor-pointer hover:bg-primary-50 transition ${customer?.id === c.id ? 'bg-primary-50/70 font-semibold text-primary-900' : 'text-gray-800'}`}
+                className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 font-semibold"
               >
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-gray-900 truncate">{c.name}</p>
-                  <span className="text-2xs text-gray-500 font-normal">
-                    {c.loyalty_points || 0} pts
-                  </span>
+                + Quick Register Customer
+              </button>
+            </div>
+          ) : (
+            sortedResults.map((c, idx) => {
+              const itemIndex = idx + 1
+              const isSelected = selectedIndex === itemIndex
+              const isCurrentCustomer = customer?.id === c.id
+
+              return (
+                <div
+                  key={c.id}
+                  id={`customer-search-item-${itemIndex}`}
+                  data-testid={`customer-search-item-${c.id}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setSelectedIndex(itemIndex)}
+                  onClick={() => {
+                    onSelect(c)
+                    setIsOpen(false)
+                    setQuery('')
+                  }}
+                  className={`px-3 py-2.5 cursor-pointer flex items-center justify-between transition select-none ${
+                    isSelected
+                      ? 'bg-primary-50 text-primary-950 font-semibold border-l-4 border-primary-600 pl-[8px]'
+                      : isCurrentCustomer
+                      ? 'bg-primary-50/50 text-primary-900'
+                      : 'hover:bg-gray-50 text-gray-800'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
+                    <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                      {(c.name || 'C').charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-sm text-gray-900 truncate">{c.name}</p>
+                        {c.loyalty_points > 0 && (
+                          <span className="text-3xs bg-amber-50 text-amber-700 border border-amber-200 px-1.5 py-0.5 rounded font-semibold flex-shrink-0">
+                            {c.loyalty_points} pts
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 truncate mt-0.5">
+                        {c.phone || c.email || 'No contact info'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="text-right flex-shrink-0">
+                    {Number(c.outstanding_debt || 0) > 0 ? (
+                      <span className="inline-block text-2xs px-2 py-0.5 rounded font-semibold bg-danger-50 text-danger-700 border border-danger-200">
+                        Debt: {c.outstanding_debt}
+                      </span>
+                    ) : (
+                      <span className="text-2xs text-success-700 font-medium">Clean balance</span>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center justify-between text-xs text-gray-500 mt-0.5">
-                  <span>{c.phone || c.email || 'No contact info'}</span>
-                  {Number(c.outstanding_debt || 0) > 0 && (
-                    <span className="text-danger-600 font-medium text-2xs">
-                      Debt: {c.outstanding_debt}
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
-          </div>
+              )
+            })
+          )}
         </div>
       )}
     </div>
@@ -548,13 +718,13 @@ export function InlineCustomerSelector({ customer, onSelect, onOpenQuickCustomer
 export function CartItem({
   item,
   index = 0,
-  itemCount = 1,
+  
   allCartItems = [],
   productData = null,
   onUpdate,
   onRemove,
   onToggleDiscount,
-  onDiscountChange,
+  
   onOurPriceChange,
   onUnitChange,
   isSelected,
@@ -871,7 +1041,7 @@ export function CartItem({
                   onChange={(e) => onToggleDiscount?.(item.product_id, e.target.checked)}
                   className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-gray-300"
                 />
-                <span>Predefined Discount</span>
+                <span>Discount</span>
               </label>
               <span className="font-bold text-success-700">
                 {isPredefinedApplied ? `-${formatCurrency(predefinedDiscountAmount)}` : 'Disabled'}
@@ -1028,10 +1198,10 @@ export default function POSPage() {
     items,
     cartDiscount,
     customer,
-    usual_subtotal,
+   
     predefined_discounts,
     subtotal,
-    discount,
+   
     tax,
     total,
     distinct_items,
@@ -1049,7 +1219,11 @@ export default function POSPage() {
   } = useCart()
 
   const [searchQuery, setSearchQuery] = useState('')
+  const [showProductDropdown, setShowProductDropdown] = useState(false)
+  const [dropdownSelectedIndex, setDropdownSelectedIndex] = useState(0)
+  const searchDropdownContainerRef = useRef(null)
   const [allProducts, setAllProducts] = useState([])
+  const [allCustomers, setAllCustomers] = useState([])
   const [categories, setCategories] = useState([])
   const [selectedCategory, setSelectedCategory] = useState('ALL')
   const [isLoadingProducts, setIsLoadingProducts] = useState(true)
@@ -1067,19 +1241,21 @@ export default function POSPage() {
   const [lastAddedId, setLastAddedId] = useState(null)
   const lastScanRef = useRef({ code: '', time: 0 })
 
-  // Load all products and categories on mount
+  // Load all products, categories, and customers on mount
   useEffect(() => {
     searchRef.current?.focus()
 
     async function loadInitialData() {
       setIsLoadingProducts(true)
       try {
-        const [productsRes, categoriesRes] = await Promise.all([
+        const [productsRes, categoriesRes, customersRes] = await Promise.all([
           productsService.list({ per_page: 100, is_active: true }),
           productsService.categories(),
+          customersService.list({ per_page: 100 }).catch(() => ({ data: { data: [] } })),
         ])
         setAllProducts(productsRes.data?.data || [])
         setCategories(categoriesRes.data?.data || [])
+        setAllCustomers(customersRes.data?.data || [])
       } catch {
         toast.error('Failed to load products')
       } finally {
@@ -1101,6 +1277,45 @@ export default function POSPage() {
       (p.barcode && p.barcode.includes(q))
     )
   })
+
+  // Derived: ranked product search dropdown results
+  const searchDropdownResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase()
+    if (!q) return []
+
+    const scored = []
+    for (const p of allProducts) {
+      if (p.is_active === false) continue
+
+      const name = (p.name || '').toLowerCase()
+      const sku = (p.sku || '').toLowerCase()
+      const barcode = (p.barcode || '').toLowerCase()
+
+      let score = 0
+      if (name === q || sku === q || barcode === q) {
+        score = 100 // Exact match
+      } else if (name.startsWith(q)) {
+        score = 80 // Name starts with query
+      } else if (sku.startsWith(q)) {
+        score = 70 // SKU starts with query
+      } else if (name.includes(q)) {
+        score = 50 // Name contains query
+      } else if (sku.includes(q)) {
+        score = 40 // SKU contains query
+      } else if (barcode.includes(q)) {
+        score = 30 // Barcode contains query
+      }
+
+      if (score > 0) {
+        // Boost if matches currently selected category
+        const categoryBonus = selectedCategory !== 'ALL' && p.category_id === selectedCategory ? 5 : 0
+        scored.push({ product: p, score: score + categoryBonus })
+      }
+    }
+
+    scored.sort((a, b) => b.score - a.score)
+    return scored.slice(0, 8).map((item) => item.product)
+  }, [allProducts, searchQuery, selectedCategory])
 
   async function handleBarcodeSearch(barcode) {
     const code = String(barcode || '').trim()
@@ -1244,6 +1459,27 @@ export default function POSPage() {
     }
   }, [selectedProductIndex, products])
 
+  // Close search dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (searchDropdownContainerRef.current && !searchDropdownContainerRef.current.contains(e.target)) {
+        setShowProductDropdown(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  // Auto-scroll highlighted dropdown item into view
+  useEffect(() => {
+    if (showProductDropdown && searchDropdownResults.length > 0) {
+      const el = document.getElementById(`search-dropdown-item-${dropdownSelectedIndex}`)
+      if (el && typeof el.scrollIntoView === 'function') {
+        el.scrollIntoView({ block: 'nearest' })
+      }
+    }
+  }, [dropdownSelectedIndex, showProductDropdown, searchDropdownResults.length])
+
   // Centralized keyboard & barcode search submission
   async function handleSearchSubmit() {
     const q = searchQuery.trim()
@@ -1376,7 +1612,7 @@ export default function POSPage() {
     }
   }
 
-  const itemCount = items.length
+  
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
@@ -1427,7 +1663,7 @@ export default function POSPage() {
         </div>
 
         {/* Search bar */}
-        <div className="relative">
+        <div ref={searchDropdownContainerRef} className="relative">
           <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
             <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1437,60 +1673,226 @@ export default function POSPage() {
             ref={searchRef}
             type="text"
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={() => {
+              if (searchQuery.trim().length > 0) {
+                setShowProductDropdown(true)
+              }
+            }}
+            onChange={(e) => {
+              const val = e.target.value
+              setSearchQuery(val)
+              setShowProductDropdown(val.trim().length > 0)
+              setDropdownSelectedIndex(0)
+            }}
             onKeyDown={(e) => {
+              const hasDropdown = showProductDropdown && searchDropdownResults.length > 0
               const cols = productColumnCount || 2
+
               if (e.key === 'ArrowDown') {
                 e.preventDefault()
-                if (products.length > 0) {
+                if (hasDropdown) {
+                  const nextIdx = (dropdownSelectedIndex + 1) % searchDropdownResults.length
+                  setDropdownSelectedIndex(nextIdx)
+                  const target = searchDropdownResults[nextIdx]
+                  if (target) {
+                    const gridIdx = products.findIndex((p) => p.id === target.id)
+                    if (gridIdx >= 0) setSelectedProductIndex(gridIdx)
+                  }
+                } else if (products.length > 0) {
                   setActiveZone('PRODUCTS')
                   setSelectedProductIndex((i) => Math.min(products.length - 1, i + cols))
                 }
                 return
               }
+
               if (e.key === 'ArrowUp') {
                 e.preventDefault()
-                if (products.length > 0) {
+                if (hasDropdown) {
+                  const prevIdx = (dropdownSelectedIndex - 1 + searchDropdownResults.length) % searchDropdownResults.length
+                  setDropdownSelectedIndex(prevIdx)
+                  const target = searchDropdownResults[prevIdx]
+                  if (target) {
+                    const gridIdx = products.findIndex((p) => p.id === target.id)
+                    if (gridIdx >= 0) setSelectedProductIndex(gridIdx)
+                  }
+                } else if (products.length > 0) {
                   setSelectedProductIndex((i) => Math.max(0, i - cols))
                 }
                 return
               }
+
               if (e.key === 'ArrowRight') {
                 e.preventDefault()
-                if (products.length > 0) {
+                if (hasDropdown) {
+                  const nextIdx = Math.min(searchDropdownResults.length - 1, dropdownSelectedIndex + 1)
+                  setDropdownSelectedIndex(nextIdx)
+                  const target = searchDropdownResults[nextIdx]
+                  if (target) {
+                    const gridIdx = products.findIndex((p) => p.id === target.id)
+                    if (gridIdx >= 0) setSelectedProductIndex(gridIdx)
+                  }
+                } else if (products.length > 0) {
                   setActiveZone('PRODUCTS')
                   setSelectedProductIndex((i) => Math.min(products.length - 1, i + 1))
                 }
                 return
               }
+
               if (e.key === 'ArrowLeft') {
                 e.preventDefault()
-                if (products.length > 0) {
+                if (hasDropdown) {
+                  const prevIdx = Math.max(0, dropdownSelectedIndex - 1)
+                  setDropdownSelectedIndex(prevIdx)
+                  const target = searchDropdownResults[prevIdx]
+                  if (target) {
+                    const gridIdx = products.findIndex((p) => p.id === target.id)
+                    if (gridIdx >= 0) setSelectedProductIndex(gridIdx)
+                  }
+                } else if (products.length > 0) {
                   setActiveZone('PRODUCTS')
                   setSelectedProductIndex((i) => Math.max(0, i - 1))
                 }
                 return
               }
+
+              if (e.key === 'Escape') {
+                setShowProductDropdown(false)
+                return
+              }
+
               if (e.key === 'Enter') {
                 e.preventDefault()
                 e.stopPropagation()
+                if (hasDropdown) {
+                  const target = searchDropdownResults[dropdownSelectedIndex] || searchDropdownResults[0]
+                  if (target) {
+                    handleAddProduct(target)
+                    setSearchQuery('')
+                    setShowProductDropdown(false)
+                    setDropdownSelectedIndex(0)
+                    searchRef.current?.focus()
+                    return
+                  }
+                }
                 handleSearchSubmit()
+                setShowProductDropdown(false)
                 searchRef.current?.focus()
                 return
               }
             }}
             placeholder="Search by name, SKU, or scan barcode… (S / F1)"
-            className="w-full pl-9 pr-4 py-3 rounded-xl border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full pl-9 pr-8 py-3 rounded-xl border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
           />
           {searchQuery && (
             <button
-              onClick={() => { setSearchQuery(''); searchRef.current?.focus() }}
+              type="button"
+              onClick={() => {
+                setSearchQuery('')
+                setShowProductDropdown(false)
+                setDropdownSelectedIndex(0)
+                searchRef.current?.focus()
+              }}
               className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               </svg>
             </button>
+          )}
+
+          {/* Autocomplete Dropdown Menu */}
+          {showProductDropdown && searchDropdownResults.length > 0 && (
+            <div
+              data-testid="product-search-dropdown"
+              className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 divide-y divide-gray-100 max-h-80 overflow-y-auto"
+            >
+              {searchDropdownResults.map((product, idx) => {
+                const isSelected = idx === dropdownSelectedIndex
+                const isOut = Number(product.quantity) <= 0
+                const lowStock = !isOut && Number(product.quantity) <= Number(product.low_stock_threshold || 5)
+                const currentPrice = product.our_price || product.price
+
+                return (
+                  <div
+                    key={product.id}
+                    id={`search-dropdown-item-${idx}`}
+                    data-testid={`search-dropdown-item-${product.id}`}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onMouseEnter={() => setDropdownSelectedIndex(idx)}
+                    onClick={() => {
+                      handleAddProduct(product)
+                      setSearchQuery('')
+                      setShowProductDropdown(false)
+                      setDropdownSelectedIndex(0)
+                      searchRef.current?.focus()
+                    }}
+                    className={`flex items-center justify-between px-3.5 py-2.5 cursor-pointer transition select-none ${
+                      isSelected
+                        ? 'bg-primary-50 text-primary-950 border-l-4 border-primary-600 pl-[10px]'
+                        : 'hover:bg-gray-50 text-gray-800'
+                    }`}
+                  >
+                    {/* Left: Thumbnail/Icon + Product Info */}
+                    <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                      {product.image_url ? (
+                        <img
+                          src={product.image_url}
+                          alt=""
+                          className="w-9 h-9 object-cover rounded-lg border border-gray-100 flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400">
+                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                          </svg>
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-sm truncate text-gray-900">
+                            {product.name} <span className="text-gray-400 font-normal text-xs">({product.sku || 'Product'})</span>
+                          </span>
+                          {product.unit_category && (
+                            <span className="text-3xs uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 flex-shrink-0">
+                              {product.base_unit || product.unit_category}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-xs text-gray-400 truncate flex items-center gap-2 mt-0.5">
+                          {product.barcode && <span>Barcode: {product.barcode}</span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right: Stock Badge & Price */}
+                    <div className="flex items-center gap-3 flex-shrink-0 text-right">
+                      <div>
+                        {isOut ? (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold bg-danger-50 text-danger-700 border border-danger-200">
+                            Out of Stock
+                          </span>
+                        ) : (
+                          <span
+                            className={`inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium ${
+                              lowStock
+                                ? 'bg-warning-50 text-warning-800 border border-warning-200'
+                                : 'bg-success-50 text-success-800 border border-success-200'
+                            }`}
+                          >
+                            {formatQuantityWithUnit(product.quantity, product.base_unit)}
+                          </span>
+                        )}
+                      </div>
+                      <div className="min-w-[70px]">
+                        <span className="text-sm font-bold text-primary-700">
+                          {formatCurrency(currentPrice)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
 
@@ -1631,6 +2033,7 @@ export default function POSPage() {
         <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
           <InlineCustomerSelector
             customer={customer}
+            customersList={allCustomers}
             onSelect={setCustomer}
             onOpenQuickCustomer={() => setShowQuickCustomerModal(true)}
           />
@@ -1732,14 +2135,11 @@ export default function POSPage() {
 
           {/* Breakdown summary */}
           <div className="space-y-1 pt-1 border-t border-gray-100 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>Market Price Subtotal</span>
-              <span>{formatCurrency(usual_subtotal != null ? usual_subtotal : subtotal)}</span>
-            </div>
+            
             {Number(predefined_discounts || 0) > 0 && (
               <div className="flex justify-between text-success-700">
-                <span>Total Predefined Discounts</span>
-                <span>-{formatCurrency(predefined_discounts)}</span>
+                <span>Total Discounts</span>
+                <span>{formatCurrency(predefined_discounts)}</span>
               </div>
             )}
             {(parseFloat(cartDiscount) || 0) > 0 && (
@@ -1800,7 +2200,10 @@ export default function POSPage() {
         <QuickCustomerModal
           isOpen
           onClose={() => setShowQuickCustomerModal(false)}
-          onCustomerCreated={(newCust) => setCustomer(newCust)}
+          onCustomerCreated={(newCust) => {
+            setCustomer(newCust)
+            setAllCustomers((prev) => [newCust, ...prev.filter((c) => c.id !== newCust.id)])
+          }}
         />
       )}
 

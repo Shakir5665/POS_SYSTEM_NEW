@@ -51,11 +51,11 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
         </div>
         <div className="flex justify-between items-baseline gap-2">
           <div className="truncate">
-            <span className="text-gray-600">CASHR: </span>
+            <span className="text-gray-600">CASH: </span>
             <span className="font-medium">{user?.full_name || '—'}</span>
           </div>
           <div className="text-right truncate text-gray-700">
-            <span className="text-gray-600">CUSTMR: </span>
+            <span className="text-gray-600">CUS: </span>
             <span className="font-medium">{customer?.name || 'Walk-in'}</span>
           </div>
         </div>
