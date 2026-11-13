@@ -115,11 +115,7 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
 
       {/* ── Financial Summary (Task 2.3) ── */}
       <div className="border-t border-dashed border-gray-400 pt-2 text-xs space-y-1">
-        {/* Distinct Items Summary Line */}
-        <div className="flex justify-between text-gray-600">
-          <span>Distinct Items:</span>
-          <span>{summary.distinctItems} ({summary.totalQuantity} units)</span>
-        </div>
+        
 
         {/* 1. Market Price Subtotal */}
         <div className="flex justify-between">
