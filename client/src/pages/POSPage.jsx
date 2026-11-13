@@ -752,7 +752,6 @@ export function CartItem({
   const ourPrice = Number(item.our_price != null ? item.our_price : item.price)
   const hasPredefinedDiscount = usualPrice > ourPrice
   const isPredefinedApplied = item.apply_predefined_discount !== false
-  const activeSellingPrice = isPredefinedApplied ? ourPrice : usualPrice
   const predefinedDiff = Math.max(0, usualPrice - ourPrice)
 
   let pricingQty = currentVal
@@ -959,7 +958,7 @@ export function CartItem({
         }
       }
 
-      // If this is the LAST product line in the cart, advance focus to Additional Cart Discount
+      // If this is the LAST product line in the cart, advance focus to Additional  Discount
       const cartDiscountInput = document.querySelector('[data-testid="additional-cart-discount-input"]')
       if (cartDiscountInput) {
         cartDiscountInput.focus()
@@ -983,23 +982,7 @@ export function CartItem({
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
-            {hasPredefinedDiscount ? (
-              <>
-                <span className="line-through text-gray-400">MRKT_Price: {formatCurrency(usualPrice)}</span>
-                <span className="font-semibold text-primary-700">
-                  Our_price: {formatCurrency(isPredefinedApplied ? ourPrice : usualPrice)}
-                </span>
-              </>
-            ) : (
-              <span className="font-medium text-gray-700">{formatCurrency(usualPrice)}</span>
-            )}
-            <span>/ {item.pricing_unit || 'pcs'}</span>
-            <span className="text-gray-300">•</span>
-            <span className="font-medium text-gray-700">
-              Active: {formatCurrency(activeSellingPrice)}
-            </span>
-          </div>
+          
 
           {hasPredefinedDiscount && (
             <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/70 border border-primary-100 rounded-md px-2 py-1">
@@ -1212,7 +1195,6 @@ export default function POSPage() {
     items,
     cartDiscount,
     customer,
-    usual_subtotal,
     predefined_discounts,
     subtotal,
     tax,
@@ -2111,9 +2093,9 @@ export default function POSPage() {
 
         {/* Totals + actions */}
         <div className="border-t border-gray-100 px-4 py-3 space-y-2.5">
-          {/* Additional Cart discount input */}
+          {/* Additional discount input */}
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Additional Cart Discount</label>
+            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Additional Discount</label>
             <input
               type="text"
               inputMode="decimal"
@@ -2156,10 +2138,7 @@ export default function POSPage() {
 
           {/* Breakdown summary */}
           <div className="space-y-1 pt-1 border-t border-gray-100 text-sm text-gray-600">
-            <div className="flex justify-between">
-              <span>MRKT_Price Subtotal</span>
-              <span>{formatCurrency(usual_subtotal != null ? usual_subtotal : subtotal)}</span>
-            </div>
+            
             {Number(predefined_discounts || 0) > 0 && (
               <div className="flex justify-between text-success-700">
                 <span>Discount</span>
@@ -2168,7 +2147,7 @@ export default function POSPage() {
             )}
             {(parseFloat(cartDiscount) || 0) > 0 && (
               <div className="flex justify-between text-danger-600">
-                <span>Additional Cart Discount</span>
+                <span>Additional Discount</span>
                 <span>-{formatCurrency(cartDiscount)}</span>
               </div>
             )}
