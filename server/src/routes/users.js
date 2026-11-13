@@ -48,4 +48,7 @@ router.post(
 
 router.post('/:id/unlock', [param('id').isUUID()], validate, userController.unlockUser)
 
+// Permanently delete user (ADMIN only)
+router.delete('/:id', [param('id').isUUID()], validate, userController.deleteUser)
+
 module.exports = router

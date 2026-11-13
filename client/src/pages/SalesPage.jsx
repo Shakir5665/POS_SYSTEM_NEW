@@ -21,6 +21,7 @@ export default function SalesPage() {
   const [sales, setSales] = useState([])
   const [meta, setMeta] = useState({ page: 1, total_pages: 1 })
   const [page, setPage] = useState(1)
+  const [search, setSearch] = useState('')
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [loading, setLoading] = useState(true)
@@ -37,6 +38,7 @@ export default function SalesPage() {
         per_page: 20,
         start_date: startDate || undefined,
         end_date: endDate || undefined,
+        search: search.trim() || undefined,
       })
       setSales(res.data?.data ?? [])
       setMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
@@ -45,7 +47,7 @@ export default function SalesPage() {
     } finally {
       setLoading(false)
     }
-  }, [page, startDate, endDate])
+  }, [page, startDate, endDate, search])
 
   useEffect(() => {
     fetchSales()
@@ -86,7 +88,23 @@ export default function SalesPage() {
   }
 
   const columns = [
-    { key: 'transaction_id', label: 'Transaction', render: (v) => <span className="font-mono text-xs font-medium text-gray-900">{v}</span> },
+    {
+      key: 'transaction_id',
+      label: 'Transaction',
+      render: (v, row) => (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            openReceipt(row)
+          }}
+          className="font-mono text-xs font-semibold text-primary-600 hover:text-primary-800 hover:underline"
+          title="Click to view receipt"
+        >
+          {v}
+        </button>
+      ),
+    },
     { key: 'created_at', label: 'Date', render: (v) => new Date(v).toLocaleString('en-GH') },
     { key: 'user', label: 'Cashier', render: (v) => v?.full_name ?? '—' },
     { key: 'customer', label: 'Customer', render: (v) => v?.name ?? <span className="text-gray-400">—</span> },
@@ -104,7 +122,7 @@ export default function SalesPage() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Button size="sm" variant="ghost" onClick={() => openReceipt(row)}>
             Receipt
           </Button>
@@ -130,18 +148,47 @@ export default function SalesPage() {
 
         <UnmatchedPayments />
 
-        <div className="flex flex-wrap items-end gap-4">
-          <Input label="From" type="date" value={startDate} onChange={changeFilter(setStartDate)} />
-          <Input label="To" type="date" value={endDate} onChange={changeFilter(setEndDate)} />
-          {(startDate || endDate) && (
-            <Button variant="ghost" onClick={() => { setStartDate(''); setEndDate(''); setPage(1) }}>
-              Clear dates
-            </Button>
-          )}
+        <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-xs">
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-end justify-between">
+            <div className="flex-1 max-w-md">
+              <Input
+                label="Search Sales"
+                placeholder="Search by Transaction ID, Customer, or Cashier…"
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setPage(1)
+                }}
+              />
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <Input label="From" type="date" value={startDate} onChange={changeFilter(setStartDate)} />
+              <Input label="To" type="date" value={endDate} onChange={changeFilter(setEndDate)} />
+              {(startDate || endDate || search) && (
+                <Button
+                  variant="ghost"
+                  onClick={() => {
+                    setStartDate('')
+                    setEndDate('')
+                    setSearch('')
+                    setPage(1)
+                  }}
+                >
+                  Reset filters
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <Table columns={columns} data={sales} isLoading={loading} emptyMessage="No sales found." />
+          <Table
+            columns={columns}
+            data={sales}
+            isLoading={loading}
+            emptyMessage="No sales found."
+            onRowClick={(row) => openReceipt(row)}
+          />
         </div>
 
         <Pagination page={meta.page} total_pages={meta.total_pages} onPageChange={setPage} />

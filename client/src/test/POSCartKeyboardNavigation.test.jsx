@@ -251,4 +251,17 @@ describe('Task 1: POS Cart Quantity Keyboard Navigation', () => {
     fireEvent.keyDown(saltQty, { key: 'ArrowUp' })
     expect(document.activeElement).toBe(chilliQty)
   })
+
+  it('shows an editable our-price field on the cart line', async () => {
+    renderPOS()
+    await waitFor(() => expect(screen.getByText('Chilli Powder')).toBeDefined())
+
+    fireEvent.click(screen.getByTestId('product-card-prod-chilli'))
+    await waitFor(() => expect(screen.getByTestId('cart-our-price-prod-chilli')).toBeDefined())
+
+    const priceInput = screen.getByTestId('cart-our-price-prod-chilli')
+    expect(priceInput.value).toBe('100')
+    fireEvent.change(priceInput, { target: { value: '90' } })
+    expect(priceInput.value).toBe('90')
+  })
 })

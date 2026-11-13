@@ -19,6 +19,15 @@ export function usePOSKeyboard({
   const [selectedProductIndex, setSelectedProductIndex] = useState(0)
   const [selectedCartIndex, setSelectedCartIndex] = useState(-1)
   const [activeZone, setActiveZone] = useState('SEARCH') // 'SEARCH' | 'PRODUCTS' | 'CART'
+  const [productColumnCount, setProductColumnCount] = useState(getPosProductColumnCount)
+
+  useEffect(() => {
+    function onResize() {
+      setProductColumnCount(getPosProductColumnCount())
+    }
+    window.addEventListener('resize', onResize)
+    return () => window.removeEventListener('resize', onResize)
+  }, [])
 
   // Derive clamped values during render:
   const safeProductIndex = products.length === 0
@@ -66,22 +75,46 @@ export function usePOSKeyboard({
         return
       }
 
+      // Shortcut 'S' / 's' to immediately activate product search (even from quantity editing box)
+      if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        // If product search input is already focused, let user type 's' or 'S' normally
+        if (document.activeElement === searchRef.current) {
+          return
+        }
+
+        // If customer search text input is focused, let user type 's' or 'S' normally
+        if (document.activeElement?.getAttribute('data-testid') === 'customer-search-inline-input') {
+          return
+        }
+
+        e.preventDefault()
+        setActiveZone('SEARCH')
+        if (searchRef.current) {
+          searchRef.current.focus()
+          searchRef.current.select?.()
+        }
+        return
+      }
+
       const isInputFocused =
         document.activeElement &&
         (document.activeElement.tagName === 'INPUT' ||
           document.activeElement.tagName === 'TEXTAREA' ||
           document.activeElement.tagName === 'SELECT')
 
-      // If search input is focused, search input's onKeyDown handles ArrowUp/Down and Enter directly
+      // If search input is focused, search input's onKeyDown handles arrows and Enter directly
       if (document.activeElement === searchRef.current) {
         return
       }
 
-      // If another input is focused, don't intercept standard editing keys
+      // If another input is focused (cart qty, our-price, discount), don't intercept
       if (isInputFocused) return
 
-      // Product grid navigation
-      if (activeZone === 'PRODUCTS') {
+      const cols = productColumnCount || 2
+
+      // Product grid: left / right / up / down. Skip while the cart list is the active zone
+      // so existing cart arrow, +/-, Delete, and U shortcuts stay unchanged.
+      if (activeZone !== 'CART' && products.length > 0) {
         if (e.key === 'ArrowRight') {
           e.preventDefault()
           setSelectedProductIndex(Math.min(products.length - 1, safeProductIndex + 1))
@@ -107,13 +140,13 @@ export function usePOSKeyboard({
           }
           return
         }
-        if (e.key === 'Enter') {
+        if (e.key === 'Enter' && activeZone === 'PRODUCTS') {
           e.preventDefault()
           const prod = products[safeProductIndex]
           if (prod) onAddProduct?.(prod)
           return
         }
-        if (e.key === 'Tab') {
+        if (e.key === 'Tab' && activeZone === 'PRODUCTS') {
           e.preventDefault()
           if (cartItems.length > 0) {
             setActiveZone('CART')
@@ -192,6 +225,7 @@ export function usePOSKeyboard({
     safeProductIndex,
     safeCartIndex,
     activeZone,
+    productColumnCount,
     isModalOpen,
     onAddProduct,
     onUpdateCartQuantity,
@@ -210,5 +244,6 @@ export function usePOSKeyboard({
     setSelectedCartIndex,
     activeZone,
     setActiveZone,
+    productColumnCount,
   }
 }

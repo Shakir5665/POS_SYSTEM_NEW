@@ -107,6 +107,24 @@ describe('Batch 3 & Batch 4: Predefined discounts and cart presentation', () => 
     expect(totals.total_quantity).toBe(2)
   })
 
+  it('uses a cart-line our_price override for this transaction only', () => {
+    const items = [
+      {
+        price: 100,
+        usual_price: 120,
+        our_price: 90,
+        quantity: 2,
+        apply_predefined_discount: true,
+      },
+    ]
+
+    const totals = cartTotals(items, 0, 0)
+    expect(totals.usual_subtotal).toBe(240)
+    expect(totals.predefined_discounts).toBe(60)
+    expect(totals.subtotal).toBe(180)
+    expect(totals.total).toBe(180)
+  })
+
   it('calculates at Usual Price when predefined discount is toggled off', () => {
     const items = [
       {

@@ -164,4 +164,42 @@ describe('Batch 3: Predefined & Cart Discounts', () => {
       })
     expect(resTooLarge.status).toBe(422)
   })
+
+  it('uses a transaction-only our_price override for sale totals without changing the product catalog price', async () => {
+    const catalogBefore = await prisma.product.findUnique({ where: { id: testProduct.id } })
+    expect(parseFloat(catalogBefore.our_price)).toBe(100.0)
+
+    // 2 units at overridden our price 90 = 180. Predefined discount = 2 × (120 - 90) = 60.
+    const res = await request(app)
+      .post('/api/sales')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({
+        items: [
+          {
+            product_id: testProduct.id,
+            quantity: 2,
+            predefined_discount_applied: true,
+            our_price: 90,
+          },
+        ],
+        payment_method: 'CASH',
+        amount_paid: 180,
+      })
+
+    expect(res.status).toBe(201)
+    const sale = res.body.data
+    expect(parseFloat(sale.subtotal)).toBe(180.0)
+    expect(parseFloat(sale.total_amount)).toBe(180.0)
+
+    const item = sale.items[0]
+    expect(parseFloat(item.usual_price_snapshot)).toBe(120.0)
+    expect(parseFloat(item.our_price_snapshot)).toBe(90.0)
+    expect(parseFloat(item.unit_price)).toBe(90.0)
+    expect(parseFloat(item.predefined_discount_amount)).toBe(60.0)
+    expect(parseFloat(item.total)).toBe(180.0)
+
+    const catalogAfter = await prisma.product.findUnique({ where: { id: testProduct.id } })
+    expect(parseFloat(catalogAfter.our_price)).toBe(100.0)
+    expect(parseFloat(catalogAfter.price)).toBe(100.0)
+  })
 })

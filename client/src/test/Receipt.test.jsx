@@ -172,37 +172,27 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     expect(printRoot.textContent).toContain('MRKT_Price Subtotal:')
     expect(printRoot.textContent).toContain('540.00')
 
-    // Our Total Discount = Predefined (40 + 60 = 100) + Additional Cart Discount (10) = 110.00
-    expect(printRoot.textContent).toContain('Our Total Discount:')
-    expect(printRoot.textContent).toContain('-110.00')
+    // Market Price Subtotal should be removed
+    expect(printRoot.textContent).not.toContain('Market Price Subtotal:')
 
-    // Grand Total = 540.00 - 110.00 = 430.00 (or matches sale total)
-    expect(printRoot.textContent).toContain('Grand Total:')
+    // Our Price Total with Sinhala = (2 * 100) + (2 * 120) = 440.00
+    expect(printRoot.textContent).toContain('Our Price (අපේ මිල):')
+    expect(printRoot.textContent).toContain('440.00')
+
+    // Total Discount (වට්ටම) in separate box = Predefined (40 + 60 = 100) + Cart Discount (10) = 110.00
+    const discountBox = printRoot.querySelector('[data-testid="discount-box"]')
+    expect(discountBox).not.toBeNull()
+    expect(discountBox.textContent).toContain('Total Discount (වට්ටම):')
+    expect(discountBox.textContent).toContain('-110.00')
+
+    // Grand Total with Sinhala
+    expect(printRoot.textContent).toContain('Grand Total (මුළු එකතුව):')
 
     // Payment details
     expect(printRoot.textContent).toContain('Amount Paid:')
     expect(printRoot.textContent).toContain('250.00')
     expect(printRoot.textContent).toContain('Change:')
     expect(printRoot.textContent).toContain('40.00')
-  })
-
-  it('supports 58mm compact layout toggle without truncation or loss of information', () => {
-    render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
-
-    // Click 58mm toggle
-    fireEvent.click(screen.getByTestId('toggle-58mm'))
-
-    const printRoot = document.getElementById('print-root')
-    const items58 = printRoot.querySelector('[data-testid="receipt-items-58mm"]')
-    expect(items58).not.toBeNull()
-
-    // Verifies all 5 pieces of information exist in 58mm layout
-    expect(items58.textContent).toContain('Items (2)')
-    expect(items58.textContent).toContain('Chilli')
-    expect(items58.textContent).toContain('2 kg')
-    expect(items58.textContent).toContain('120.00')
-    expect(items58.textContent).toContain('100.00')
-    expect(items58.textContent).toContain('200.00')
   })
 
   it('guarantees preview screen view and printed receipt output contain identical calculations', () => {
@@ -229,7 +219,7 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
       '540.00',
       'Our Total Discount:',
       '-110.00',
-      'Grand Total:',
+      'Grand Total (මුළු එකතුව):',
     ]
 
     for (const val of checkValues) {

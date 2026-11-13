@@ -3,10 +3,10 @@ import { getReceiptDataModel } from '../utils/receiptModel'
 
 /**
  * Pure presentation component for receipt rendering.
- * Shared 1:1 between on-screen modal review and thermal print portal (58mm & 80mm).
+ * Shared 1:1 between on-screen modal review and thermal print portal.
  * Currency symbol/code is omitted in receipts per retail receipt formatting.
  */
-export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidth = '80mm' }) {
+export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
   if (!sale) return null
 
   const fmt = (v) => formatAmount(v)
@@ -22,19 +22,15 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
   } = sale
 
   const paymentObj = payment || (sale.payments?.[0] ?? null)
-  const is58mm = paperWidth === '58mm'
 
   return (
     <div
       className={`receipt-body font-mono text-gray-900 ${
         isPrint
-          ? is58mm
-            ? 'text-[11px] p-1 max-w-[58mm] mx-auto w-full'
-            : 'text-xs p-1 max-w-[80mm] mx-auto w-full'
+          ? 'text-xs p-1 max-w-[80mm] mx-auto w-full'
           : 'text-sm'
       }`}
       data-testid="receipt-content"
-      data-paper-width={paperWidth}
     >
       {/* Store Header */}
       <div className="text-center mb-3">
@@ -47,7 +43,6 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
       <div className="border-t border-dashed border-gray-400 py-1.5 text-xs space-y-1">
         <div className="flex justify-between items-baseline gap-2">
           <div className="truncate">
-            <span className="text-gray-600">Invoice: </span>
             <span className="font-semibold">{transaction_id}</span>
           </div>
           <div className="text-right flex-shrink-0 text-[11px] text-gray-700">
@@ -56,17 +51,17 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
         </div>
         <div className="flex justify-between items-baseline gap-2">
           <div className="truncate">
-            <span className="text-gray-600">Cashier: </span>
+            <span className="text-gray-600">CASH: </span>
             <span className="font-medium">{user?.full_name || '—'}</span>
           </div>
           <div className="text-right truncate text-gray-700">
-            <span className="text-gray-600">Customer: </span>
+            <span className="text-gray-600">CUS: </span>
             <span className="font-medium">{customer?.name || 'Walk-in'}</span>
           </div>
         </div>
       </div>
 
-      {/* ── 5-Column Item Table (Task 2.1 & 2.2) ── */}
+      {/* ── Item Table ── */}
       <div className="border-t border-dashed border-gray-400 py-2 text-xs">
         {is58mm ? (
           /* 58mm Compact Layout: Product name on top line, 4 numeric columns underneath */
@@ -98,20 +93,9 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
                 <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Our_price</th>
                 <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Amount</th>
               </tr>
-            </thead>
-            <tbody>
-              {computedItems.map((item, idx) => (
-                <tr key={idx} className="receipt-table-row border-b border-dotted border-gray-200 last:border-0 align-top">
-                  <td className="text-left py-1 pr-1 font-medium text-gray-900 break-words">{item.name}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-700">{item.qty}{item.unitLabel}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-500">{fmt(item.marketPrice)}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-900 font-medium">{fmt(item.ourPrice)}</td>
-                  <td className="text-right py-1 pl-1 whitespace-nowrap font-bold text-gray-900">{fmt(item.lineTotal)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+            ))}
+          </tbody>
+        </table>
       </div>
 
       {/* ── Financial Summary (Task 2.3) ── */}
@@ -128,11 +112,18 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
           <span className="font-semibold">{fmt(summary.marketSubtotal)}</span>
         </div>
 
-        {/* 2. Our Total Discount (Combined: Predefined Discounts + Additional Cart Discount + Manual item discounts) */}
+        {/* 2. Total Discount Provided by Us (Separate Box) */}
         {summary.ourTotalDiscount > 0 && (
-          <div className="flex justify-between text-success-700 print:text-black">
-            <span>Our Total Discount:</span>
-            <span className="font-semibold">-{fmt(summary.ourTotalDiscount)}</span>
+          <div
+            className="border border-dashed border-gray-900 p-1.5 my-1.5 rounded-sm bg-gray-50/60 print:bg-transparent"
+            data-testid="discount-box"
+          >
+            <div className="flex justify-between items-center font-bold text-xs text-gray-900">
+              <span>Total Discount (වට්ටම):</span>
+              <span className="font-bold text-success-700 print:text-black">
+                {fmt(summary.ourTotalDiscount)}
+              </span>
+            </div>
           </div>
         )}
 
@@ -144,11 +135,6 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
           </div>
         )}
 
-        {/* 4. Grand Total */}
-        <div className="flex justify-between font-bold text-base border-t border-gray-900 pt-1 mt-1">
-          <span>Grand Total:</span>
-          <span>{fmt(summary.grandTotal)}</span>
-        </div>
 
         {/* Payment Breakdown */}
         <div className="flex justify-between pt-1">

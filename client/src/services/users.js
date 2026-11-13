@@ -7,4 +7,5 @@ export const usersService = {
   update: (id, data) => api.put(`/users/${id}`, data),
   resetPassword: (id, data) => api.post(`/users/${id}/reset-password`, data),
   unlock: (id) => api.post(`/users/${id}/unlock`),
+  delete: (id) => api.delete(`/users/${id}`),
 }

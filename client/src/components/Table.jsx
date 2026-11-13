@@ -1,4 +1,4 @@
-export function Table({ columns, data, isLoading, emptyMessage = 'No data found.' }) {
+export function Table({ columns, data, isLoading, emptyMessage = 'No data found.', onRowClick }) {
   if (isLoading) {
     return (
       <div className="overflow-x-auto">
@@ -64,7 +64,11 @@ export function Table({ columns, data, isLoading, emptyMessage = 'No data found.
         </thead>
         <tbody className="bg-white divide-y divide-gray-100">
           {data.map((row, i) => (
-            <tr key={row.id || i} className="hover:bg-gray-50 transition">
+            <tr
+              key={row.id || i}
+              onClick={() => onRowClick?.(row)}
+              className={`hover:bg-gray-50 transition ${onRowClick ? 'cursor-pointer' : ''}`}
+            >
               {columns.map((col) => (
                 <td key={col.key} className="px-4 py-3 text-sm text-gray-700 whitespace-nowrap">
                   {col.render ? col.render(row[col.key], row) : row[col.key]}

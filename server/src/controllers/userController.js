@@ -45,4 +45,13 @@ async function unlockUser(req, res, next) {
   }
 }
 
-module.exports = { listUsers, createUser, updateUser, resetPassword, unlockUser }
+async function deleteUser(req, res, next) {
+  try {
+    await userService.deleteUser(req.params.id, req.user.id)
+    res.json({ success: true, message: 'User permanently deleted successfully' })
+  } catch (err) {
+    next(err)
+  }
+}
+
+module.exports = { listUsers, createUser, updateUser, resetPassword, unlockUser, deleteUser }

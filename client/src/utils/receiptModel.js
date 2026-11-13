@@ -43,17 +43,32 @@ export function formatReceiptItem(item) {
       : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01))
 
   let pricingFactor = 1
-  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+  const unitStr = (item.unit || item.base_unit || '').toLowerCase()
+  const pricingUnitStr = (item.pricing_unit || '').toLowerCase()
+  const isWeight = item.unit_category === 'WEIGHT' || ['g', 'kg'].includes(unitStr) || ['g', 'kg'].includes(pricingUnitStr)
+  const isVolume = item.unit_category === 'VOLUME' || ['ml', 'l'].includes(unitStr) || ['ml', 'l'].includes(pricingUnitStr)
+
+  if (isWeight || isVolume) {
+    const factorSelling = unitStr === 'g' || unitStr === 'ml' ? 1 : 1000
+    const factorPricing = pricingUnitStr === 'g' || pricingUnitStr === 'ml' ? 1 : 1000
     pricingFactor = factorSelling / factorPricing
   }
   const pricingQty = qty * pricingFactor
 
-  const usualLineGross = usualPrice != null ? Number((pricingQty * usualPrice).toFixed(2)) : null
-  const predefinedDiscountAmount = item.predefined_discount_amount != null
-    ? Number(item.predefined_discount_amount)
-    : (predefinedApplied && usualPrice != null && ourPrice != null ? Number((Math.max(0, usualPrice - ourPrice) * pricingQty).toFixed(2)) : 0)
+  const unitMarket = usualPrice != null ? usualPrice : unitPrice
+  const unitOur = ourPrice != null ? ourPrice : unitPrice
+
+  const marketPrice = Number((pricingQty * unitMarket).toFixed(2))
+  const ourPriceVal = Number((pricingQty * unitOur).toFixed(2))
+  const ourLineGross = ourPriceVal
+  const usualLineGross = marketPrice
+
+  let predefinedDiscountAmount = 0
+  if (predefinedApplied && marketPrice > ourPriceVal) {
+    predefinedDiscountAmount = Number((marketPrice - ourPriceVal).toFixed(2))
+  } else if (item.predefined_discount_amount != null) {
+    predefinedDiscountAmount = Number(item.predefined_discount_amount)
+  }
 
   // Determine line gross at unit_price
   let lineGross = 0
@@ -120,15 +135,19 @@ export function formatReceiptItem(item) {
   return {
     name,
     qty,
+    pricingQty,
     unitLabel,
     unitPrice,
     usualPrice,
+    unitMarketPrice: unitMarket,
+    unitOurPrice: unitOur,
     ourPrice: ourPriceVal,
     marketPrice,
     predefinedApplied,
     predefinedDiscountAmount,
     usualLineGross,
     marketLineGross: usualLineGross != null ? usualLineGross : lineGross,
+    ourLineGross,
     lineGross,
     unitDiscount,
     totalDiscount,
@@ -153,6 +172,7 @@ export function calculateReceiptSummary(sale, computedItems = []) {
       usualSubtotal: 0,
       totalPredefinedDiscounts: 0,
       grossSubtotal: 0,
+      ourPriceTotal: 0,
       totalProductDiscounts: 0,
       additionalCartDiscount: 0,
       totalDiscounts: 0,
@@ -181,7 +201,15 @@ export function calculateReceiptSummary(sale, computedItems = []) {
   )
   const totalPredefinedDiscounts = Number(computedPredefinedDiscounts.toFixed(2))
 
-  // 3. Gross Subtotal at selling price
+  // 3. Our Price Total & Gross Subtotal
+  const computedOurPrice = computedItems.reduce(
+    (sum, it) => sum + (it.ourLineGross != null ? it.ourLineGross : (it.lineGross || 0)),
+    0
+  )
+  const ourPriceTotal = computedItems.length > 0
+    ? Number(computedOurPrice.toFixed(2))
+    : (sale.subtotal != null ? Number(sale.subtotal) : (sale.gross_subtotal != null ? Number(sale.gross_subtotal) : 0))
+
   const computedGross = computedItems.reduce((sum, it) => sum + (it.lineGross || 0), 0)
   const grossSubtotal = sale.gross_subtotal != null ? Number(sale.gross_subtotal) : Number(computedGross.toFixed(2))
   const marketSubtotalVal = usualSubtotal != null ? usualSubtotal : grossSubtotal
@@ -225,6 +253,7 @@ export function calculateReceiptSummary(sale, computedItems = []) {
     marketSubtotal: marketSubtotalVal,
     totalPredefinedDiscounts,
     grossSubtotal,
+    ourPriceTotal,
     totalProductDiscounts,
     additionalCartDiscount,
     totalDiscounts,

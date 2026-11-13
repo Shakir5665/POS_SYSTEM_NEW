@@ -60,9 +60,17 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     const rawUsual = product.usual_price !== null && product.usual_price !== undefined && Number(product.usual_price) > 0
       ? product.usual_price
       : product.price
-    const rawOur = product.our_price !== null && product.our_price !== undefined && Number(product.our_price) > 0
+    const catalogOur = product.our_price !== null && product.our_price !== undefined && Number(product.our_price) > 0
       ? product.our_price
       : rawUsual
+    const hasLineOurOverride = item.our_price !== undefined && item.our_price !== null && item.our_price !== ''
+    if (hasLineOurOverride && Number(item.our_price) < 0) {
+      throw new ValidationError('Invalid our price', [
+        { field: 'items', message: `Our price for "${product.name}" cannot be negative` },
+      ])
+    }
+    // Transaction-only override: used for this sale's snapshots and totals, never written to product.our_price
+    const rawOur = hasLineOurOverride ? item.our_price : catalogOur
 
     const usualPriceSnapshot = toMoney(rawUsual)
     const ourPriceSnapshot = toMoney(rawOur)
@@ -378,7 +386,7 @@ async function getSaleById(id) {
   return sale
 }
 
-async function listSales({ page = 1, per_page = 20, start_date, end_date, user_id, customer_id } = {}) {
+async function listSales({ page = 1, per_page = 20, start_date, end_date, user_id, customer_id, search } = {}) {
   const skip = (page - 1) * per_page
   const take = Math.min(per_page, 100)
 
@@ -394,6 +402,16 @@ async function listSales({ page = 1, per_page = 20, start_date, end_date, user_i
   }
   if (user_id) where.user_id = user_id
   if (customer_id) where.customer_id = customer_id
+
+  if (search && search.trim()) {
+    const q = search.trim()
+    where.OR = [
+      { transaction_id: { contains: q, mode: 'insensitive' } },
+      { customer: { name: { contains: q, mode: 'insensitive' } } },
+      { user: { full_name: { contains: q, mode: 'insensitive' } } },
+      { user: { username: { contains: q, mode: 'insensitive' } } },
+    ]
+  }
 
   const [sales, total] = await Promise.all([
     prisma.sale.findMany({
