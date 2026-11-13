@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useCart } from '../hooks/useCart'
@@ -370,17 +370,21 @@ function QuickCustomerModal({ isOpen, onClose, onCustomerCreated }) {
 export function InlineCustomerSelector({ customer, customersList = [], onSelect, onOpenQuickCustomer }) {
   const [isOpen, setIsOpen] = useState(false)
   const [query, setQuery] = useState('')
-  const [localCustomers, setLocalCustomers] = useState(customersList)
+  const [extraCustomers, setExtraCustomers] = useState([])
   const [selectedIndex, setSelectedIndex] = useState(0)
   const containerRef = useRef(null)
   const inputRef = useRef(null)
 
-  // Sync when prop updates
-  useEffect(() => {
-    if (customersList && customersList.length > 0) {
-      setLocalCustomers(customersList)
+  const localCustomers = useMemo(() => {
+    const map = new Map()
+    for (const c of customersList || []) {
+      if (c && c.id) map.set(c.id, c)
     }
-  }, [customersList])
+    for (const c of extraCustomers) {
+      if (c && c.id) map.set(c.id, c)
+    }
+    return Array.from(map.values())
+  }, [customersList, extraCustomers])
 
   // Fallback initial fetch if parent hasn't loaded customers yet
   useEffect(() => {
@@ -389,7 +393,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
     customersService.list({ per_page: 100 })
       .then((res) => {
         if (!cancelled && res.data?.data) {
-          setLocalCustomers(res.data.data)
+          setExtraCustomers(res.data.data)
         }
       })
       .catch(() => {})
@@ -404,7 +408,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
         const res = await customersService.list({ search: query.trim(), per_page: 30 })
         const serverResults = res.data?.data || []
         if (serverResults.length > 0) {
-          setLocalCustomers((prev) => {
+          setExtraCustomers((prev) => {
             const map = new Map(prev.map((c) => [c.id, c]))
             serverResults.forEach((c) => map.set(c.id, c))
             return Array.from(map.values())
@@ -448,24 +452,18 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
     return scored.slice(0, 10).map((s) => s.customer)
   }, [localCustomers, query])
 
-  // Reset selected highlight index: highlight top customer match if query is typed
-  useEffect(() => {
-    if (query.trim() && sortedResults.length > 0) {
-      setSelectedIndex(1)
-    } else {
-      setSelectedIndex(0)
-    }
-  }, [query, sortedResults.length])
+  const totalDropdownItems = 1 + sortedResults.length
+  const safeSelectedIndex = sortedResults.length === 0 ? 0 : Math.min(Math.max(0, selectedIndex), totalDropdownItems - 1)
 
   // Auto-scroll highlighted dropdown item into view
   useEffect(() => {
     if (isOpen) {
-      const el = document.getElementById(`customer-search-item-${selectedIndex}`)
+      const el = document.getElementById(`customer-search-item-${safeSelectedIndex}`)
       if (el && typeof el.scrollIntoView === 'function') {
         el.scrollIntoView({ block: 'nearest' })
       }
     }
-  }, [selectedIndex, isOpen])
+  }, [safeSelectedIndex, isOpen])
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -531,8 +529,10 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
             value={query}
             onFocus={() => setIsOpen(true)}
             onChange={(e) => {
-              setQuery(e.target.value)
+              const val = e.target.value
+              setQuery(val)
               setIsOpen(true)
+              setSelectedIndex(val.trim() ? 1 : 0)
             }}
             onKeyDown={(e) => {
               if (!isOpen) {
@@ -566,12 +566,12 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
               if (e.key === 'Enter') {
                 e.preventDefault()
                 e.stopPropagation()
-                if (selectedIndex === 0) {
+                if (safeSelectedIndex === 0) {
                   onSelect(null)
                   setIsOpen(false)
                   setQuery('')
                 } else {
-                  const selectedCust = sortedResults[selectedIndex - 1]
+                  const selectedCust = sortedResults[safeSelectedIndex - 1]
                   if (selectedCust) {
                     onSelect(selectedCust)
                     setIsOpen(false)
@@ -618,7 +618,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
               setQuery('')
             }}
             className={`px-3 py-2.5 cursor-pointer flex items-center justify-between transition select-none ${
-              selectedIndex === 0
+              safeSelectedIndex === 0
                 ? 'bg-primary-50 text-primary-950 font-semibold border-l-4 border-primary-600 pl-[8px]'
                 : 'text-gray-700 hover:bg-gray-50'
             }`}
@@ -655,7 +655,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
           ) : (
             sortedResults.map((c, idx) => {
               const itemIndex = idx + 1
-              const isSelected = selectedIndex === itemIndex
+              const isSelected = safeSelectedIndex === itemIndex
               const isCurrentCustomer = customer?.id === c.id
 
               return (
@@ -720,6 +720,7 @@ export function CartItem({
   onUpdate,
   onRemove,
   onToggleDiscount,
+  onOurPriceChange,
   onUnitChange,
   isSelected,
   isLastAdded,
@@ -727,9 +728,20 @@ export function CartItem({
   const qtyInputRef = useRef(null)
   const ourPriceInputRef = useRef(null)
   const [stockError, setStockError] = useState('')
+  const [isEditingOurPrice, setIsEditingOurPrice] = useState(false)
   const [ourPriceDraft, setOurPriceDraft] = useState(() =>
     String(item.our_price != null ? item.our_price : item.price ?? '')
   )
+  const [prevPriceProp, setPrevPriceProp] = useState(
+    item.our_price != null ? item.our_price : item.price
+  )
+  const currentPriceProp = item.our_price != null ? item.our_price : item.price
+  if (prevPriceProp !== currentPriceProp) {
+    setPrevPriceProp(currentPriceProp)
+    if (!isEditingOurPrice) {
+      setOurPriceDraft(currentPriceProp == null ? '' : String(currentPriceProp))
+    }
+  }
 
   const maxStock = getAvailableStockForItem(item, allCartItems, productData)
   const current = item.quantity === '' ? 0 : parseFloat(item.quantity)
@@ -759,12 +771,6 @@ export function CartItem({
       qtyInputRef.current?.select()
     }
   }, [isLastAdded])
-
-  useEffect(() => {
-    if (document.activeElement === ourPriceInputRef.current) return
-    const next = item.our_price != null ? item.our_price : item.price
-    setOurPriceDraft(next == null ? '' : String(next))
-  }, [item.our_price, item.price])
 
   function handleDecrement() {
     setStockError('')
@@ -1127,8 +1133,12 @@ export function CartItem({
               inputMode="decimal"
               aria-label={`Our price for ${item.name}`}
               value={ourPriceDraft}
+              onFocus={() => setIsEditingOurPrice(true)}
               onChange={(e) => handleOurPriceChange(e.target.value)}
-              onBlur={() => commitOurPrice(ourPriceDraft)}
+              onBlur={() => {
+                setIsEditingOurPrice(false)
+                commitOurPrice(ourPriceDraft)
+              }}
               onKeyDown={(e) => {
                 if ((e.key === 's' || e.key === 'S' || e.code === 'KeyS') && !e.ctrlKey && !e.metaKey && !e.altKey) {
                   e.preventDefault()
@@ -1202,7 +1212,7 @@ export default function POSPage() {
     items,
     cartDiscount,
     customer,
-   
+    usual_subtotal,
     predefined_discounts,
     subtotal,
     tax,

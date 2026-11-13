@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react'
 
+const getPosProductColumnCount = () => {
+  if (typeof window === 'undefined') return 2
+  const width = window.innerWidth
+  if (width < 640) return 2
+  if (width < 1024) return 3
+  return 4
+}
+
 /**
  * State machine and shortcut handler for the keyboard-first POS experience.
  */
@@ -127,16 +135,16 @@ export function usePOSKeyboard({
         }
         if (e.key === 'ArrowDown') {
           e.preventDefault()
-          setSelectedProductIndex(Math.min(products.length - 1, safeProductIndex + 4)) // assume ~4 columns
+          setSelectedProductIndex(Math.min(products.length - 1, safeProductIndex + cols))
           return
         }
         if (e.key === 'ArrowUp') {
           e.preventDefault()
-          if (safeProductIndex < 4) {
+          if (safeProductIndex < cols) {
             setActiveZone('SEARCH')
             searchRef.current?.focus()
           } else {
-            setSelectedProductIndex(Math.max(0, safeProductIndex - 4))
+            setSelectedProductIndex(Math.max(0, safeProductIndex - cols))
           }
           return
         }

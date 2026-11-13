@@ -126,12 +126,6 @@ export function formatReceiptItem(item) {
   lineTotal = Math.max(0, lineTotal)
   totalDiscount = Math.min(lineGross, Math.max(0, totalDiscount))
 
-  const marketPrice = usualPrice != null ? usualPrice : unitPrice
-  // If predefined discount is unchecked (or disabled), show "our price" as same as "market price"
-  const ourPriceVal = predefinedApplied
-    ? (ourPrice != null ? ourPrice : unitPrice)
-    : marketPrice
-
   return {
     name,
     qty,

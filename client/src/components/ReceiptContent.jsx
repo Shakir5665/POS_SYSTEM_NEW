@@ -6,7 +6,7 @@ import { getReceiptDataModel } from '../utils/receiptModel'
  * Shared 1:1 between on-screen modal review and thermal print portal.
  * Currency symbol/code is omitted in receipts per retail receipt formatting.
  */
-export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
+export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidth = '80mm' }) {
   if (!sale) return null
 
   const fmt = (v) => formatAmount(v)
@@ -22,15 +22,19 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
   } = sale
 
   const paymentObj = payment || (sale.payments?.[0] ?? null)
+  const is58mm = paperWidth === '58mm' || settings?.receipt_printer_paper_width === '58mm'
 
   return (
     <div
       className={`receipt-body font-mono text-gray-900 ${
         isPrint
-          ? 'text-xs p-1 max-w-[80mm] mx-auto w-full'
+          ? is58mm
+            ? 'text-[11px] p-1 max-w-[58mm] mx-auto w-full'
+            : 'text-xs p-1 max-w-[80mm] mx-auto w-full'
           : 'text-sm'
       }`}
       data-testid="receipt-content"
+      data-paper-width={paperWidth}
     >
       {/* Store Header */}
       <div className="text-center mb-3">
@@ -93,9 +97,20 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
                 <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Our_price</th>
                 <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Amount</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {computedItems.map((item, idx) => (
+                <tr key={idx} className="receipt-table-row border-b border-dotted border-gray-200 last:border-0 align-top">
+                  <td className="text-left py-1 pr-1 font-medium text-gray-900 break-words">{item.name}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-700">{item.qty}{item.unitLabel}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-500">{fmt(item.marketPrice)}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap text-gray-900 font-medium">{fmt(item.ourPrice)}</td>
+                  <td className="text-right py-1 pl-1 whitespace-nowrap font-bold text-gray-900">{fmt(item.lineTotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* ── Financial Summary (Task 2.3) ── */}
