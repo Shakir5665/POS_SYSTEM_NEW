@@ -135,7 +135,7 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     window.print = vi.fn()
   })
 
-  it('renders the 5 requested columns: Items (Count), Qty, MRKT_Price, Our_price, Amount in 80mm table', () => {
+  it('renders the requested columns: Items (Count), Market Price, Our Price, Amount in 80mm table with quantity below product name', () => {
     render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
 
     const printRoot = document.getElementById('print-root')
@@ -143,10 +143,12 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
 
     // 1. Column header includes dynamic distinct item count: Items (2)
     expect(printRoot.textContent).toContain('Items (2)')
-    expect(printRoot.textContent).toContain('Qty')
-    expect(printRoot.textContent).toContain('MRKT_Price')
-    expect(printRoot.textContent).toContain('Our_price')
-    expect(printRoot.textContent).toContain('Amount')
+    expect(printRoot.textContent).not.toContain('<th>Qty</th>')
+    expect(printRoot.textContent).toContain('Market Price')
+    expect(printRoot.textContent).toContain('(සා.මිල)')
+    expect(printRoot.textContent).toContain('Our Price')
+    expect(printRoot.textContent).toContain('(අපේ මිල)')
+    expect(printRoot.textContent).toContain('AMOUNT')
 
     // 2. Chilli item values
     expect(printRoot.textContent).toContain('Chilli')
@@ -163,16 +165,13 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
     expect(printRoot.textContent).toContain('240.00') // Line Amount (2 * 120)
   })
 
-  it('renders the redesigned summary: MRKT_Price Subtotal, Our Total Discount, and Grand Total', () => {
+  it('renders the redesigned summary: Our Price total first, Total Discount in separate box, and Grand Total with Sinhala labels', () => {
     render(<Receipt sale={redesignSale} onClose={vi.fn()} />)
 
     const printRoot = document.getElementById('print-root')
 
-    // MRKT_Price Subtotal = (2 * 120) + (2 * 150) = 240 + 300 = 540.00
-    expect(printRoot.textContent).toContain('MRKT_Price Subtotal:')
-    expect(printRoot.textContent).toContain('540.00')
-
-    // Market Price Subtotal should be removed
+    // Market Price Subtotal should be removed completely
+    expect(printRoot.textContent).not.toContain('MRKT_Price Subtotal:')
     expect(printRoot.textContent).not.toContain('Market Price Subtotal:')
 
     // Our Price Total with Sinhala = (2 * 100) + (2 * 120) = 440.00
@@ -215,9 +214,9 @@ describe('Task 2: Redesigned 5-Column Receipt Table & Financial Summary', () => 
       '150.00',
       '120.00',
       '240.00',
-      'MRKT_Price Subtotal:',
-      '540.00',
-      'Our Total Discount:',
+      'Our Price (අපේ මිල):',
+      '440.00',
+      'Total Discount (වට්ටම):',
       '-110.00',
       'Grand Total (මුළු එකතුව):',
     ]
