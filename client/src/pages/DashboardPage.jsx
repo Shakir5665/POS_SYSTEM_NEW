@@ -15,7 +15,7 @@ import {
 } from 'recharts'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { reportsService } from '../services/reports'
-import { formatCurrency } from '../utils/formatCurrency'
+import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
 
 const PIE_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#0891B2']
@@ -30,16 +30,25 @@ function SkeletonCard() {
   )
 }
 
-function KpiCard({ title, value, subtitle, icon, color }) {
+function KpiCard({ title, value, subtitle, icon, color, tooltip }) {
+  const displayTooltip = tooltip !== undefined ? tooltip : (typeof value === 'string' || typeof value === 'number' ? String(value) : undefined)
   return (
-    <div className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm flex items-start gap-4">
+    <div
+      className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm flex items-start gap-4"
+      title={displayTooltip}
+    >
       <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
         {icon}
       </div>
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1">
         <p className="text-sm text-gray-500 font-medium">{title}</p>
-        <p className="text-2xl font-bold text-gray-900 mt-0.5 truncate">{value}</p>
-        {subtitle && <p className="text-xs text-gray-400 mt-1">{subtitle}</p>}
+        <p
+          className="text-2xl font-bold text-gray-900 mt-0.5 truncate"
+          title={displayTooltip}
+        >
+          {value}
+        </p>
+        {subtitle && <p className="text-xs text-gray-400 mt-1 truncate">{subtitle}</p>}
       </div>
     </div>
   )
@@ -120,6 +129,12 @@ export default function DashboardPage() {
 
   const lowStockItems = inventoryStatus?.low_stock ?? []
 
+  const todayRevenue = dashboardMetrics?.today_revenue ?? summary?.total_revenue ?? 0
+  const todayCollections = dashboardMetrics?.today_collections ?? summary?.total_collected ?? 0
+  const todayCredit = dashboardMetrics?.today_credit_sales ?? summary?.total_credit ?? 0
+  const customerReceivables = dashboardMetrics?.total_customer_receivables ?? 0
+  const supplierPayables = dashboardMetrics?.total_supplier_payables ?? 0
+
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -145,7 +160,8 @@ export default function DashboardPage() {
             <>
               <KpiCard
                 title="Today's Revenue"
-                value={formatCurrency(dashboardMetrics?.today_revenue ?? summary?.total_revenue ?? 0)}
+                value={formatCompactCurrency(todayRevenue)}
+                tooltip={formatCurrency(todayRevenue)}
                 subtitle="Total value of goods sold"
                 color="bg-primary-100"
                 icon={
@@ -156,7 +172,8 @@ export default function DashboardPage() {
               />
               <KpiCard
                 title="Cash Collected Today"
-                value={formatCurrency(dashboardMetrics?.today_collections ?? summary?.total_collected ?? 0)}
+                value={formatCompactCurrency(todayCollections)}
+                tooltip={formatCurrency(todayCollections)}
                 subtitle="Physical cash & electronic receipts"
                 color="bg-success-100"
                 icon={
@@ -167,7 +184,8 @@ export default function DashboardPage() {
               />
               <KpiCard
                 title="Today's Credit Sales"
-                value={formatCurrency(dashboardMetrics?.today_credit_sales ?? summary?.total_credit ?? 0)}
+                value={formatCompactCurrency(todayCredit)}
+                tooltip={formatCurrency(todayCredit)}
                 subtitle="Dispatched on customer credit"
                 color="bg-blue-100"
                 icon={
@@ -195,7 +213,8 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           <KpiCard
             title="Customer Receivables"
-            value={formatCurrency(dashboardMetrics?.total_customer_receivables ?? 0)}
+            value={formatCompactCurrency(customerReceivables)}
+            tooltip={formatCurrency(customerReceivables)}
             subtitle="Outstanding credit due from customers"
             color="bg-amber-100"
             icon={
@@ -206,7 +225,8 @@ export default function DashboardPage() {
           />
           <KpiCard
             title="Supplier Payables"
-            value={formatCurrency(dashboardMetrics?.total_supplier_payables ?? 0)}
+            value={formatCompactCurrency(supplierPayables)}
+            tooltip={formatCurrency(supplierPayables)}
             subtitle="Outstanding payables due to vendors"
             color="bg-red-100"
             icon={

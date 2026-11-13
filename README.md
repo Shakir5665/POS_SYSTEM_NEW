@@ -284,7 +284,7 @@ See [docs/API.md](docs/API.md) for the full reference.
 
 ## Currency
 
-Default currency: **GHS (Ghana Cedis)** — displayed as `GH₵ 1,234.56`. Configurable via Settings.
+Default currency: **LKR** — displayed as `LKR 1,234.56`. Configurable via Settings.
 
 ---
 

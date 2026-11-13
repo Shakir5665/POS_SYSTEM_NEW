@@ -8,7 +8,7 @@ import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
 import { financeService } from '../services/finance'
-import { formatCurrency } from '../utils/formatCurrency'
+import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 
 const TABS = [
   { key: 'overview', label: 'Financial Overview' },
@@ -26,7 +26,7 @@ export default function FinancePage() {
   const [expenses, setExpenses] = useState([])
   const [categories, setCategories] = useState([])
   const [expenseMeta, setExpenseMeta] = useState({ page: 1, total_pages: 1, total: 0, total_expenses_amount: 0 })
-  const [expensePage, setExpensePage] = useState(1)
+  const [expensePage] = useState(1)
   const [selectedCategory, setSelectedCategory] = useState('')
   const [expenseSearch, setExpenseSearch] = useState('')
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
@@ -43,7 +43,7 @@ export default function FinancePage() {
   // ------------------ Assets State ------------------
   const [assets, setAssets] = useState([])
   const [assetMeta, setAssetMeta] = useState({ page: 1, total_pages: 1, total: 0, total_current_value: 0 })
-  const [assetPage, setAssetPage] = useState(1)
+  const [assetPage] = useState(1)
   const [assetModalOpen, setAssetModalOpen] = useState(false)
   const [assetForm, setAssetForm] = useState({
     name: '',
@@ -59,7 +59,7 @@ export default function FinancePage() {
   // ------------------ Owner Equity State ------------------
   const [transactions, setTransactions] = useState([])
   const [equityMeta, setEquityMeta] = useState({ page: 1, total_pages: 1, total: 0, summary: {} })
-  const [equityPage, setEquityPage] = useState(1)
+  const [equityPage] = useState(1)
   const [equityModalOpen, setEquityModalOpen] = useState(false)
   const [equityForm, setEquityForm] = useState({
     type: 'CONTRIBUTION',
@@ -424,38 +424,38 @@ export default function FinancePage() {
         {activeTab === 'overview' && summary && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_expenses)}>
                 <p className="text-sm font-medium text-gray-500">Total Operating Expenses</p>
-                <p className="text-2xl font-bold text-danger-600 mt-1">{formatCurrency(summary.total_expenses)}</p>
+                <p className="text-2xl font-bold text-danger-600 mt-1">{formatCompactCurrency(summary.total_expenses)}</p>
                 <p className="text-xs text-gray-400 mt-1">Rent, utilities & logistics</p>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_asset_value)}>
                 <p className="text-sm font-medium text-gray-500">Business Assets Valuation</p>
-                <p className="text-2xl font-bold text-primary-600 mt-1">{formatCurrency(summary.total_asset_value)}</p>
+                <p className="text-2xl font-bold text-primary-600 mt-1">{formatCompactCurrency(summary.total_asset_value)}</p>
                 <p className="text-xs text-gray-400 mt-1">Equipment & electronics</p>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.net_capital)}>
                 <p className="text-sm font-medium text-gray-500">Net Owner Capital</p>
-                <p className="text-2xl font-bold text-success-600 mt-1">{formatCurrency(summary.net_capital)}</p>
+                <p className="text-2xl font-bold text-success-600 mt-1">{formatCompactCurrency(summary.net_capital)}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  In: {formatCurrency(summary.total_contributions)} | Out: {formatCurrency(summary.total_withdrawals || 0)}
+                  In: <span title={formatCurrency(summary.total_contributions)}>{formatCompactCurrency(summary.total_contributions)}</span> | Out: <span title={formatCurrency(summary.total_withdrawals || 0)}>{formatCompactCurrency(summary.total_withdrawals || 0)}</span>
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_equity ?? summary.net_capital)}>
                 <p className="text-sm font-medium text-gray-500">Total Business Equity</p>
-                <p className="text-2xl font-bold text-emerald-700 mt-1">{formatCurrency(summary.total_equity ?? summary.net_capital)}</p>
+                <p className="text-2xl font-bold text-emerald-700 mt-1">{formatCompactCurrency(summary.total_equity ?? summary.net_capital)}</p>
                 <p className="text-xs text-gray-400 mt-1">
-                  Capital + Profit: {formatCurrency(summary.retained_earnings || 0)}
+                  Capital + Profit: <span title={formatCurrency(summary.retained_earnings || 0)}>{formatCompactCurrency(summary.retained_earnings || 0)}</span>
                 </p>
               </div>
 
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs">
+              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_supplier_payables)}>
                 <p className="text-sm font-medium text-gray-500">Outstanding Payables</p>
                 <p className="text-2xl font-bold text-warning-700 mt-1">
-                  {formatCurrency(summary.total_supplier_payables)}
+                  {formatCompactCurrency(summary.total_supplier_payables)}
                 </p>
                 <p className="text-xs text-gray-400 mt-1">Unpaid vendor invoices</p>
               </div>
@@ -469,11 +469,11 @@ export default function FinancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Assets & Receivables</p>
                   <div className="flex justify-between text-sm py-1 border-b">
                     <span className="text-gray-600">Fixed & Operating Assets</span>
-                    <span className="font-mono font-medium">{formatCurrency(summary.total_asset_value)}</span>
+                    <span className="font-mono font-medium" title={formatCurrency(summary.total_asset_value)}>{formatCompactCurrency(summary.total_asset_value)}</span>
                   </div>
                   <div className="flex justify-between text-sm py-1">
                     <span className="text-gray-600">Customer Credit Receivables</span>
-                    <span className="font-mono font-medium">{formatCurrency(summary.total_customer_receivables)}</span>
+                    <span className="font-mono font-medium" title={formatCurrency(summary.total_customer_receivables)}>{formatCompactCurrency(summary.total_customer_receivables)}</span>
                   </div>
                 </div>
 
@@ -481,26 +481,26 @@ export default function FinancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Liabilities & Equity</p>
                   <div className="flex justify-between text-sm py-1 border-b">
                     <span className="text-gray-600">Supplier Payables (Debt)</span>
-                    <span className="font-mono font-medium text-danger-600">
-                      {formatCurrency(summary.total_supplier_payables)}
+                    <span className="font-mono font-medium text-danger-600" title={formatCurrency(summary.total_supplier_payables)}>
+                      {formatCompactCurrency(summary.total_supplier_payables)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm py-1 border-b">
                     <span className="text-gray-600">Contributed Owner Capital</span>
-                    <span className="font-mono font-medium text-success-600">
-                      {formatCurrency(summary.net_capital)}
+                    <span className="font-mono font-medium text-success-600" title={formatCurrency(summary.net_capital)}>
+                      {formatCompactCurrency(summary.net_capital)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm py-1 border-b">
                     <span className="text-gray-600">Retained Earnings (Operating Profit)</span>
-                    <span className="font-mono font-medium text-gray-900">
-                      {formatCurrency(summary.retained_earnings || 0)}
+                    <span className="font-mono font-medium text-gray-900" title={formatCurrency(summary.retained_earnings || 0)}>
+                      {formatCompactCurrency(summary.retained_earnings || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm py-1 font-bold">
                     <span className="text-gray-800">Total Business Equity</span>
-                    <span className="font-mono text-emerald-700">
-                      {formatCurrency(summary.total_equity ?? summary.net_capital)}
+                    <span className="font-mono text-emerald-700" title={formatCurrency(summary.total_equity ?? summary.net_capital)}>
+                      {formatCompactCurrency(summary.total_equity ?? summary.net_capital)}
                     </span>
                   </div>
                 </div>
@@ -538,8 +538,8 @@ export default function FinancePage() {
 
               <div className="text-right">
                 <p className="text-xs text-gray-500">Total Filtered Expenses</p>
-                <p className="text-lg font-bold text-danger-600 font-mono">
-                  {formatCurrency(expenseMeta.total_expenses_amount || 0)}
+                <p className="text-lg font-bold text-danger-600 font-mono" title={formatCurrency(expenseMeta.total_expenses_amount || 0)}>
+                  {formatCompactCurrency(expenseMeta.total_expenses_amount || 0)}
                 </p>
               </div>
             </div>
@@ -565,8 +565,8 @@ export default function FinancePage() {
               </div>
               <div className="text-right">
                 <p className="text-xs text-gray-500 font-medium">Total Current Valuation</p>
-                <p className="text-2xl font-bold font-mono text-primary-600 mt-0.5">
-                  {formatCurrency(assetMeta.total_current_value || 0)}
+                <p className="text-2xl font-bold font-mono text-primary-600 mt-0.5" title={formatCurrency(assetMeta.total_current_value || 0)}>
+                  {formatCompactCurrency(assetMeta.total_current_value || 0)}
                 </p>
               </div>
             </div>
@@ -586,22 +586,22 @@ export default function FinancePage() {
         {activeTab === 'equity' && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-xl border border-gray-200">
+              <div className="bg-white p-4 rounded-xl border border-gray-200" title={formatCurrency(equityMeta.summary?.total_contributions || 0)}>
                 <p className="text-xs text-gray-500">Total Owner Contributions</p>
                 <p className="text-xl font-bold text-success-600 font-mono mt-1">
-                  +{formatCurrency(equityMeta.summary?.total_contributions || 0)}
+                  +{formatCompactCurrency(equityMeta.summary?.total_contributions || 0)}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-gray-200">
+              <div className="bg-white p-4 rounded-xl border border-gray-200" title={formatCurrency(equityMeta.summary?.total_withdrawals || 0)}>
                 <p className="text-xs text-gray-500">Total Owner Drawings</p>
                 <p className="text-xl font-bold text-danger-600 font-mono mt-1">
-                  -{formatCurrency(equityMeta.summary?.total_withdrawals || 0)}
+                  -{formatCompactCurrency(equityMeta.summary?.total_withdrawals || 0)}
                 </p>
               </div>
-              <div className="bg-white p-4 rounded-xl border border-gray-200">
+              <div className="bg-white p-4 rounded-xl border border-gray-200" title={formatCurrency(equityMeta.summary?.net_owner_equity || 0)}>
                 <p className="text-xs text-gray-500">Net Owner Capital</p>
                 <p className="text-xl font-bold text-gray-900 font-mono mt-1">
-                  {formatCurrency(equityMeta.summary?.net_owner_equity || 0)}
+                  {formatCompactCurrency(equityMeta.summary?.net_owner_equity || 0)}
                 </p>
               </div>
             </div>

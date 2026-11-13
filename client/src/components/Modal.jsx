@@ -4,7 +4,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }) {
   const modalRef = useRef(null)
   const previousActiveElementRef = useRef(null)
   const onCloseRef = useRef(onClose)
-  onCloseRef.current = onClose
+
+  useEffect(() => {
+    onCloseRef.current = onClose
+  }, [onClose])
 
   const wasOpenRef = useRef(false)
 

@@ -6,7 +6,7 @@ const prisma = require('../utils/prismaClient')
 const bcrypt = require('bcrypt')
 
 // Don't call the real Paystack API. By default every reference verifies as a
-// successful GH₵ 10.00 payment, which matches one unit of test product A.
+// successful LKR 10.00 payment, which matches one unit of test product A.
 jest.mock('../services/paystackService', () => ({
   initializeTransaction: jest.fn(),
   verifyTransaction: jest.fn(),
@@ -231,7 +231,7 @@ describe('POST /api/sales — create sale', () => {
 
     expect(res.status).toBe(201)
 
-    // 3 * 10 = 30 GHS → 3 points at default rate of 10 GHS/point
+    // 3 * 10 = 30 LKR → 3 points at default rate of 10 LKR/point
     const afterCustomer = await prisma.customer.findUnique({ where: { id: testCustomer.id } })
     expect(afterCustomer.loyalty_points).toBeGreaterThan(beforePoints)
   })
@@ -842,7 +842,7 @@ describe('Exact money arithmetic', () => {
   const setTax = (value) =>
     prisma.settings.upsert({ where: { key: 'tax_rate' }, update: { value }, create: { key: 'tax_rate', value } })
 
-  it('rounds tax exactly: 5% of GH₵ 0.30 is 0.015, which rounds up to 0.02', async () => {
+  it('rounds tax exactly: 5% of LKR 0.30 is 0.015, which rounds up to 0.02', async () => {
     await setTax('5')
 
     const res = await request(app)
@@ -860,7 +860,7 @@ describe('Exact money arithmetic', () => {
     await setTax('0')
     verifyTransaction.mockResolvedValueOnce({ status: 'success', amount: 999 })
 
-    // GH₵ 10.00 sale paid with GH₵ 9.99; the old 0.01 tolerance accepted this
+    // LKR 10.00 sale paid with LKR 9.99; the old 0.01 tolerance accepted this
     const res = await request(app)
       .post('/api/sales')
       .set('Authorization', `Bearer ${cashierToken}`)

@@ -16,7 +16,7 @@ const CHANNEL_LABELS = { card: 'Card', mobile_money: 'Mobile money', bank: 'Bank
  */
 export function UnmatchedPayments() {
   const settings = useSettings()
-  const fmt = (pesewas) => formatCurrency(fromPesewas(pesewas), settings.currency_symbol || 'GH₵')
+  const fmt = (pesewas) => formatCurrency(fromPesewas(pesewas), settings.currency_symbol || 'LKR')
 
   const [payments, setPayments] = useState([])
   const [refundTarget, setRefundTarget] = useState(null)

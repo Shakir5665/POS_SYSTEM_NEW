@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useCart } from '../hooks/useCart'
@@ -20,7 +20,7 @@ import { usePOSKeyboard } from '../hooks/usePOSKeyboard'
 
 // ─── Payment Modal (Cash, Credit & Partial Payments) ──────────────────────────
 function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuickCustomer, isLoading }) {
-  const { currency_symbol: currencySymbol = 'GH₵' } = useSettings()
+  const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
   const [paymentMethod, setPaymentMethod] = useState('CASH')
   const [amountPaid, setAmountPaid] = useState('')
   const [deposit, setDeposit] = useState('0')
@@ -46,7 +46,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
   const depositVal = parseFloat(deposit) || 0
   const creditBalanceDue = Math.max(0, fromPesewas(toPesewas(total) - toPesewas(depositVal)))
 
-  function handleConfirm() {
+  const handleConfirm = useCallback(() => {
     if (paymentMethod === 'CASH') {
       if (!customer && (!amountPaid || !paidEnough)) {
         setErrors({ amountPaid: `Amount must be at least ${formatCurrency(total)}. Select a customer for partial or credit payments.` })
@@ -78,7 +78,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
         amount_paid: depositVal,
       })
     }
-  }
+  }, [paymentMethod, customer, amountPaid, paidEnough, total, cashVal, onConfirm, depositVal])
 
   useEffect(() => {
     function onKeyDown(e) {
@@ -89,7 +89,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [amountPaid, deposit, paymentMethod, total, customer])
+  }, [handleConfirm])
 
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Complete Payment" size="md">
@@ -715,14 +715,11 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
 export function CartItem({
   item,
   index = 0,
-  
   allCartItems = [],
   productData = null,
   onUpdate,
   onRemove,
   onToggleDiscount,
-  
-  onOurPriceChange,
   onUnitChange,
   isSelected,
   isLastAdded,
@@ -980,6 +977,23 @@ export function CartItem({
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
+          <div className="flex items-center gap-2 mt-0.5 text-xs text-gray-500 flex-wrap">
+            {hasPredefinedDiscount ? (
+              <>
+                <span className="line-through text-gray-400">MRKT_Price: {formatCurrency(usualPrice)}</span>
+                <span className="font-semibold text-primary-700">
+                  Our_price: {formatCurrency(isPredefinedApplied ? ourPrice : usualPrice)}
+                </span>
+              </>
+            ) : (
+              <span className="font-medium text-gray-700">{formatCurrency(usualPrice)}</span>
+            )}
+            <span>/ {item.pricing_unit || 'pcs'}</span>
+            <span className="text-gray-300">•</span>
+            <span className="font-medium text-gray-700">
+              Active: {formatCurrency(activeSellingPrice)}
+            </span>
+          </div>
 
           {hasPredefinedDiscount && (
             <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/70 border border-primary-100 rounded-md px-2 py-1">
@@ -1191,7 +1205,6 @@ export default function POSPage() {
    
     predefined_discounts,
     subtotal,
-   
     tax,
     total,
     distinct_items,
@@ -1601,8 +1614,6 @@ export default function POSPage() {
       setIsSubmitting(false)
     }
   }
-
-  
 
   return (
     <div className="flex h-screen bg-gray-100 overflow-hidden">
@@ -2135,11 +2146,14 @@ export default function POSPage() {
 
           {/* Breakdown summary */}
           <div className="space-y-1 pt-1 border-t border-gray-100 text-sm text-gray-600">
-            
+            <div className="flex justify-between">
+              <span>MRKT_Price Subtotal</span>
+              <span>{formatCurrency(usual_subtotal != null ? usual_subtotal : subtotal)}</span>
+            </div>
             {Number(predefined_discounts || 0) > 0 && (
               <div className="flex justify-between text-success-700">
-                <span>Total Discounts</span>
-                <span>{formatCurrency(predefined_discounts)}</span>
+                <span>Discount</span>
+                <span>-{formatCurrency(predefined_discounts)}</span>
               </div>
             )}
             {(parseFloat(cartDiscount) || 0) > 0 && (

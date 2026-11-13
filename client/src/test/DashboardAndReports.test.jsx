@@ -28,7 +28,7 @@ vi.mock('../hooks/useAuth', () => ({
 
 vi.mock('../hooks/useSettings', () => ({
   useSettings: () => ({
-    currency_symbol: 'GH₵',
+    currency_symbol: 'LKR',
   }),
 }))
 
@@ -124,6 +124,56 @@ describe('Batch 9: Dashboard and Financial Reports UI', () => {
       expect(screen.getByText(/customer receivables/i)).toBeInTheDocument()
       expect(screen.getByText(/supplier payables/i)).toBeInTheDocument()
     })
+  })
+
+  it('formats dashboard monetary KPI cards with compact number formatting and preserves full value in tooltips', async () => {
+    reportsService.dashboard.mockResolvedValue({
+      data: {
+        data: {
+          today_revenue: 1250000.0,
+          today_collections: 110000.0,
+          today_credit_sales: 950.0,
+          today_transactions: 42,
+          total_customer_receivables: 1000000000.0,
+          total_supplier_payables: 50000.0,
+          low_stock_alerts: 3,
+        },
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <DashboardPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      // 1,250,000 -> 1.25M
+      expect(screen.getByText('LKR 1.25M')).toBeInTheDocument()
+      // 110,000 -> 110K
+      expect(screen.getByText('LKR 110K')).toBeInTheDocument()
+      // 950 below 1,000 -> 950.00
+      expect(screen.getByText('LKR 950.00')).toBeInTheDocument()
+      // 1,000,000,000 -> 1B
+      expect(screen.getByText('LKR 1B')).toBeInTheDocument()
+      // 50,000 -> 50K
+      expect(screen.getByText('LKR 50K')).toBeInTheDocument()
+      // Non-monetary counts
+      expect(screen.getByText('42')).toBeInTheDocument()
+    })
+
+    // Verify tooltips contain the full underlying monetary values
+    const revenueElement = screen.getByText('LKR 1.25M')
+    expect(revenueElement.getAttribute('title')).toBe('LKR 1,250,000.00')
+
+    const receivablesElement = screen.getByText('LKR 1B')
+    expect(receivablesElement.getAttribute('title')).toBe('LKR 1,000,000,000.00')
+
+    const payablesElement = screen.getByText('LKR 50K')
+    expect(payablesElement.getAttribute('title')).toBe('LKR 50,000.00')
+
+    const creditElement = screen.getByText('LKR 950.00')
+    expect(creditElement.getAttribute('title')).toBe('LKR 950.00')
   })
 
   it('renders ReportsPage and switches to Financial Statement (P&L) tab', async () => {

@@ -5,7 +5,9 @@ import { setActiveCurrencySymbol } from '../utils/formatCurrency'
 beforeEach(() => {
   try {
     if (typeof localStorage !== 'undefined') localStorage.clear()
-  } catch {}
-  setActiveCurrencySymbol('GH₵')
+  } catch (e) {
+    void e
+  }
+  setActiveCurrencySymbol('LKR')
 })
 

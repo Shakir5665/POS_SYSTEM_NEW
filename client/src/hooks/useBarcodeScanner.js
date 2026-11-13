@@ -12,7 +12,10 @@ import { useEffect, useRef } from 'react'
  */
 export function useBarcodeScanner(onScan, { maxInterval = 35, minLength = 4, enabled = true } = {}) {
   const onScanRef = useRef(onScan)
-  onScanRef.current = onScan
+
+  useEffect(() => {
+    onScanRef.current = onScan
+  }, [onScan])
 
   const bufferRef = useRef([])
   const lastKeyTimeRef = useRef(0)

@@ -10,7 +10,7 @@ import { Badge } from '../components/Badge'
 import { purchasesService } from '../services/purchases'
 import { suppliersService } from '../services/suppliers'
 import { productsService } from '../services/products'
-import { formatCurrency } from '../utils/formatCurrency'
+import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState([])
@@ -41,7 +41,7 @@ export default function PurchasesPage() {
 
   // View Details Modal
   const [selectedPurchase, setSelectedPurchase] = useState(null)
-  const [detailsLoading, setDetailsLoading] = useState(false)
+  const [, setDetailsLoading] = useState(false)
   const [receivingId, setReceivingId] = useState(null)
 
   const fetchPurchases = useCallback(async () => {
@@ -341,7 +341,7 @@ export default function PurchasesPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-4">
             <p className="text-sm text-gray-500 font-medium">Total Orders</p>
             <p className="text-2xl font-bold text-gray-900 mt-1">{meta.total || purchases.length}</p>
-            <p className="text-xs text-gray-400 mt-0.5">Value: {formatCurrency(totalPurchasesAmount)}</p>
+            <p className="text-xs text-gray-400 mt-0.5">Value: <span title={formatCurrency(totalPurchasesAmount)}>{formatCompactCurrency(totalPurchasesAmount)}</span></p>
           </div>
           <div className="bg-warning-50 rounded-xl border border-warning-100 p-4">
             <p className="text-sm text-warning-700 font-medium">Pending Delivery</p>
@@ -350,7 +350,7 @@ export default function PurchasesPage() {
           </div>
           <div className="bg-danger-50 rounded-xl border border-danger-100 p-4">
             <p className="text-sm text-danger-700 font-medium">Total Payables Due</p>
-            <p className="text-2xl font-bold text-danger-700 mt-1">{formatCurrency(totalPayablesDue)}</p>
+            <p className="text-2xl font-bold text-danger-700 mt-1" title={formatCurrency(totalPayablesDue)}>{formatCompactCurrency(totalPayablesDue)}</p>
             <p className="text-xs text-danger-500 mt-0.5">Outstanding supplier balances</p>
           </div>
         </div>

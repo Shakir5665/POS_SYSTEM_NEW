@@ -63,41 +63,53 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false }) {
 
       {/* ── Item Table ── */}
       <div className="border-t border-dashed border-gray-400 py-2 text-xs">
-        <table className="w-full text-xs border-collapse table-fixed" data-testid="receipt-items">
-          <thead>
-            <tr className="border-b border-gray-900 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-800">
-              <th className="text-left py-1 font-bold w-[28%]">Items ({summary.distinctItems})</th>
-              <th className="text-right py-1 px-1.5 font-bold w-[21%]">
-                <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(සා.මිල)</div>
-              </th>
-              <th className="text-right py-1 px-1.5 font-bold w-[23%]">
-                <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(අපේ මිල)</div>
-              </th>
-              <th className="text-right py-1 pl-1.5 font-bold w-[28%]">Amount</th>
-            </tr>
-          </thead>
-          <tbody>
+        {is58mm ? (
+          /* 58mm Compact Layout: Product name on top line, 4 numeric columns underneath */
+          <div className="space-y-2" data-testid="receipt-items-58mm">
+            <div className="flex justify-between font-bold uppercase text-[10px] text-gray-700 border-b border-gray-300 pb-1">
+              <span>Items ({summary.distinctItems})</span>
+              <span>Qty &bull; MRKT &bull; Our &bull; Amt</span>
+            </div>
             {computedItems.map((item, idx) => (
-              <tr key={idx} className="receipt-table-row border-b border-dotted border-gray-200 last:border-0 align-top">
-                <td className="text-left py-1 pr-1 font-medium text-gray-900 break-words">
-                  <div>{item.name}</div>
-                  <div className="text-[11px] text-gray-600 print:text-black font-normal">{item.qty}{item.unitLabel}</div>
-                </td>
-                <td className="text-right py-1 px-1.5 whitespace-nowrap text-gray-500">{fmt(item.marketPrice)}</td>
-                <td className="text-right py-1 px-1.5 whitespace-nowrap text-gray-900 font-medium">{fmt(item.ourPrice)}</td>
-                <td className="text-right py-1 pl-1.5 whitespace-nowrap font-bold text-gray-900">{fmt(item.lineTotal)}</td>
+              <div key={idx} className="receipt-table-row border-b border-dotted border-gray-200 pb-1 last:border-0">
+                <div className="font-semibold text-gray-900 break-words">{item.name}</div>
+                <div className="flex justify-between text-[11px] text-gray-700 mt-0.5">
+                  <span className="font-medium">{item.qty}{item.unitLabel}</span>
+                  <span className="text-gray-500">{fmt(item.marketPrice)}</span>
+                  <span className="text-gray-800 font-medium">{fmt(item.ourPrice)}</span>
+                  <span className="font-bold text-gray-900 text-right">{fmt(item.lineTotal)}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          /* 80mm Standard Layout: Full 5-Column Grid Table */
+          <table className="w-full text-xs border-collapse" data-testid="receipt-items-80mm">
+            <thead>
+              <tr className="border-b border-gray-900 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-800">
+                <th className="text-left py-1 font-bold">Items ({summary.distinctItems})</th>
+                <th className="text-right py-1 pl-1 font-bold">Qty</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">MRKT_Price</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Our_price</th>
+                <th className="text-right py-1 pl-1 font-bold whitespace-nowrap">Amount</th>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
-      {/* ── Financial Summary ── */}
-      <div className="border-t border-dashed border-gray-400 pt-2 text-xs space-y-1.5">
-        {/* 4. Grand Total */}
-        <div className="flex justify-between font-bold text-base border-t border-gray-900 pt-1.5 mt-1 mb-3">
-          <span>මුළු එකතුව:</span>
-          <span>{fmt(summary.grandTotal)}</span>
+      {/* ── Financial Summary (Task 2.3) ── */}
+      <div className="border-t border-dashed border-gray-400 pt-2 text-xs space-y-1">
+        {/* Distinct Items Summary Line */}
+        <div className="flex justify-between text-gray-600">
+          <span>Distinct Items:</span>
+          <span>{summary.distinctItems} ({summary.totalQuantity} units)</span>
+        </div>
+
+        {/* 1. Market Price Subtotal */}
+        <div className="flex justify-between">
+          <span className="text-gray-700">MRKT_Price Subtotal:</span>
+          <span className="font-semibold">{fmt(summary.marketSubtotal)}</span>
         </div>
 
         {/* 2. Total Discount Provided by Us (Separate Box) */}

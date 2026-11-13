@@ -5,7 +5,6 @@ import POSPage from '../pages/POSPage'
 import { CartProvider } from '../context/CartContext'
 import { productsService } from '../services/products'
 import { customersService } from '../services/customers'
-import { salesService } from '../services/sales'
 
 vi.mock('../services/products', () => ({
   productsService: {
@@ -38,7 +37,7 @@ vi.mock('../hooks/useAuth', () => ({
 
 vi.mock('../hooks/useSettings', () => ({
   useSettings: () => ({
-    currency_symbol: 'GH₵',
+    currency_symbol: 'LKR',
   }),
 }))
 

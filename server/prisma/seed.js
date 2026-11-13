@@ -48,7 +48,7 @@ async function main() {
       { key: 'store_phone', value: '030-200-0000' },
       { key: 'tax_rate', value: '0' },
       { key: 'loyalty_points_rate', value: '10' },
-      { key: 'currency_symbol', value: 'GH₵' },
+      { key: 'currency_symbol', value: 'LKR' },
       { key: 'receipt_footer', value: 'Thank you for shopping with us!' },
     ],
   })

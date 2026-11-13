@@ -32,14 +32,14 @@ describe('UnmatchedPayments', () => {
     expect(container.textContent).toBe('')
   })
 
-  it('lists unmatched payments with amount in GH₵ and a Refund button', async () => {
+  it('lists unmatched payments with amount in LKR and a Refund button', async () => {
     paymentsService.unmatched.mockResolvedValue({
       data: { data: [payment({}), payment({ id: 'p2', reference: 'POS-2-BBBB', refund_requested_at: '2026-10-25T13:00:00Z' })] },
     })
     render(<UnmatchedPayments />)
 
     expect(await screen.findByText(/paystack payments without a sale \(2\)/i)).toBeDefined()
-    expect(screen.getAllByText('GH₵ 25.50')).toHaveLength(2)
+    expect(screen.getAllByText('LKR 25.50')).toHaveLength(2)
     expect(screen.getAllByText(/mobile money · buyer@test\.com/i)).toHaveLength(2)
     // Only the payment without a pending refund can be refunded
     expect(screen.getAllByRole('button', { name: 'Refund' })).toHaveLength(1)
@@ -52,7 +52,7 @@ describe('UnmatchedPayments', () => {
     render(<UnmatchedPayments />)
 
     fireEvent.click(await screen.findByRole('button', { name: 'Refund' }))
-    fireEvent.click(screen.getByRole('button', { name: /refund gh₵ 25\.50/i }))
+    fireEvent.click(screen.getByRole('button', { name: /refund lkr 25\.50/i }))
 
     await waitFor(() => expect(paymentsService.refundUnmatched).toHaveBeenCalledWith('p1'))
     await waitFor(() => expect(toast.success).toHaveBeenCalled())

@@ -148,21 +148,21 @@ Grand Total Calculation -> Payment Tendered -> Stock Deduction & COGS Capture
   $$\text{Grand Total} = \text{Market Price Subtotal} - \text{Our Total Discount} + \text{Applicable Taxes}$$
 
 ### 4.3 Worked Numerical Example
-- Product A (Chilli): 2 kg @ Market Price GH₵120.00, Our Price GH₵100.00.
-  - Market line gross = 2 × 120.00 = GH₵240.00.
-  - Predefined savings = 2 × (120.00 - 100.00) = GH₵40.00.
-  - Charged line amount = GH₵200.00.
-- Product B (Salt): 2 pcs @ Market Price GH₵150.00, Our Price GH₵120.00.
-  - Market line gross = 2 × 150.00 = GH₵300.00.
-  - Predefined savings = 2 × (150.00 - 120.00) = GH₵60.00.
-  - Charged line amount = GH₵240.00.
-- Additional Cart Discount = GH₵10.00.
+- Product A (Chilli): 2 kg @ Market Price LKR120.00, Our Price LKR100.00.
+  - Market line gross = 2 × 120.00 = LKR240.00.
+  - Predefined savings = 2 × (120.00 - 100.00) = LKR40.00.
+  - Charged line amount = LKR200.00.
+- Product B (Salt): 2 pcs @ Market Price LKR150.00, Our Price LKR120.00.
+  - Market line gross = 2 × 150.00 = LKR300.00.
+  - Predefined savings = 2 × (150.00 - 120.00) = LKR60.00.
+  - Charged line amount = LKR240.00.
+- Additional Cart Discount = LKR10.00.
 
 **Financial Presentation:**
-- **Market Price Subtotal:** GH₵540.00
-- **Our Total Discount:** GH₵110.00 (GH₵100.00 predefined + GH₵10.00 cart)
-- **Grand Total:** GH₵430.00
-- **Line Amounts:** Chilli GH₵200.00, Salt GH₵240.00 (Sum = GH₵440.00 - GH₵10.00 cart discount = GH₵430.00).
+- **Market Price Subtotal:** LKR540.00
+- **Our Total Discount:** LKR110.00 (LKR100.00 predefined + LKR10.00 cart)
+- **Grand Total:** LKR430.00
+- **Line Amounts:** Chilli LKR200.00, Salt LKR240.00 (Sum = LKR440.00 - LKR10.00 cart discount = LKR430.00).
 
 ---
 
@@ -172,30 +172,30 @@ NexTill supports customer credit sales and partial payments with strict FIFO rec
 
 ### 5.1 Credit Sale Creation
 1. Cashier selects a registered customer (Walk-in customers cannot purchase on credit).
-2. Invoice Grand Total = GH₵150.00.
-3. Customer pays cash deposit of GH₵50.00 at checkout:
-   - `Sale.amount_paid` = GH₵50.00.
-   - `Sale.balance_due` = GH₵100.00.
+2. Invoice Grand Total = LKR150.00.
+3. Customer pays cash deposit of LKR50.00 at checkout:
+   - `Sale.amount_paid` = LKR50.00.
+   - `Sale.balance_due` = LKR100.00.
    - `Sale.payment_status` = `PARTIALLY_PAID`.
-   - `Customer.outstanding_credit` increments by GH₵100.00.
-   - Cash collections increase by GH₵50.00.
-   - Revenue recognized = GH₵150.00.
+   - `Customer.outstanding_credit` increments by LKR100.00.
+   - Cash collections increase by LKR50.00.
+   - Revenue recognized = LKR150.00.
 
 ### 5.2 Customer Debt Repayment
-When the customer later pays GH₵100.00:
+When the customer later pays LKR100.00:
 1. `customerService.recordCustomerPayment` executes an atomic database transaction.
-2. Creates `CustomerPayment` record (GH₵100.00, CASH).
+2. Creates `CustomerPayment` record (LKR100.00, CASH).
 3. Queries customer's unpaid sales ordered by `created_at ASC` (FIFO).
 4. Allocates payment to `Sale`:
-   - `CustomerPaymentAllocation` created for GH₵100.00.
-   - `Sale.balance_due` reduced from GH₵100.00 to GH₵0.00.
-   - `Sale.amount_paid` increased from GH₵50.00 to GH₵150.00.
+   - `CustomerPaymentAllocation` created for LKR100.00.
+   - `Sale.balance_due` reduced from LKR100.00 to LKR0.00.
+   - `Sale.amount_paid` increased from LKR50.00 to LKR150.00.
    - `Sale.payment_status` updated to `COMPLETED`.
-5. `Customer.outstanding_credit` decrements by GH₵100.00.
+5. `Customer.outstanding_credit` decrements by LKR100.00.
 6. **Accounting Correctness Guarantee:**
-   - **Cash collections** increase by GH₵100.00 on the day of repayment.
+   - **Cash collections** increase by LKR100.00 on the day of repayment.
    - **Sales revenue is NOT increased again** (prevents double revenue recognition).
-   - **Customer receivables** decrease by GH₵100.00.
+   - **Customer receivables** decrease by LKR100.00.
 
 ---
 
@@ -204,13 +204,13 @@ When the customer later pays GH₵100.00:
 Inventory acquisition from vendors operates symmetrically with customer sales:
 
 ### 6.1 Purchase Order Receiving
-1. A purchase order is received with 100 units of Sugar @ GH₵30.00 unit cost = GH₵3,000.00 total.
-2. Store pays vendor deposit of GH₵1,000.00:
-   - `Purchase.total_amount` = GH₵3,000.00.
-   - `Purchase.amount_paid` = GH₵1,000.00.
-   - `Purchase.balance_due` = GH₵2,000.00.
+1. A purchase order is received with 100 units of Sugar @ LKR30.00 unit cost = LKR3,000.00 total.
+2. Store pays vendor deposit of LKR1,000.00:
+   - `Purchase.total_amount` = LKR3,000.00.
+   - `Purchase.amount_paid` = LKR1,000.00.
+   - `Purchase.balance_due` = LKR2,000.00.
    - `Purchase.payment_status` = `PARTIALLY_PAID`.
-   - `Supplier.outstanding_balance` increments by GH₵2,000.00.
+   - `Supplier.outstanding_balance` increments by LKR2,000.00.
 3. Inventory quantity increases by 100 units in `Product` table.
 4. **Accounting Treatment:**
    - This is an **inventory acquisition**, NOT an operating expense.
@@ -218,11 +218,11 @@ Inventory acquisition from vendors operates symmetrically with customer sales:
    - COGS is not recognized until the sugar is sold.
 
 ### 6.2 Supplier Debt Settlement
-When the business repays GH₵2,000.00 to the supplier:
-1. Creates `SupplierPayment` record (GH₵2,000.00).
+When the business repays LKR2,000.00 to the supplier:
+1. Creates `SupplierPayment` record (LKR2,000.00).
 2. Creates `SupplierPaymentAllocation` allocating to the purchase invoice (FIFO).
-3. Reduces `Purchase.balance_due` to GH₵0.00 and marks status `COMPLETED`.
-4. Decreases cash balance by GH₵2,000.00.
+3. Reduces `Purchase.balance_due` to LKR0.00 and marks status `COMPLETED`.
+4. Decreases cash balance by LKR2,000.00.
 5. Does not create an operating expense (prevents double expensing).
 
 ---
@@ -294,7 +294,7 @@ During the audit, the Finance section displayed `Net Owner Capital (Equity) = 0`
 3. **Fixed Date Filter in `listOwnerTransactions`:**
    - Applied `{ ...where, type: 'CONTRIBUTION' }` and `{ ...where, type: 'WITHDRAWAL' }`.
 4. **Development Seed Enhancement (`seed.js`):**
-   - Added an opening owner capital contribution (GH₵25,000.00) in `seed.js` so fresh development databases demonstrate active owner equity immediately.
+   - Added an opening owner capital contribution (LKR25,000.00) in `seed.js` so fresh development databases demonstrate active owner equity immediately.
 
 ---
 
@@ -384,32 +384,32 @@ To preserve documentation integrity, the following advanced accounting capabilit
 
 This worked walkthrough illustrates how ten consecutive transactions impact NexTill's records:
 
-1. **Owner Contribution:** Owner deposits GH₵20,000.00 opening capital (`OwnerTransaction: CONTRIBUTION`).
-   - Net Owner Capital = GH₵20,000.00. Cash in hand = GH₵20,000.00.
-2. **Asset Purchase:** Shop buys a digital scale for GH₵2,000.00 (`BusinessAsset`).
-   - Business Assets = GH₵2,000.00. Cash in hand = GH₵18,000.00. Operating expenses = GH₵0.00.
-3. **Inventory Purchase on Credit:** Buys 100 kg Rice @ GH₵10.00 cost = GH₵1,000.00. Pays GH₵400.00 deposit (`Purchase`).
-   - Inventory stock = 100 kg. Supplier Payables = GH₵600.00. Cash in hand = GH₵17,600.00.
-4. **Product Sale (Cash):** Sells 20 kg Rice @ GH₵15.00 selling price = GH₵300.00 cash (`Sale`).
-   - Cash received = GH₵300.00. Revenue = GH₵300.00. Stock = 80 kg.
-   - COGS recorded = 20 × GH₵10.00 = GH₵200.00. Gross Profit = GH₵100.00.
-5. **Product Sale (Credit):** Sells 10 kg Rice to registered customer Kofi for GH₵150.00. Customer pays GH₵50.00 deposit (`Sale: PARTIALLY_PAID`).
-   - Cash received = GH₵50.00. Customer Receivables = GH₵100.00. Stock = 70 kg.
-   - COGS = 10 × GH₵10.00 = GH₵100.00. Gross Profit = GH₵50.00. Total Revenue = GH₵450.00.
-6. **Operating Expense:** Pays store electricity bill of GH₵80.00 (`Expense: Utilities`).
-   - Operating Expenses = GH₵80.00. Cash in hand reduced by GH₵80.00.
-7. **Customer Debt Repayment:** Kofi repays remaining GH₵100.00 debt (`CustomerPayment`).
-   - Cash received = GH₵100.00. Customer Receivables = GH₵0.00. Revenue does NOT increase.
-8. **Supplier Debt Settlement:** Shop pays remaining GH₵600.00 to vendor (`SupplierPayment`).
-   - Cash in hand reduced by GH₵600.00. Supplier Payables = GH₵0.00. Expenses do NOT increase.
-9. **Owner Drawing:** Owner withdraws GH₵500.00 for personal use (`OwnerTransaction: WITHDRAWAL`).
-   - Net Owner Capital = GH₵20,000.00 - GH₵500.00 = GH₵19,500.00.
+1. **Owner Contribution:** Owner deposits LKR20,000.00 opening capital (`OwnerTransaction: CONTRIBUTION`).
+   - Net Owner Capital = LKR20,000.00. Cash in hand = LKR20,000.00.
+2. **Asset Purchase:** Shop buys a digital scale for LKR2,000.00 (`BusinessAsset`).
+   - Business Assets = LKR2,000.00. Cash in hand = LKR18,000.00. Operating expenses = LKR0.00.
+3. **Inventory Purchase on Credit:** Buys 100 kg Rice @ LKR10.00 cost = LKR1,000.00. Pays LKR400.00 deposit (`Purchase`).
+   - Inventory stock = 100 kg. Supplier Payables = LKR600.00. Cash in hand = LKR17,600.00.
+4. **Product Sale (Cash):** Sells 20 kg Rice @ LKR15.00 selling price = LKR300.00 cash (`Sale`).
+   - Cash received = LKR300.00. Revenue = LKR300.00. Stock = 80 kg.
+   - COGS recorded = 20 × LKR10.00 = LKR200.00. Gross Profit = LKR100.00.
+5. **Product Sale (Credit):** Sells 10 kg Rice to registered customer Kofi for LKR150.00. Customer pays LKR50.00 deposit (`Sale: PARTIALLY_PAID`).
+   - Cash received = LKR50.00. Customer Receivables = LKR100.00. Stock = 70 kg.
+   - COGS = 10 × LKR10.00 = LKR100.00. Gross Profit = LKR50.00. Total Revenue = LKR450.00.
+6. **Operating Expense:** Pays store electricity bill of LKR80.00 (`Expense: Utilities`).
+   - Operating Expenses = LKR80.00. Cash in hand reduced by LKR80.00.
+7. **Customer Debt Repayment:** Kofi repays remaining LKR100.00 debt (`CustomerPayment`).
+   - Cash received = LKR100.00. Customer Receivables = LKR0.00. Revenue does NOT increase.
+8. **Supplier Debt Settlement:** Shop pays remaining LKR600.00 to vendor (`SupplierPayment`).
+   - Cash in hand reduced by LKR600.00. Supplier Payables = LKR0.00. Expenses do NOT increase.
+9. **Owner Drawing:** Owner withdraws LKR500.00 for personal use (`OwnerTransaction: WITHDRAWAL`).
+   - Net Owner Capital = LKR20,000.00 - LKR500.00 = LKR19,500.00.
 10. **Financial Statement Reconciliation:**
-    - **Gross Sales:** GH₵450.00
-    - **Total COGS:** GH₵300.00
-    - **Gross Profit:** GH₵150.00
-    - **Operating Expenses:** GH₵80.00
-    - **Net Profit (Retained Earnings):** GH₵70.00
-    - **Net Owner Capital:** GH₵19,500.00
-    - **Total Business Equity:** GH₵19,500.00 + GH₵70.00 = GH₵19,570.00.
-    - **Outstanding Receivables:** GH₵0.00 | **Outstanding Payables:** GH₵0.00.
+    - **Gross Sales:** LKR450.00
+    - **Total COGS:** LKR300.00
+    - **Gross Profit:** LKR150.00
+    - **Operating Expenses:** LKR80.00
+    - **Net Profit (Retained Earnings):** LKR70.00
+    - **Net Owner Capital:** LKR19,500.00
+    - **Total Business Equity:** LKR19,500.00 + LKR70.00 = LKR19,570.00.
+    - **Outstanding Receivables:** LKR0.00 | **Outstanding Payables:** LKR0.00.

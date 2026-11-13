@@ -16,7 +16,7 @@ import { saleStatus, canRefund, PAYMENT_METHOD_LABELS } from '../utils/saleStatu
 
 export default function SalesPage() {
   const settings = useSettings()
-  const fmt = (v) => formatCurrency(v, settings.currency_symbol || 'GH₵')
+  const fmt = (v) => formatCurrency(v, settings.currency_symbol || 'LKR')
 
   const [sales, setSales] = useState([])
   const [meta, setMeta] = useState({ page: 1, total_pages: 1 })
