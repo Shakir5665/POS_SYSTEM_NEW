@@ -94,11 +94,11 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
                 <th className="text-left py-1 font-bold w-[30%]">Items ({summary.distinctItems})</th>
                 <th className="text-right py-1 px-1.5 font-bold w-[30%]">
                   
-                  <div className="text-[10px] lowercase font-bold tracking-normal text-black print:text-black">(සා.මිල)</div>
+                  <div className="text-[12px] lowercase font-bold tracking-normal text-black print:text-black">සා.මිල</div>
                 </th>
                 <th className="text-right py-1 px-1.5 font-bold w-[30%]">
                   
-                  <div className="text-[10px] font-bold lowercase tracking-normal text-black print:text-black">(අපේ මිල)</div>
+                  <div className="text-[12px] font-bold lowercase tracking-normal text-black print:text-black">අපේ මිල</div>
                 </th>
                 <th className="text-right py-1 pl-1.5 font-bold w-[28%]">AMOUNT</th>
               </tr>
