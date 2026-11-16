@@ -91,14 +91,14 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
           <table className="w-full text-xs border-collapse table-fixed" data-testid="receipt-items-80mm">
             <thead>
               <tr className="border-b border-gray-900 pb-1 text-[11px] font-bold uppercase tracking-wider text-gray-800">
-                <th className="text-left py-1 font-bold w-[28%]">Items ({summary.distinctItems})</th>
-                <th className="text-right py-1 px-1.5 font-bold w-[22%]">
-                  <div>Market Price</div>
-                  <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(සා.මිල)</div>
+                <th className="text-left py-1 font-bold w-[30%]">Items ({summary.distinctItems})</th>
+                <th className="text-right py-1 px-1.5 font-bold w-[30%]">
+                  
+                  <div className="text-[10px] lowercase font-bold tracking-normal text-black print:text-black">(සා.මිල)</div>
                 </th>
-                <th className="text-right py-1 px-1.5 font-bold w-[22%]">
-                  <div>Our Price</div>
-                  <div className="text-[10px] font-normal lowercase tracking-normal text-gray-600 print:text-black">(අපේ මිල)</div>
+                <th className="text-right py-1 px-1.5 font-bold w-[30%]">
+                  
+                  <div className="text-[10px] font-bold lowercase tracking-normal text-black print:text-black">(අපේ මිල)</div>
                 </th>
                 <th className="text-right py-1 pl-1.5 font-bold w-[28%]">AMOUNT</th>
               </tr>
@@ -122,11 +122,13 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
 
       {/* ── Financial Summary ── */}
       <div className="border-t border-dashed border-gray-400 pt-2 text-xs space-y-1">
-        {/* 1. Our Price Total */}
-        <div className="flex justify-between">
-          <span className="text-gray-700">Our Price (අපේ මිල):</span>
-          <span className="font-semibold">{fmt(summary.ourPriceTotal)}</span>
+
+         {/* 4. Grand Total */}
+        <div className="flex justify-between font-bold text-base border-t border-gray-900 pt-1.5 mt-1 mb-2">
+          <span>Total (එකතුව):</span>
+          <span>{fmt(summary.grandTotal)}</span>
         </div>
+       
 
         {/* 2. Total Discount Provided by Us (Separate Box) */}
         {summary.ourTotalDiscount > 0 && (
@@ -151,11 +153,7 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
           </div>
         )}
 
-        {/* 4. Grand Total */}
-        <div className="flex justify-between font-bold text-base border-t border-gray-900 pt-1.5 mt-1 mb-2">
-          <span>Grand Total (මුළු එකතුව):</span>
-          <span>{fmt(summary.grandTotal)}</span>
-        </div>
+       
 
 
         {/* Payment Breakdown */}
