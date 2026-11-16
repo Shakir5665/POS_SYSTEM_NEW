@@ -128,6 +128,17 @@ async function createProduct(data) {
     costPrice = cp
   }
 
+  let wholesalePrice = toMoney(0)
+  if (data.wholesale_price !== undefined && data.wholesale_price !== null && data.wholesale_price !== '') {
+    const wp = toMoney(data.wholesale_price)
+    if (wp.lt(0)) {
+      throw new ValidationError('Wholesale price must be non-negative', [
+        { field: 'wholesale_price', message: 'Wholesale price must be non-negative' },
+      ])
+    }
+    wholesalePrice = wp
+  }
+
   // price is kept synchronized with our_price (the active preferred selling price)
   const activePrice = ourPrice
 
@@ -143,6 +154,7 @@ async function createProduct(data) {
       price: activePrice,
       usual_price: usualPrice,
       our_price: ourPrice,
+      wholesale_price: wholesalePrice,
       cost_price: costPrice,
       quantity: data.quantity ?? 0,
       low_stock_threshold: data.low_stock_threshold ?? 10,
@@ -234,6 +246,21 @@ async function updateProduct(id, data) {
     }
   }
 
+  let targetWholesale = undefined
+  if (data.wholesale_price !== undefined) {
+    if (data.wholesale_price === null || data.wholesale_price === '') {
+      targetWholesale = toMoney(0)
+    } else {
+      const wp = toMoney(data.wholesale_price)
+      if (wp.lt(0)) {
+        throw new ValidationError('Wholesale price must be non-negative', [
+          { field: 'wholesale_price', message: 'Wholesale price must be non-negative' },
+        ])
+      }
+      targetWholesale = wp
+    }
+  }
+
   const effectiveCost = targetCost !== undefined
     ? targetCost
     : (existing.cost_price !== null && existing.cost_price !== undefined ? toMoney(existing.cost_price) : null)
@@ -260,6 +287,7 @@ async function updateProduct(id, data) {
       ...(data.our_price !== undefined || (data.price !== undefined && data.usual_price === undefined) ? { our_price: targetOur } : {}),
       price: activePrice,
       ...(targetCost !== undefined && { cost_price: targetCost }),
+      ...(targetWholesale !== undefined && { wholesale_price: targetWholesale }),
       ...(data.quantity !== undefined && { quantity: data.quantity }),
       ...(data.low_stock_threshold !== undefined && { low_stock_threshold: data.low_stock_threshold }),
       ...(data.image_url !== undefined && { image_url: data.image_url || null }),

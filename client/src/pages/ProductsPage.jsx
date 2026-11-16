@@ -132,6 +132,20 @@ export default function ProductsPage() {
       },
     },
     {
+      key: 'wholesale_price',
+      label: 'Wholesale Price',
+      render: (val, row) => {
+        return val && Number(val) > 0 ? (
+          <span className="font-medium text-gray-800">
+            {formatCurrency(val)}
+            {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
+          </span>
+        ) : (
+          <span className="text-gray-400">—</span>
+        )
+      },
+    },
+    {
       key: 'predefined_discount',
       label: 'Discount',
       render: (_, row) => {

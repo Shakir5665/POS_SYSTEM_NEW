@@ -42,6 +42,7 @@ export default function ProductFormPage() {
     pricing_unit: 'pcs',
     usual_price: '',
     our_price: '',
+    wholesale_price: '',
     price: '',
     cost_price: '',
     quantity: '',
@@ -160,6 +161,7 @@ export default function ProductFormPage() {
           pricing_unit: p.pricing_unit || 'pcs',
           usual_price: usual,
           our_price: our,
+          wholesale_price: p.wholesale_price != null ? p.wholesale_price.toString() : '',
           price: our || usual,
           cost_price: p.cost_price != null ? p.cost_price.toString() : '',
           quantity: p.quantity?.toString() || '0',
@@ -172,7 +174,7 @@ export default function ProductFormPage() {
       .finally(() => setIsLoadingProduct(false))
   }, [id, isEditing, navigate])
 
-  function checkPriceErrors(costVal, ourVal, usualVal) {
+  function checkPriceErrors(costVal, ourVal, usualVal, wholesaleVal) {
     const pErrors = {}
     const hasCost = costVal !== '' && costVal !== null && !isNaN(parseFloat(costVal))
     const cost = hasCost ? parseFloat(costVal) : null
@@ -202,23 +204,32 @@ export default function ProductFormPage() {
         }
       }
     }
+
+    if (wholesaleVal !== '' && wholesaleVal !== undefined && wholesaleVal !== null) {
+      const ws = parseFloat(wholesaleVal)
+      if (isNaN(ws) || ws < 0) {
+        pErrors.wholesale_price = 'Wholesale price cannot be negative'
+      }
+    }
     return pErrors
   }
 
   function setField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }))
 
-    if (key === 'cost_price' || key === 'our_price' || key === 'usual_price') {
+    if (key === 'cost_price' || key === 'our_price' || key === 'usual_price' || key === 'wholesale_price') {
       const costV = key === 'cost_price' ? value : form.cost_price
       const ourV = key === 'our_price' ? value : form.our_price
       const usualV = key === 'usual_price' ? value : form.usual_price
-      const priceErrs = checkPriceErrors(costV, ourV, usualV)
+      const wholesaleV = key === 'wholesale_price' ? value : form.wholesale_price
+      const priceErrs = checkPriceErrors(costV, ourV, usualV, wholesaleV)
 
       setErrors((prev) => {
         const updated = { ...prev }
         delete updated.cost_price
         delete updated.our_price
         delete updated.usual_price
+        delete updated.wholesale_price
         return { ...updated, ...priceErrs }
       })
     } else if (errors[key]) {
@@ -286,6 +297,13 @@ export default function ProductFormPage() {
       }
     }
 
+    if (form.wholesale_price !== '' && form.wholesale_price !== null && form.wholesale_price !== undefined) {
+      const ws = parseFloat(form.wholesale_price)
+      if (isNaN(ws) || ws < 0) {
+        errs.wholesale_price = 'Wholesale price cannot be negative'
+      }
+    }
+
     if (form.quantity !== '' && parseFloat(form.quantity) < 0) errs.quantity = 'Quantity cannot be negative'
     if (form.low_stock_threshold !== '' && parseFloat(form.low_stock_threshold) < 0) errs.low_stock_threshold = 'Threshold cannot be negative'
     if (form.unit_category === 'COUNT') {
@@ -307,6 +325,9 @@ export default function ProductFormPage() {
       const finalThreshold = form.low_stock_threshold === '' ? 10 : (form.unit_category === 'COUNT' ? parseInt(form.low_stock_threshold) : parseFloat(form.low_stock_threshold))
       const finalUsualPrice = parseFloat(form.usual_price)
       const finalOurPrice = parseFloat(form.our_price)
+      const finalWholesalePrice = form.wholesale_price !== '' && form.wholesale_price !== null && !isNaN(parseFloat(form.wholesale_price))
+        ? parseFloat(form.wholesale_price)
+        : 0
       const finalCostPrice = form.cost_price !== '' && form.cost_price !== null && !isNaN(parseFloat(form.cost_price))
         ? parseFloat(form.cost_price)
         : null
@@ -323,6 +344,7 @@ export default function ProductFormPage() {
         payload.append('pricing_unit', form.pricing_unit)
         payload.append('usual_price', String(finalUsualPrice))
         payload.append('our_price', String(finalOurPrice))
+        payload.append('wholesale_price', String(finalWholesalePrice))
         payload.append('price', String(finalOurPrice))
         if (finalCostPrice !== null) payload.append('cost_price', String(finalCostPrice))
         payload.append('quantity', String(finalQuantity))
@@ -340,6 +362,7 @@ export default function ProductFormPage() {
           pricing_unit: form.pricing_unit,
           usual_price: finalUsualPrice,
           our_price: finalOurPrice,
+          wholesale_price: finalWholesalePrice,
           price: finalOurPrice,
           cost_price: finalCostPrice,
           quantity: finalQuantity,
@@ -616,7 +639,7 @@ export default function ProductFormPage() {
               <span className="text-xs text-gray-400">All prices per {form.pricing_unit || 'unit'}</span>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
                 <Input
                   label={`Cost Price (${currencySymbol})`}
@@ -660,6 +683,19 @@ export default function ProductFormPage() {
                   error={errors.our_price}
                 />
                 <p className="text-xs text-gray-400 mt-1">Preferred selling price</p>
+              </div>
+
+              <div>
+                <Input
+                  label={`Wholesale Price (${currencySymbol})`}
+                  type="number"
+                  step="any"
+                  value={form.wholesale_price}
+                  onChange={(e) => setField('wholesale_price', e.target.value)}
+                  placeholder="0.00 (optional)"
+                  error={errors.wholesale_price}
+                />
+                <p className="text-xs text-gray-400 mt-1">Wholesale / bulk selling price</p>
               </div>
             </div>
 

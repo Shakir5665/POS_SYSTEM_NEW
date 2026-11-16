@@ -62,6 +62,7 @@ const productValidation = [
     return true
   }),
   body('cost_price').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }).withMessage('Cost price must be >= 0'),
+  body('wholesale_price').optional({ nullable: true, checkFalsy: true }).isFloat({ min: 0 }).withMessage('Wholesale price must be >= 0'),
   body('quantity').optional().isFloat({ min: 0 }).withMessage('Quantity must be >= 0')
     .custom((val, { req }) => {
       const cat = req.body.unit_category || 'COUNT'

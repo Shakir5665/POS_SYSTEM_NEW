@@ -206,6 +206,7 @@ Inventory catalog item master.
 | `price` | `Decimal(10,2)` | Not Null | Standard active retail price |
 | `usual_price` | `Decimal(10,2)` | Default: `0.00` | Regular retail price before store promo |
 | `our_price` | `Decimal(10,2)` | Default: `0.00` | Discounted / special retail price |
+| `wholesale_price` | `Decimal(10,2)` | Default: `0.00` | Bulk / wholesale commercial price |
 | `cost_price` | `Decimal(10,2)` | Nullable | Current average purchasing/cost price |
 | `quantity` | `Decimal(14,3)` | Default: `0.000` | Current on-hand stock |
 | `low_stock_threshold`| `Decimal(14,3)` | Default: `10.000` | Alert threshold for reordering |
@@ -280,6 +281,8 @@ Line item within a sale, snapshotting exact commercial terms.
 | `our_price_snapshot` | `Decimal(10,2)` | Default: `0.00` | Promotion catalogue price snapshot |
 | `predefined_discount_applied` | `Boolean` | Default: `false` | True if promotional discount was used |
 | `predefined_discount_amount` | `Decimal(10,2)` | Default: `0.00` | Price difference (`usual_price - our_price`) |
+| `is_wholesale` | `Boolean` | Default: `false` | True if sold under wholesale pricing terms |
+| `wholesale_price_snapshot` | `Decimal(10,2)` | Default: `0.00` | Wholesale price snapshot at time of checkout |
 | `line_cost` | `Decimal(10,2)` | Default: `0.00` | Total cost of line (`quantity * cost`) |
 | `discount` | `Decimal(10,2)` | Default: `0.00` | Manual line-level discount |
 | `total` | `Decimal(10,2)` | Not Null | Final line total (`(qty * price) - discount`) |

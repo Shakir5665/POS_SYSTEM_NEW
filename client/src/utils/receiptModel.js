@@ -36,11 +36,18 @@ export function formatReceiptItem(item) {
     ? Number(item.our_price_snapshot != null ? item.our_price_snapshot : item.our_price)
     : null
 
-  const predefinedApplied = item.predefined_discount_applied !== undefined
-    ? Boolean(item.predefined_discount_applied)
-    : (item.apply_predefined_discount !== undefined
-      ? Boolean(item.apply_predefined_discount)
-      : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01))
+  const isWholesale = Boolean(item.is_wholesale)
+  const wholesalePrice = item.wholesale_price_snapshot != null
+    ? Number(item.wholesale_price_snapshot)
+    : (item.wholesale_price != null ? Number(item.wholesale_price) : null)
+
+  const predefinedApplied = isWholesale
+    ? false
+    : (item.predefined_discount_applied !== undefined
+      ? Boolean(item.predefined_discount_applied)
+      : (item.apply_predefined_discount !== undefined
+        ? Boolean(item.apply_predefined_discount)
+        : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01)))
 
   let pricingFactor = 1
   const unitStr = (item.unit || item.base_unit || '').toLowerCase()
@@ -56,7 +63,12 @@ export function formatReceiptItem(item) {
   const pricingQty = qty * pricingFactor
 
   const unitMarket = usualPrice != null ? usualPrice : unitPrice
-  const unitOur = ourPrice != null ? ourPrice : unitPrice
+  // If wholesale: show wholesale price in අපේ මිල column.
+  // If discount unchecked: show අපේ මිල column as same as market price (unitMarket).
+  // Otherwise show ourPrice.
+  const unitOur = isWholesale
+    ? (wholesalePrice != null ? wholesalePrice : unitPrice)
+    : (!predefinedApplied ? unitMarket : (ourPrice != null ? ourPrice : unitPrice))
 
   const marketPrice = Number((pricingQty * unitMarket).toFixed(2))
   const ourPriceVal = Number((pricingQty * unitOur).toFixed(2))
@@ -64,8 +76,14 @@ export function formatReceiptItem(item) {
   const usualLineGross = marketPrice
 
   let predefinedDiscountAmount = 0
-  if (predefinedApplied && marketPrice > ourPriceVal) {
+  if (isWholesale) {
+    if (marketPrice > ourPriceVal) {
+      predefinedDiscountAmount = Number((marketPrice - ourPriceVal).toFixed(2))
+    }
+  } else if (predefinedApplied && marketPrice > ourPriceVal) {
     predefinedDiscountAmount = Number((marketPrice - ourPriceVal).toFixed(2))
+  } else if (!predefinedApplied) {
+    predefinedDiscountAmount = 0
   } else if (item.predefined_discount_amount != null) {
     predefinedDiscountAmount = Number(item.predefined_discount_amount)
   }

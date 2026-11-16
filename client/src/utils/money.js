@@ -38,18 +38,30 @@ export function lineUsualGrossPesewas(item) {
   return Math.round(pricingQty * usualPricePesewas)
 }
 
-/** Line predefined discount in pesewas: (Usual Price - Our Price) * Qty if enabled. */
+/** Line predefined discount in pesewas: (Usual Price - Our Price) * Qty if enabled, or (Usual Price - Wholesale Price) * Qty if wholesale. */
 export function linePredefinedDiscountPesewas(item) {
   const usualPesewas = toPesewas(item.usual_price != null ? item.usual_price : item.price)
+  const pricingQty = getPricingQuantity(item)
+
+  if (item.is_wholesale) {
+    const wholesalePesewas = toPesewas(item.wholesale_price != null ? item.wholesale_price : 0)
+    if (usualPesewas <= wholesalePesewas) return 0
+    return Math.round(pricingQty * (usualPesewas - wholesalePesewas))
+  }
+
   const ourPesewas = toPesewas(item.our_price != null ? item.our_price : item.price)
   const applyPredefined = item.apply_predefined_discount !== false
   if (!applyPredefined || usualPesewas <= ourPesewas) return 0
-  const pricingQty = getPricingQuantity(item)
   return Math.round(pricingQty * (usualPesewas - ourPesewas))
 }
 
 /** Line total in pesewas: effective price × quantity − line discount. */
 export function lineTotalPesewas(item) {
+  if (item.is_wholesale) {
+    const wholesalePesewas = toPesewas(item.wholesale_price != null ? item.wholesale_price : 0)
+    const pricingQty = getPricingQuantity(item)
+    return Math.round(pricingQty * wholesalePesewas)
+  }
   const usualPesewas = toPesewas(item.usual_price != null ? item.usual_price : item.price)
   const ourPesewas = toPesewas(item.our_price != null ? item.our_price : item.price)
   const applyPredefined = item.apply_predefined_discount !== false

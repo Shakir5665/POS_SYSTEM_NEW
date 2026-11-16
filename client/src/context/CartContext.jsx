@@ -36,6 +36,7 @@ function cartReducer(state, action) {
             quantity: initialQty,
             discount: '',
             apply_predefined_discount: true,
+            is_wholesale: false,
             catalog_our_price: product.our_price ?? product.price,
           },
         ],
@@ -57,9 +58,28 @@ function cartReducer(state, action) {
         items: state.items.map((i) => {
           if (i.product_id !== product_id) return i
           const nextApplied = applied !== undefined ? Boolean(applied) : !i.apply_predefined_discount
+          const nextOurPrice = nextApplied
+            ? (i.catalog_our_price ?? i.price)
+            : (i.usual_price ?? i.price)
           return {
             ...i,
             apply_predefined_discount: nextApplied,
+            our_price: i.is_wholesale ? i.our_price : nextOurPrice,
+          }
+        }),
+      }
+    }
+    case 'TOGGLE_WHOLESALE': {
+      const { product_id, is_wholesale } = action.payload
+      return {
+        ...state,
+        items: state.items.map((i) => {
+          if (i.product_id !== product_id) return i
+          const nextIsWholesale = is_wholesale !== undefined ? Boolean(is_wholesale) : !i.is_wholesale
+          return {
+            ...i,
+            is_wholesale: nextIsWholesale,
+            our_price: nextIsWholesale ? (i.wholesale_price ?? 0) : (i.catalog_our_price ?? i.price),
           }
         }),
       }
@@ -145,6 +165,7 @@ export function CartProvider({ children }) {
         price: product.price,
         usual_price: product.usual_price ?? product.price,
         our_price: product.our_price ?? product.price,
+        wholesale_price: product.wholesale_price ?? 0,
         cost_price: product.cost_price ?? null,
         sku: product.sku,
         barcode: product.barcode,
@@ -159,6 +180,7 @@ export function CartProvider({ children }) {
   function removeItem(product_id) { dispatch({ type: 'REMOVE_ITEM', payload: product_id }) }
   function updateQuantity(product_id, quantity) { dispatch({ type: 'UPDATE_QUANTITY', payload: { product_id, quantity } }) }
   function togglePredefinedDiscount(product_id, applied) { dispatch({ type: 'TOGGLE_PREDEFINED_DISCOUNT', payload: { product_id, applied } }) }
+  function toggleWholesale(product_id, is_wholesale) { dispatch({ type: 'TOGGLE_WHOLESALE', payload: { product_id, is_wholesale } }) }
   function updateUnit(product_id, newUnit) { dispatch({ type: 'UPDATE_UNIT', payload: { product_id, newUnit } }) }
   function updateDiscount(product_id, discount) { dispatch({ type: 'UPDATE_DISCOUNT', payload: { product_id, discount } }) }
   function updateOurPrice(product_id, our_price) { dispatch({ type: 'UPDATE_OUR_PRICE', payload: { product_id, our_price } }) }
@@ -182,6 +204,7 @@ export function CartProvider({ children }) {
         removeItem,
         updateQuantity,
         togglePredefinedDiscount,
+        toggleWholesale,
         updateUnit,
         updateDiscount,
         updateOurPrice,

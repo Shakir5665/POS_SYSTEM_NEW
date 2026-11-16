@@ -720,6 +720,7 @@ export function CartItem({
   onUpdate,
   onRemove,
   onToggleDiscount,
+  onToggleWholesale,
   onOurPriceChange,
   onUnitChange,
   isSelected,
@@ -749,10 +750,11 @@ export function CartItem({
   const isAtStockLimit = maxStock <= 0 || currentVal >= maxStock
 
   const usualPrice = Number(item.usual_price != null ? item.usual_price : item.price)
+  const catalogOurPrice = Number(item.catalog_our_price != null ? item.catalog_our_price : (item.our_price != null ? item.our_price : item.price))
   const ourPrice = Number(item.our_price != null ? item.our_price : item.price)
-  const hasPredefinedDiscount = usualPrice > ourPrice
+  const hasPredefinedDiscount = usualPrice > catalogOurPrice
   const isPredefinedApplied = item.apply_predefined_discount !== false
-  const predefinedDiff = Math.max(0, usualPrice - ourPrice)
+  const predefinedDiff = Math.max(0, usualPrice - catalogOurPrice)
 
   let pricingQty = currentVal
   if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
@@ -984,23 +986,72 @@ export function CartItem({
           <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
           
 
-          {hasPredefinedDiscount && (
-            <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/70 border border-primary-100 rounded-md px-2 py-1">
+          <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/70 border border-primary-100 rounded-md px-2 py-1">
+            {/* Left: Discount Checkbox */}
+            <div className="flex items-center gap-1.5 min-w-0">
+              {hasPredefinedDiscount ? (
+                <>
+                  <label className={`flex items-center gap-1.5 select-none text-primary-900 font-medium ${item.is_wholesale ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                    <input
+                      type="checkbox"
+                      data-testid={`predefined-discount-toggle-${item.product_id}`}
+                      checked={!item.is_wholesale && isPredefinedApplied}
+                      disabled={Boolean(item.is_wholesale)}
+                      onChange={(e) => onToggleDiscount?.(item.product_id, e.target.checked)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          if (isPredefinedApplied) {
+                            onToggleDiscount?.(item.product_id, false)
+                          }
+                          qtyInputRef.current?.focus()
+                          qtyInputRef.current?.select?.()
+                        }
+                      }}
+                      className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-gray-300"
+                    />
+                    <span>Discount</span>
+                  </label>
+                  {!item.is_wholesale && (
+                    <span className="font-bold text-success-700 ml-1 text-3xs">
+                      {isPredefinedApplied ? `-${formatCurrency(predefinedDiscountAmount)}` : 'Off'}
+                    </span>
+                  )}
+                </>
+              ) : (
+                <span className="text-gray-400 font-normal">Standard</span>
+              )}
+            </div>
+
+            {/* Right: Wholesale Checkbox */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <label className="flex items-center gap-1.5 cursor-pointer select-none text-primary-900 font-medium">
                 <input
                   type="checkbox"
-                  data-testid={`predefined-discount-toggle-${item.product_id}`}
-                  checked={isPredefinedApplied}
-                  onChange={(e) => onToggleDiscount?.(item.product_id, e.target.checked)}
+                  data-testid={`wholesale-toggle-${item.product_id}`}
+                  checked={Boolean(item.is_wholesale)}
+                  onChange={(e) => onToggleWholesale?.(item.product_id, e.target.checked)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      if (!item.is_wholesale) {
+                        onToggleWholesale?.(item.product_id, true)
+                      }
+                      qtyInputRef.current?.focus()
+                      qtyInputRef.current?.select?.()
+                    }
+                  }}
                   className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-gray-300"
                 />
-                <span>Discount</span>
+                <span>Wholesale</span>
               </label>
-              <span className="font-bold text-success-700">
-                {isPredefinedApplied ? `-${formatCurrency(predefinedDiscountAmount)}` : 'Disabled'}
-              </span>
+              {item.is_wholesale && (
+                <span className="font-bold text-primary-700 text-3xs bg-primary-100 px-1 py-0.2 rounded">
+                  Active
+                </span>
+              )}
             </div>
-          )}
+          </div>
         </div>
         <button
           onClick={() => onRemove(item.product_id)}
@@ -1130,6 +1181,36 @@ export function CartItem({
                   searchInput?.select?.()
                   return
                 }
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  commitOurPrice(ourPriceDraft)
+                  const allPriceInputs = Array.from(document.querySelectorAll('input[data-field="our-price"]'))
+                  const currentIndex = allPriceInputs.indexOf(e.target)
+                  if (currentIndex > 0) {
+                    const prevInput = allPriceInputs[currentIndex - 1]
+                    prevInput?.focus()
+                    prevInput?.select?.()
+                  } else {
+                    ourPriceInputRef.current?.focus()
+                    ourPriceInputRef.current?.select?.()
+                  }
+                  return
+                }
+                if (e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  commitOurPrice(ourPriceDraft)
+                  const allPriceInputs = Array.from(document.querySelectorAll('input[data-field="our-price"]'))
+                  const currentIndex = allPriceInputs.indexOf(e.target)
+                  if (currentIndex >= 0 && currentIndex < allPriceInputs.length - 1) {
+                    const nextInput = allPriceInputs[currentIndex + 1]
+                    nextInput?.focus()
+                    nextInput?.select?.()
+                  } else {
+                    ourPriceInputRef.current?.focus()
+                    ourPriceInputRef.current?.select?.()
+                  }
+                  return
+                }
                 if (e.key === 'ArrowLeft') {
                   e.preventDefault()
                   commitOurPrice(ourPriceDraft)
@@ -1205,6 +1286,7 @@ export default function POSPage() {
     removeItem,
     updateQuantity,
     togglePredefinedDiscount,
+    toggleWholesale,
     updateUnit,
     updateDiscount,
     updateOurPrice,
@@ -1572,6 +1654,8 @@ export default function POSPage() {
           quantity: parseFloat(i.quantity) || 0,
           unit: i.unit,
           predefined_discount_applied: i.apply_predefined_discount !== false,
+          is_wholesale: Boolean(i.is_wholesale),
+          wholesale_price: parseFloat(i.wholesale_price) || 0,
           our_price: parseFloat(i.our_price),
           discount: parseFloat(i.discount) || 0,
         })),
@@ -1971,7 +2055,10 @@ export default function POSPage() {
                       </div>
                     )}
                     <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
-                    <p className="text-xs text-gray-400 mb-1">{product.sku}</p>
+                    <p className="text-xs text-gray-400">{product.sku}</p>
+                    <p className="text-xs text-gray-400 mb-1">
+                      cost price: {product.cost_price != null && product.cost_price !== '' ? formatCurrency(product.cost_price) : '—'}
+                    </p>
                     <div className="mt-1.5 space-y-1">
                       <div>
                         {Number(product.usual_price) > Number(product.our_price || product.price) && (
@@ -2081,6 +2168,7 @@ export default function POSPage() {
                     removeItem(pid)
                   }}
                   onToggleDiscount={togglePredefinedDiscount}
+                  onToggleWholesale={toggleWholesale}
                   onDiscountChange={updateDiscount}
                   onOurPriceChange={updateOurPrice}
                   onUnitChange={(pid, unit) => updateUnit(pid, unit)}
@@ -2127,6 +2215,16 @@ export default function POSPage() {
               }}
               placeholder="0.00"
               onKeyDown={(e) => {
+                if (e.key === 'ArrowUp') {
+                  e.preventDefault()
+                  const allQtyInputs = Array.from(document.querySelectorAll('input[data-field="qty"]'))
+                  const targetInput = (lastAddedId && document.querySelector(`[data-testid="cart-qty-${lastAddedId}"]`)) || allQtyInputs[allQtyInputs.length - 1]
+                  if (targetInput) {
+                    targetInput.focus()
+                    targetInput.select?.()
+                  }
+                  return
+                }
                 if (e.key === 'Enter') {
                   e.preventDefault()
                   if (items.length > 0) handleOpenPayment()

@@ -74,19 +74,42 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
 
     const usualPriceSnapshot = toMoney(rawUsual)
     const ourPriceSnapshot = toMoney(rawOur)
-    const predefinedDiscountApplied = item.predefined_discount_applied !== undefined
-      ? Boolean(item.predefined_discount_applied)
-      : true
-    const activeSellingPrice = predefinedDiscountApplied ? ourPriceSnapshot : usualPriceSnapshot
-    const unitPrice = activeSellingPrice
-    const unitCost = toMoney(product.cost_price || 0)
+    const isWholesale = Boolean(item.is_wholesale)
+    const rawWholesale = product.wholesale_price !== null && product.wholesale_price !== undefined
+      ? product.wholesale_price
+      : 0
+    const wholesalePriceSnapshot = toMoney(rawWholesale)
+
+    const predefinedDiscountApplied = isWholesale
+      ? false
+      : (item.predefined_discount_applied !== undefined
+        ? Boolean(item.predefined_discount_applied)
+        : true)
 
     const pricingQty = toPricingUnitQuantity(item.quantity, sellingUnit, product.pricing_unit, product.unit_category)
-    const unitDiscountDiff = usualPriceSnapshot.minus(ourPriceSnapshot)
-    const predefinedDiscountAmount = predefinedDiscountApplied && unitDiscountDiff.gt(0)
-      ? roundMoney(pricingQty.mul(unitDiscountDiff))
-      : toMoney(0)
-    const itemDiscount = toMoney(item.discount)
+
+    let activeSellingPrice
+    let predefinedDiscountAmount
+    let itemDiscount
+
+    if (isWholesale) {
+      activeSellingPrice = wholesalePriceSnapshot
+      const wholesaleDiff = usualPriceSnapshot.minus(wholesalePriceSnapshot)
+      predefinedDiscountAmount = wholesaleDiff.gt(0)
+        ? roundMoney(pricingQty.mul(wholesaleDiff))
+        : toMoney(0)
+      itemDiscount = toMoney(0)
+    } else {
+      activeSellingPrice = predefinedDiscountApplied ? ourPriceSnapshot : usualPriceSnapshot
+      const unitDiscountDiff = usualPriceSnapshot.minus(ourPriceSnapshot)
+      predefinedDiscountAmount = predefinedDiscountApplied && unitDiscountDiff.gt(0)
+        ? roundMoney(pricingQty.mul(unitDiscountDiff))
+        : toMoney(0)
+      itemDiscount = toMoney(item.discount)
+    }
+
+    const unitPrice = activeSellingPrice
+    const unitCost = toMoney(product.cost_price || 0)
 
     const lineGross = calculateLineGross(item.quantity, sellingUnit, product.pricing_unit, unitPrice, product.unit_category)
     const lineCost = calculateLineCost(item.quantity, sellingUnit, product.pricing_unit, unitCost, product.unit_category)
@@ -115,6 +138,8 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
       cost_price_snapshot: costPriceSnapshot,
       usual_price_snapshot: usualPriceSnapshot,
       our_price_snapshot: ourPriceSnapshot,
+      wholesale_price_snapshot: wholesalePriceSnapshot,
+      is_wholesale: isWholesale,
       predefined_discount_applied: predefinedDiscountApplied,
       predefined_discount_amount: predefinedDiscountAmount,
       line_cost: lineCost,
@@ -266,6 +291,8 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
         cost_price_snapshot: si.cost_price_snapshot,
         usual_price_snapshot: si.usual_price_snapshot,
         our_price_snapshot: si.our_price_snapshot,
+        wholesale_price_snapshot: si.wholesale_price_snapshot,
+        is_wholesale: si.is_wholesale,
         predefined_discount_applied: si.predefined_discount_applied,
         predefined_discount_amount: si.predefined_discount_amount,
         line_cost: si.line_cost,
