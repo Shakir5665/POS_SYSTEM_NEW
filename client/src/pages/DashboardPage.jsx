@@ -30,18 +30,35 @@ function SkeletonCard() {
   )
 }
 
-function KpiCard({ title, value, subtitle, icon, color, tooltip }) {
+function KpiCard({ title, value, subtitle, icon, color, tooltip, to }) {
   const displayTooltip = tooltip !== undefined ? tooltip : (typeof value === 'string' || typeof value === 'number' ? String(value) : undefined)
-  return (
+  const cardContent = (
     <div
-      className="bg-white rounded-xl p-6 border border-gray-100 shadow-sm flex items-start gap-4"
+      className={`bg-white rounded-xl p-6 border border-gray-100 shadow-sm flex items-start gap-4 transition-all duration-200 ${
+        to
+          ? 'hover:shadow-md hover:border-primary-200 hover:-translate-y-0.5 cursor-pointer group'
+          : ''
+      }`}
       title={displayTooltip}
     >
-      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
+      <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform duration-200 ${to ? 'group-hover:scale-105' : ''} ${color}`}>
         {icon}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-gray-500 font-medium">{title}</p>
+        <div className="flex items-center justify-between gap-1">
+          <p className="text-sm text-gray-500 font-medium group-hover:text-primary-600 transition-colors">{title}</p>
+          {to && (
+            <svg
+              className="w-4 h-4 text-gray-300 opacity-0 group-hover:opacity-100 group-hover:text-primary-600 group-hover:translate-x-0.5 transition-all flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          )}
+        </div>
         <p
           className="text-2xl font-bold text-gray-900 mt-0.5 truncate"
           title={displayTooltip}
@@ -52,6 +69,16 @@ function KpiCard({ title, value, subtitle, icon, color, tooltip }) {
       </div>
     </div>
   )
+
+  if (to) {
+    return (
+      <Link to={to} className="block focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 rounded-xl">
+        {cardContent}
+      </Link>
+    )
+  }
+
+  return cardContent
 }
 
 export default function DashboardPage() {
@@ -164,6 +191,7 @@ export default function DashboardPage() {
                 tooltip={formatCurrency(todayRevenue)}
                 subtitle="Total value of goods sold"
                 color="bg-primary-100"
+                to={`/sales?startDate=${today}&endDate=${today}`}
                 icon={
                   <svg className="w-6 h-6 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -176,6 +204,7 @@ export default function DashboardPage() {
                 tooltip={formatCurrency(todayCollections)}
                 subtitle="Physical cash & electronic receipts"
                 color="bg-success-100"
+                to="/finance"
                 icon={
                   <svg className="w-6 h-6 text-success-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
@@ -188,6 +217,7 @@ export default function DashboardPage() {
                 tooltip={formatCurrency(todayCredit)}
                 subtitle="Dispatched on customer credit"
                 color="bg-blue-100"
+                to="/customers"
                 icon={
                   <svg className="w-6 h-6 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
@@ -199,6 +229,7 @@ export default function DashboardPage() {
                 value={dashboardMetrics?.today_transactions ?? summary?.transaction_count ?? 0}
                 subtitle="Completed checkouts"
                 color="bg-emerald-100"
+                to={`/sales?startDate=${today}&endDate=${today}`}
                 icon={
                   <svg className="w-6 h-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
@@ -217,6 +248,7 @@ export default function DashboardPage() {
             tooltip={formatCurrency(customerReceivables)}
             subtitle="Outstanding credit due from customers"
             color="bg-amber-100"
+            to="/customers"
             icon={
               <svg className="w-6 h-6 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
@@ -229,6 +261,7 @@ export default function DashboardPage() {
             tooltip={formatCurrency(supplierPayables)}
             subtitle="Outstanding payables due to vendors"
             color="bg-red-100"
+            to="/suppliers"
             icon={
               <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
@@ -240,6 +273,7 @@ export default function DashboardPage() {
             value={loadingInventory ? '...' : (dashboardMetrics?.low_stock_alerts ?? lowStockItems.length)}
             subtitle="Products below reorder threshold"
             color="bg-warning-100"
+            to="/inventory?tab=low"
             icon={
               <svg className="w-6 h-6 text-warning-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
@@ -251,6 +285,7 @@ export default function DashboardPage() {
             value={inventoryStatus?.total_products ?? (loadingInventory ? '...' : 0)}
             subtitle="Catalog items active in inventory"
             color="bg-purple-100"
+            to="/products"
             icon={
               <svg className="w-6 h-6 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />

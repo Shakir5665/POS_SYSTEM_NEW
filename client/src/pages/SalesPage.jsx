@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
@@ -18,13 +19,27 @@ export default function SalesPage() {
   const settings = useSettings()
   const fmt = (v) => formatCurrency(v, settings.currency_symbol || 'LKR')
 
+  const [searchParams, setSearchParams] = useSearchParams()
+  const initialStart = searchParams.get('startDate') || ''
+  const initialEnd = searchParams.get('endDate') || ''
+
   const [sales, setSales] = useState([])
   const [meta, setMeta] = useState({ page: 1, total_pages: 1 })
   const [page, setPage] = useState(1)
   const [search, setSearch] = useState('')
-  const [startDate, setStartDate] = useState('')
-  const [endDate, setEndDate] = useState('')
+  const [startDate, setStartDate] = useState(initialStart)
+  const [endDate, setEndDate] = useState(initialEnd)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const paramStart = searchParams.get('startDate') || ''
+    const paramEnd = searchParams.get('endDate') || ''
+    if (paramStart !== startDate || paramEnd !== endDate) {
+      setStartDate(paramStart)
+      setEndDate(paramEnd)
+      setPage(1)
+    }
+  }, [searchParams])
 
   const [receiptSale, setReceiptSale] = useState(null)
   const [refundTarget, setRefundTarget] = useState(null)
@@ -172,6 +187,7 @@ export default function SalesPage() {
                     setEndDate('')
                     setSearch('')
                     setPage(1)
+                    setSearchParams({}, { replace: true })
                   }}
                 >
                   Reset filters

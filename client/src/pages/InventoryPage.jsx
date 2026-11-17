@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
@@ -29,8 +30,34 @@ export default function InventoryPage() {
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [meta, setMeta] = useState({ page: 1, total_pages: 1, total: 0 })
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tabFromUrl = searchParams.get('tab')
   const [page, setPage] = useState(1)
-  const [activeTab, setActiveTab] = useState('all')
+  const [activeTab, setActiveTab] = useState(
+    tabFromUrl && ['all', 'low', 'out'].includes(tabFromUrl) ? tabFromUrl : 'all'
+  )
+
+  useEffect(() => {
+    const t = searchParams.get('tab')
+    if (t && ['all', 'low', 'out'].includes(t) && t !== activeTab) {
+      setActiveTab(t)
+      setPage(1)
+    }
+  }, [searchParams])
+
+  function handleTabChange(tabKey) {
+    setActiveTab(tabKey)
+    setPage(1)
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (tabKey === 'all') {
+        next.delete('tab')
+      } else {
+        next.set('tab', tabKey)
+      }
+      return next
+    }, { replace: true })
+  }
   const [stats, setStats] = useState({ total: 0, low: 0, out: 0 })
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -255,7 +282,7 @@ export default function InventoryPage() {
             {TABS.map((tab) => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
                   activeTab === tab.key
                     ? 'bg-white text-gray-900 shadow-sm'
