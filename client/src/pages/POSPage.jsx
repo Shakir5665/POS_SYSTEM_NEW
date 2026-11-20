@@ -1961,6 +1961,11 @@ export default function POSPage() {
                         )}
                       </div>
                       <div className="min-w-[70px]">
+                        {product.cost_price != null && product.cost_price !== '' && (
+                          <div className="text-2xs text-gray-400 font-normal leading-tight">
+                            Cost: {formatCurrency(product.cost_price)}
+                          </div>
+                        )}
                         <span className="text-sm font-bold text-primary-700">
                           {formatCurrency(currentPrice)}
                         </span>
