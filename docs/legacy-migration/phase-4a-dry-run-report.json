@@ -1,0 +1,222 @@
+{
+  "metadata": {
+    "source_file": "POS_Complete_Export_v4.xlsx",
+    "source_sha256": "b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4",
+    "executed_at": "2026-11-21T19:43:09.189Z",
+    "mode": "DRY_RUN"
+  },
+  "counts": {
+    "sales": {
+      "total": 3,
+      "valid": 3,
+      "items": 19
+    },
+    "purchases": {
+      "total": 4,
+      "valid": 4,
+      "items": 4,
+      "orphans": 4
+    },
+    "adjustments": {
+      "total": 5,
+      "valid": 5,
+      "items": 5,
+      "orphans": 5
+    },
+    "expenses": {
+      "total": 1,
+      "valid": 1
+    }
+  },
+  "inventory_impact": {
+    "product_quantity_mutations": 0,
+    "inventory_logs_created": 0,
+    "customer_loyalty_points_awarded": 0,
+    "synthetic_payments_created": 0
+  },
+  "issues": [
+    {
+      "batch_id": null,
+      "entity_type": "PurchaseItem",
+      "legacy_id": "4353",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened purchase item #4353 references missing parent purchase #4351",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 4353,
+        "parent_purchase_id": 4351,
+        "product_id": 101,
+        "product_name": "Sugar",
+        "quantity": 500,
+        "unit": "kg"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "PurchaseItem",
+      "legacy_id": "4352",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened purchase item #4352 references missing parent purchase #4350",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 4352,
+        "parent_purchase_id": 4350,
+        "product_id": 102,
+        "product_name": "Salt",
+        "quantity": 300,
+        "unit": "kg"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "PurchaseItem",
+      "legacy_id": "4351",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened purchase item #4351 references missing parent purchase #4349",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 4351,
+        "parent_purchase_id": 4349,
+        "product_id": 103,
+        "product_name": "Chilli",
+        "quantity": 150,
+        "unit": "kg"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "PurchaseItem",
+      "legacy_id": "4350",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened purchase item #4350 references missing parent purchase #4348",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 4350,
+        "parent_purchase_id": 4348,
+        "product_id": 104,
+        "product_name": "Basmathi Rice",
+        "quantity": 200,
+        "unit": "kg"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "StockAdjustmentItem",
+      "legacy_id": "76",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened adjustment item #76 references missing parent adjustment #118",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 76,
+        "parent_adjustment_id": 118,
+        "product_id": 101,
+        "product_name": "Sugar",
+        "quantity_change": -3,
+        "method_type": 1,
+        "unit": "kg",
+        "timestamp": "2024-10-10"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "StockAdjustmentItem",
+      "legacy_id": "75",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened adjustment item #75 references missing parent adjustment #117",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 75,
+        "parent_adjustment_id": 117,
+        "product_id": 102,
+        "product_name": "Salt",
+        "quantity_change": 4,
+        "method_type": 1,
+        "unit": "kg",
+        "timestamp": "2024-10-11"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "StockAdjustmentItem",
+      "legacy_id": "74",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened adjustment item #74 references missing parent adjustment #116",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 74,
+        "parent_adjustment_id": 116,
+        "product_id": 103,
+        "product_name": "Chilli",
+        "quantity_change": -0.5,
+        "method_type": 1,
+        "unit": "kg",
+        "timestamp": "2024-10-12"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "StockAdjustmentItem",
+      "legacy_id": "73",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened adjustment item #73 references missing parent adjustment #115",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 73,
+        "parent_adjustment_id": 115,
+        "product_id": 104,
+        "product_name": "Basmathi Rice",
+        "quantity_change": 8,
+        "method_type": 1,
+        "unit": "kg",
+        "timestamp": "2024-10-13"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "StockAdjustmentItem",
+      "legacy_id": "72",
+      "issue_code": "ORPHAN_CHILD",
+      "severity": "WARNING",
+      "description": "Flattened adjustment item #72 references missing parent adjustment #114",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_id": 72,
+        "parent_adjustment_id": 114,
+        "product_id": 105,
+        "product_name": "ALA",
+        "quantity_change": -2,
+        "method_type": 1,
+        "unit": "pcs",
+        "timestamp": "2024-10-14"
+      }
+    },
+    {
+      "batch_id": null,
+      "entity_type": "Expense",
+      "legacy_id": "3",
+      "issue_code": "CATEGORY_FALLBACK",
+      "severity": "INFO",
+      "description": "Legacy expense category 'home' mapped to fallback category 'Miscellaneous'",
+      "source_data": {
+        "legacy_id": 3,
+        "expense_date": "2024-09-08T00:00:00.000Z",
+        "category_id": 5,
+        "category_name": "home",
+        "warehouse_id": 1,
+        "amount": 10000,
+        "notes": "Home supplies expense recorded in legacy system"
+      }
+    }
+  ],
+  "safe_to_execute": true,
+  "duration_ms": 249,
+  "status": "PASSED"
+}

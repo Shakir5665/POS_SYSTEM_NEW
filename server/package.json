@@ -15,7 +15,9 @@
     "db:studio": "npx prisma studio",
     "db:backup": "node scripts/backup.js",
     "lint": "eslint src/",
-    "migration:readiness": "node scripts/migration/check-readiness.js"
+    "migration:readiness": "node scripts/migration/check-readiness.js",
+    "migration:run": "node scripts/migration/run-migration.js",
+    "migration:dry-run": "node scripts/migration/run-migration.js --dry-run"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

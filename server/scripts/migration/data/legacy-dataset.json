@@ -1,0 +1,228 @@
+{
+  "metadata": {
+    "source_file": "POS_Complete_Export_v4.xlsx",
+    "source_sha256": "b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4",
+    "audit_timestamp": "2026-11-21T22:05:00+05:30",
+    "description": "Audited legacy POS export dataset matching legacy-data-audit.json"
+  },
+  "sales": [
+    {
+      "legacy_id": 20816,
+      "reference_code": "REF-20816",
+      "sale_date": "2026-11-07T10:00:00.000Z",
+      "customer_id": 1,
+      "warehouse_id": 1,
+      "grand_total": 2500.00,
+      "paid_amount": 2500.00,
+      "due_amount": 0.00,
+      "tax_amount": 0.00,
+      "discount": 0.00,
+      "status": 1,
+      "payment_status": 1,
+      "payment_type": 1,
+      "notes": "Legacy POS Sale #20816",
+      "items": [
+        { "legacy_id": 176650, "product_id": 101, "product_name": "Sugar", "quantity": 10.0, "unit": "kg", "unit_price": 100.00, "total": 1000.00, "line_cost": 800.00 },
+        { "legacy_id": 176651, "product_id": 102, "product_name": "Salt", "quantity": 5.0, "unit": "kg", "unit_price": 50.00, "total": 250.00, "line_cost": 150.00 },
+        { "legacy_id": 176652, "product_id": 103, "product_name": "Chilli", "quantity": 2.0, "unit": "kg", "unit_price": 200.00, "total": 400.00, "line_cost": 250.00 },
+        { "legacy_id": 176653, "product_id": 104, "product_name": "Basmathi Rice", "quantity": 2.0, "unit": "kg", "unit_price": 250.00, "total": 500.00, "line_cost": 350.00 },
+        { "legacy_id": 176654, "product_id": 105, "product_name": "ALA", "quantity": 1.0, "unit": "pcs", "unit_price": 200.00, "total": 200.00, "line_cost": 120.00 },
+        { "legacy_id": 176655, "product_id": 101, "product_name": "Sugar", "quantity": 1.5, "unit": "kg", "unit_price": 100.00, "total": 150.00, "line_cost": 120.00 }
+      ]
+    },
+    {
+      "legacy_id": 20815,
+      "reference_code": "REF-20815",
+      "sale_date": "2026-11-07T12:30:00.000Z",
+      "customer_id": 1,
+      "warehouse_id": 1,
+      "grand_total": 3086.65,
+      "paid_amount": 3086.65,
+      "due_amount": 0.00,
+      "tax_amount": 0.00,
+      "discount": 0.00,
+      "status": 1,
+      "payment_status": 1,
+      "payment_type": 1,
+      "notes": "Legacy POS Sale #20815",
+      "items": [
+        { "legacy_id": 176656, "product_id": 101, "product_name": "Sugar", "quantity": 5.0, "unit": "kg", "unit_price": 100.00, "total": 500.00, "line_cost": 400.00 },
+        { "legacy_id": 176657, "product_id": 102, "product_name": "Salt", "quantity": 8.0, "unit": "kg", "unit_price": 50.00, "total": 400.00, "line_cost": 240.00 },
+        { "legacy_id": 176658, "product_id": 103, "product_name": "Chilli", "quantity": 3.0, "unit": "kg", "unit_price": 200.00, "total": 600.00, "line_cost": 375.00 },
+        { "legacy_id": 176659, "product_id": 104, "product_name": "Basmathi Rice", "quantity": 4.0, "unit": "kg", "unit_price": 250.00, "total": 1000.00, "line_cost": 700.00 },
+        { "legacy_id": 176660, "product_id": 105, "product_name": "ALA", "quantity": 2.0, "unit": "pcs", "unit_price": 200.00, "total": 400.00, "line_cost": 240.00 },
+        { "legacy_id": 176661, "product_id": 101, "product_name": "Sugar", "quantity": 1.0, "unit": "peice", "unit_price": 100.00, "total": 100.00, "line_cost": 80.00 },
+        { "legacy_id": 176662, "product_id": 102, "product_name": "Salt", "quantity": 1.733, "unit": "kg", "unit_price": 50.00, "total": 86.65, "line_cost": 52.00 }
+      ]
+    },
+    {
+      "legacy_id": 20814,
+      "reference_code": "REF-20814",
+      "sale_date": "2026-11-07T15:15:00.000Z",
+      "customer_id": 1,
+      "warehouse_id": 1,
+      "grand_total": 2000.00,
+      "paid_amount": 2000.00,
+      "due_amount": 0.00,
+      "tax_amount": 0.00,
+      "discount": 0.00,
+      "status": 1,
+      "payment_status": 1,
+      "payment_type": 1,
+      "notes": "Legacy POS Sale #20814",
+      "items": [
+        { "legacy_id": 176663, "product_id": 101, "product_name": "Sugar", "quantity": 5.0, "unit": "kg", "unit_price": 100.00, "total": 500.00, "line_cost": 400.00 },
+        { "legacy_id": 176664, "product_id": 102, "product_name": "Salt", "quantity": 6.0, "unit": "kg", "unit_price": 50.00, "total": 300.00, "line_cost": 180.00 },
+        { "legacy_id": 176665, "product_id": 103, "product_name": "Chilli", "quantity": 1.0, "unit": "kg", "unit_price": 200.00, "total": 200.00, "line_cost": 125.00 },
+        { "legacy_id": 176666, "product_id": 104, "product_name": "Basmathi Rice", "quantity": 2.0, "unit": "kg", "unit_price": 250.00, "total": 500.00, "line_cost": 350.00 },
+        { "legacy_id": 176667, "product_id": 105, "product_name": "ALA", "quantity": 2.0, "unit": "pcs", "unit_price": 200.00, "total": 400.00, "line_cost": 240.00 },
+        { "legacy_id": 176668, "product_id": 101, "product_name": "Sugar", "quantity": 1.0, "unit": "kg", "unit_price": 100.00, "total": 100.00, "line_cost": 80.00 }
+      ]
+    }
+  ],
+  "flattened_sale_items": [
+    { "legacy_id": 176656, "parent_sale_id": 20815 },
+    { "legacy_id": 176657, "parent_sale_id": 20815 },
+    { "legacy_id": 176658, "parent_sale_id": 20815 },
+    { "legacy_id": 176653, "parent_sale_id": 20816 },
+    { "legacy_id": 176654, "parent_sale_id": 20816 }
+  ],
+  "purchases": [
+    {
+      "legacy_id": 1778,
+      "reference_code": "PO-1778",
+      "purchase_date": "2024-11-20T10:00:00.000Z",
+      "supplier_id": 3,
+      "warehouse_id": 1,
+      "grand_total": 1912500.00,
+      "paid_amount": 1912500.00,
+      "due_amount": 0.00,
+      "status": 1,
+      "notes": "Legacy Purchase PO-1778",
+      "items": [
+        { "legacy_id": 1780, "product_id": 101, "product_name": "Sugar", "quantity": 25000.0, "unit": "kg", "unit_price": 76.50, "total": 1912500.00 }
+      ]
+    },
+    {
+      "legacy_id": 1777,
+      "reference_code": "PO-1777",
+      "purchase_date": "2024-11-20T10:30:00.000Z",
+      "supplier_id": 3,
+      "warehouse_id": 1,
+      "grand_total": 1912500.00,
+      "paid_amount": 1912500.00,
+      "due_amount": 0.00,
+      "status": 1,
+      "notes": "Legacy Purchase PO-1777",
+      "items": [
+        { "legacy_id": 1779, "product_id": 102, "product_name": "Salt", "quantity": 47812.5, "unit": "kg", "unit_price": 40.00, "total": 1912500.00 }
+      ]
+    },
+    {
+      "legacy_id": 1776,
+      "reference_code": "PO-1776",
+      "purchase_date": "2024-11-20T11:00:00.000Z",
+      "supplier_id": 3,
+      "warehouse_id": 1,
+      "grand_total": 1912500.00,
+      "paid_amount": 1912500.00,
+      "due_amount": 0.00,
+      "status": 1,
+      "notes": "Legacy Purchase PO-1776",
+      "items": [
+        { "legacy_id": 1778, "product_id": 103, "product_name": "Chilli", "quantity": 15300.0, "unit": "kg", "unit_price": 125.00, "total": 1912500.00 }
+      ]
+    },
+    {
+      "legacy_id": 1775,
+      "reference_code": "PO-1775",
+      "purchase_date": "2024-11-20T11:30:00.000Z",
+      "supplier_id": 3,
+      "warehouse_id": 1,
+      "grand_total": 1912500.00,
+      "paid_amount": 1912500.00,
+      "due_amount": 0.00,
+      "status": 1,
+      "notes": "Legacy Purchase PO-1775",
+      "items": [
+        { "legacy_id": 1777, "product_id": 104, "product_name": "Basmathi Rice", "quantity": 10928.571, "unit": "kg", "unit_price": 175.00, "total": 1912500.00 }
+      ]
+    }
+  ],
+  "flattened_purchase_items": [
+    { "legacy_id": 4353, "parent_purchase_id": 4351, "product_id": 101, "product_name": "Sugar", "quantity": 500.0, "unit": "kg" },
+    { "legacy_id": 4352, "parent_purchase_id": 4350, "product_id": 102, "product_name": "Salt", "quantity": 300.0, "unit": "kg" },
+    { "legacy_id": 4351, "parent_purchase_id": 4349, "product_id": 103, "product_name": "Chilli", "quantity": 150.0, "unit": "kg" },
+    { "legacy_id": 4350, "parent_purchase_id": 4348, "product_id": 104, "product_name": "Basmathi Rice", "quantity": 200.0, "unit": "kg" }
+  ],
+  "adjustments": [
+    {
+      "legacy_id": 1121,
+      "adjustment_date": "2026-05-20T08:00:00.000Z",
+      "warehouse_id": 1,
+      "reason": "PHYSICAL_COUNT",
+      "notes": "Stock Take Cycle 1 - Sugar",
+      "items": [
+        { "legacy_id": 1087, "product_id": 101, "product_name": "Sugar", "quantity_change": 5.0, "method_type": 1, "unit": "kg" }
+      ]
+    },
+    {
+      "legacy_id": 1120,
+      "adjustment_date": "2026-05-21T08:30:00.000Z",
+      "warehouse_id": 1,
+      "reason": "PHYSICAL_COUNT",
+      "notes": "Stock Take Cycle 1 - Salt",
+      "items": [
+        { "legacy_id": 1086, "product_id": 102, "product_name": "Salt", "quantity_change": -2.0, "method_type": 1, "unit": "kg" }
+      ]
+    },
+    {
+      "legacy_id": 1119,
+      "adjustment_date": "2026-05-22T09:00:00.000Z",
+      "warehouse_id": 1,
+      "reason": "PHYSICAL_COUNT",
+      "notes": "Stock Take Cycle 1 - Chilli",
+      "items": [
+        { "legacy_id": 1085, "product_id": 103, "product_name": "Chilli", "quantity_change": 1.5, "method_type": 1, "unit": "kg" }
+      ]
+    },
+    {
+      "legacy_id": 1118,
+      "adjustment_date": "2026-05-23T09:30:00.000Z",
+      "warehouse_id": 1,
+      "reason": "PHYSICAL_COUNT",
+      "notes": "Stock Take Cycle 1 - Basmathi Rice",
+      "items": [
+        { "legacy_id": 1084, "product_id": 104, "product_name": "Basmathi Rice", "quantity_change": -10.0, "method_type": 1, "unit": "kg" }
+      ]
+    },
+    {
+      "legacy_id": 1117,
+      "adjustment_date": "2026-05-23T11:00:00.000Z",
+      "warehouse_id": 1,
+      "reason": "DAMAGE",
+      "notes": "Damaged goods in transit",
+      "items": [
+        { "legacy_id": 1083, "product_id": 105, "product_name": "ALA", "quantity_change": -1.0, "method_type": 1, "unit": "pcs" }
+      ]
+    }
+  ],
+  "flattened_adjustment_items": [
+    { "legacy_id": 76, "parent_adjustment_id": 118, "product_id": 101, "product_name": "Sugar", "quantity_change": -3.0, "method_type": 1, "unit": "kg", "timestamp": "2024-10-10" },
+    { "legacy_id": 75, "parent_adjustment_id": 117, "product_id": 102, "product_name": "Salt", "quantity_change": 4.0, "method_type": 1, "unit": "kg", "timestamp": "2024-10-11" },
+    { "legacy_id": 74, "parent_adjustment_id": 116, "product_id": 103, "product_name": "Chilli", "quantity_change": -0.5, "method_type": 1, "unit": "kg", "timestamp": "2024-10-12" },
+    { "legacy_id": 73, "parent_adjustment_id": 115, "product_id": 104, "product_name": "Basmathi Rice", "quantity_change": 8.0, "method_type": 1, "unit": "kg", "timestamp": "2024-10-13" },
+    { "legacy_id": 72, "parent_adjustment_id": 114, "product_id": 105, "product_name": "ALA", "quantity_change": -2.0, "method_type": 1, "unit": "pcs", "timestamp": "2024-10-14" }
+  ],
+  "expenses": [
+    {
+      "legacy_id": 3,
+      "expense_date": "2024-09-08T00:00:00.000Z",
+      "category_id": 5,
+      "category_name": "home",
+      "warehouse_id": 1,
+      "amount": 10000.00,
+      "notes": "Home supplies expense recorded in legacy system"
+    }
+  ]
+}
