@@ -253,8 +253,7 @@ describe('Phase 3A: Backend Business Dates and Warehouse Query Integration', () 
       expect(liveSale.warehouse.id).toBe(defaultWarehouse.id)
     })
 
-    it('POST /api/sales with explicit warehouse_id and historical sale_date should record both', async () => {
-      const historicalDateStr = '2021-06-15T10:30:00.000Z'
+    it('POST /api/sales with client-supplied is_legacy_import should be rejected with 422', async () => {
       const res = await request(app)
         .post('/api/sales')
         .set('Authorization', `Bearer ${adminToken}`)
@@ -262,14 +261,60 @@ describe('Phase 3A: Backend Business Dates and Warehouse Query Integration', () 
           items: [{ product_id: testProduct.id, quantity: 1 }],
           payment_method: 'CASH',
           amount_paid: 50,
-          warehouse_id: secondaryWarehouse.id,
-          sale_date: historicalDateStr,
           is_legacy_import: true,
-          notes: 'Phase 3A Historical Sale',
         })
-      expect(res.status).toBe(201)
-      expect(res.body.success).toBe(true)
-      historicalSale = res.body.data
+      expect(res.status).toBe(422)
+      expect(res.body.success).toBe(false)
+    })
+
+    it('POST /api/sales with explicit warehouse_id and sale_date should record both for ADMIN', async () => {
+      const historicalDateStr = '2021-06-15T10:30:00.000Z'
+      // Create historical sale directly via database to simulate Phase 4 migration import
+      historicalSale = await prisma.sale.create({
+        data: {
+          transaction_id: 'TXN-LEGACY-001',
+          user_id: adminUser.id,
+          warehouse_id: secondaryWarehouse.id,
+          sale_date: new Date(historicalDateStr),
+          is_legacy_import: true,
+          subtotal: 50,
+          discount_amount: 0,
+          tax_amount: 0,
+          total_amount: 50,
+          amount_paid: 50,
+          balance_due: 0,
+          payment_method: 'CASH',
+          payment_status: 'COMPLETED',
+          notes: 'Phase 3A Historical Sale',
+          sale_items: {
+            create: [
+              {
+                product_id: testProduct.id,
+                product_name: testProduct.name,
+                product_sku: testProduct.sku,
+                unit: 'pcs',
+                quantity: 1,
+                base_quantity: 1,
+                unit_price: 50,
+                unit_cost_snapshot: 30,
+                cost_price_snapshot: 30,
+                total: 50,
+                line_cost: 30,
+              },
+            ],
+          },
+          payments: {
+            create: [
+              {
+                method: 'CASH',
+                amount_paid: 50,
+                change_given: 0,
+              },
+            ],
+          },
+        },
+        include: { warehouse: true },
+      })
       expect(historicalSale.warehouse_id).toBe(secondaryWarehouse.id)
       expect(historicalSale.is_legacy_import).toBe(true)
       expect(new Date(historicalSale.sale_date).toISOString()).toBe(historicalDateStr)
@@ -325,21 +370,53 @@ describe('Phase 3A: Backend Business Dates and Warehouse Query Integration', () 
       expect(res.body.data.warehouse.id).toBe(defaultWarehouse.id)
     })
 
-    it('POST /api/purchases with explicit warehouse_id and purchase_date should set both', async () => {
-      const purchaseDateStr = '2022-03-20T08:00:00.000Z'
+    it('POST /api/purchases with client-supplied is_legacy_import should be rejected with 422', async () => {
       const res = await request(app)
         .post('/api/purchases')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
           supplier_id: testSupplier.id,
           items: [{ product_id: testProduct.id, quantity: 5, unit_cost: 30 }],
-          warehouse_id: secondaryWarehouse.id,
-          purchase_date: purchaseDateStr,
           is_legacy_import: true,
-          notes: 'Phase 3A Purchase Explicit',
         })
-      expect(res.status).toBe(201)
-      historicalPurchase = res.body.data
+      expect(res.status).toBe(422)
+      expect(res.body.success).toBe(false)
+    })
+
+    it('Historical purchases should be queryable by warehouse_id and business date range', async () => {
+      const purchaseDateStr = '2022-03-20T08:00:00.000Z'
+      historicalPurchase = await prisma.purchase.create({
+        data: {
+          purchase_number: 'PO-LEGACY-001',
+          supplier_id: testSupplier.id,
+          user_id: adminUser.id,
+          warehouse_id: secondaryWarehouse.id,
+          purchase_date: new Date(purchaseDateStr),
+          is_legacy_import: true,
+          status: 'ORDERED',
+          payment_status: 'PENDING',
+          subtotal: 150,
+          total_amount: 150,
+          amount_paid: 0,
+          balance_due: 150,
+          notes: 'Phase 3A Purchase Explicit',
+          items: {
+            create: [
+              {
+                product_id: testProduct.id,
+                product_name: testProduct.name,
+                product_sku: testProduct.sku,
+                unit: 'pcs',
+                quantity: 5,
+                base_quantity: 5,
+                unit_cost: 30,
+                total_cost: 150,
+              },
+            ],
+          },
+        },
+        include: { warehouse: true },
+      })
       expect(historicalPurchase.warehouse_id).toBe(secondaryWarehouse.id)
       expect(historicalPurchase.is_legacy_import).toBe(true)
       expect(new Date(historicalPurchase.purchase_date).toISOString()).toBe(purchaseDateStr)

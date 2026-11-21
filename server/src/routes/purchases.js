@@ -20,7 +20,12 @@ const purchaseValidation = [
   body('status').optional().isIn(['ORDERED', 'RECEIVED']).withMessage('Status must be ORDERED or RECEIVED'),
   body('warehouse_id').optional({ nullable: true }).isUUID().withMessage('Warehouse ID must be a valid UUID'),
   body('purchase_date').optional({ nullable: true }).isISO8601().withMessage('Purchase date must be a valid ISO 8601 date'),
-  body('is_legacy_import').optional().isBoolean().withMessage('is_legacy_import must be a boolean'),
+  body('is_legacy_import').custom((val) => {
+    if (val !== undefined) {
+      throw new Error('Client-supplied is_legacy_import flag is not allowed on purchase orders')
+    }
+    return true
+  }),
   body('notes').optional({ nullable: true }).trim(),
 ]
 

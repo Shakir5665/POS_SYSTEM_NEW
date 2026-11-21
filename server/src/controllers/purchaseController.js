@@ -38,9 +38,28 @@ async function get(req, res, next) {
 
 async function create(req, res, next) {
   try {
+    const {
+      supplier_id,
+      items,
+      initial_payment = 0,
+      payment_method = 'CASH',
+      notes,
+      status = 'ORDERED',
+      warehouse_id,
+      purchase_date,
+    } = req.body
+
     const purchase = await purchaseService.createPurchase({
-      ...req.body,
-      user_id: req.user.id,
+      supplier_id,
+      items,
+      initial_payment,
+      payment_method,
+      notes,
+      status,
+      warehouse_id,
+      purchase_date: req.user && req.user.role === 'ADMIN' && purchase_date ? purchase_date : null,
+      is_legacy_import: false, // Server-enforced: live purchases are never legacy imports
+      user_id: req.user.id, // Strictly authenticated user identity
     })
     res.status(201).json({ success: true, data: purchase, message: 'Purchase order created successfully' })
   } catch (err) {

@@ -23,8 +23,18 @@ const saleValidation = [
   body('discount_amount').optional().isFloat({ min: 0 }).withMessage('Discount must be >= 0'),
   body('customer_id').optional({ nullable: true }).isUUID().withMessage('Customer ID must be a valid UUID'),
   body('warehouse_id').optional({ nullable: true }).isUUID().withMessage('Warehouse ID must be a valid UUID'),
-  body('sale_date').optional({ nullable: true }).isISO8601().withMessage('Sale date must be a valid ISO 8601 date'),
-  body('is_legacy_import').optional().isBoolean().withMessage('is_legacy_import must be a boolean'),
+  body('sale_date').optional({ nullable: true }).isISO8601().withMessage('Sale date must be a valid ISO 8601 date').custom((val, { req }) => {
+    if (val && req.user && req.user.role !== 'ADMIN') {
+      throw new Error('Backdating sales transactions requires ADMIN authorization')
+    }
+    return true
+  }),
+  body('is_legacy_import').custom((val) => {
+    if (val !== undefined) {
+      throw new Error('Client-supplied is_legacy_import flag is not allowed on live sales')
+    }
+    return true
+  }),
 ]
 
 router.post('/', saleValidation, validate, salesController.createSale)

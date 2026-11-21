@@ -12,7 +12,33 @@ function normalizeSale(sale) {
 
 async function createSale(req, res, next) {
   try {
-    const sale = await salesService.createSale(req.body, req.user.id)
+    const {
+      items,
+      customer_id,
+      payment_method,
+      amount_paid,
+      discount_amount = 0,
+      notes,
+      reference,
+      warehouse_id,
+      sale_date,
+    } = req.body
+
+    const sale = await salesService.createSale(
+      {
+        items,
+        customer_id,
+        payment_method,
+        amount_paid,
+        discount_amount,
+        notes,
+        reference,
+        warehouse_id,
+        sale_date: req.user && req.user.role === 'ADMIN' && sale_date ? sale_date : null,
+        is_legacy_import: false, // Server-enforced: live checkout is never a legacy import
+      },
+      req.user.id
+    )
     res.status(201).json({ success: true, data: normalizeSale(sale), message: 'Sale processed successfully' })
   } catch (err) {
     next(err)
