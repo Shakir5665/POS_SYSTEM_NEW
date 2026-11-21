@@ -14,7 +14,8 @@
     "db:seed": "npx prisma db seed",
     "db:studio": "npx prisma studio",
     "db:backup": "node scripts/backup.js",
-    "lint": "eslint src/"
+    "lint": "eslint src/",
+    "migration:readiness": "node scripts/migration/check-readiness.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

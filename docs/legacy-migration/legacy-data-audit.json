@@ -1,0 +1,268 @@
+{
+  "metadata": {
+    "audit_type": "externally_analyzed_source",
+    "audit_note": "This report was constructed from verified findings of an external analysis of the legacy POS workbook. The workbook was NOT analyzed by this agent. All values below are transcribed from the external audit. Values not supplied are marked as not_assessed or unknown.",
+    "source_workbook": "POS_Complete_Export_v4.xlsx",
+    "source_sha256": "b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4",
+    "audit_timestamp": "2026-11-21T22:05:00+05:30",
+    "phase": "Phase 1 — Establish the Baseline and Audit Legacy Data"
+  },
+
+  "worksheet_inventory": {
+    "total_worksheets_documented": 10,
+    "worksheets": [
+      { "name": "sales", "populated_records": 3, "notes": "Headers near top rows" },
+      { "name": "sales_sale_items", "populated_records": 5, "notes": "Flattened subset of 19 embedded items" },
+      { "name": "purchases", "populated_records": 4, "notes": "Records near Excel rows 2575–2578; large blank areas precede data" },
+      { "name": "purchases_purchase_items", "populated_records": 4, "notes": "Flattened items with ORPHAN parent references" },
+      { "name": "sales_returns", "populated_records": 0, "notes": "Empty worksheet" },
+      { "name": "purchase_returns", "populated_records": 0, "notes": "Empty worksheet" },
+      { "name": "adjustments", "populated_records": 5, "notes": "Headers near rows 56–60" },
+      { "name": "adjustments_adjustment_items", "populated_records": 5, "notes": "Flattened items near rows 1025–1029; ORPHAN parent references" },
+      { "name": "transfers", "populated_records": 0, "notes": "Empty worksheet" },
+      { "name": "expenses", "populated_records": 1, "notes": "Single expense record" }
+    ],
+    "total_populated_records": 27,
+    "warning": "Worksheets contain large blank areas. The last populated row number does NOT equal the record count."
+  },
+
+  "nested_child_records": {
+    "sales": {
+      "embedded_item_count": 19,
+      "flattened_item_count": 5,
+      "flattened_is_subset": true,
+      "deduplication_note": "The 5 flattened sale-item IDs (176656, 176657, 176658, 176653, 176654) are a subset of the 19 embedded items. Total distinct sale items = 19. Do NOT count as 24.",
+      "embedded_parse_status": "all_parsed_successfully"
+    },
+    "purchases": {
+      "embedded_item_count": 4,
+      "flattened_item_count": 4,
+      "flattened_is_subset": false,
+      "parent_mismatch": true,
+      "deduplication_note": "Flattened purchase-item IDs (4353, 4352, 4351, 4350) reference purchase IDs (4351, 4350, 4349, 4348) which do NOT match supplied purchase header IDs (1778, 1777, 1776, 1775). These are ORPHAN children.",
+      "embedded_parse_status": "all_parsed_successfully"
+    },
+    "adjustments": {
+      "embedded_item_count": 5,
+      "flattened_item_count": 5,
+      "flattened_is_subset": false,
+      "parent_mismatch": true,
+      "deduplication_note": "Flattened adjustment-item IDs (76, 75, 74, 73, 72) reference adjustment IDs (118, 117, 116, 115, 114) which do NOT match supplied header IDs (1121, 1120, 1119, 1118, 1117). These are ORPHAN children. Do NOT join by row order.",
+      "embedded_parse_status": "all_parsed_successfully"
+    }
+  },
+
+  "known_source_identifiers": {
+    "sale_header_ids": [20816, 20815, 20814],
+    "flattened_sale_item_ids": [176656, 176657, 176658, 176653, 176654],
+    "purchase_header_ids": [1778, 1777, 1776, 1775],
+    "embedded_purchase_item_ids": [1780, 1779, 1778, 1777],
+    "flattened_purchase_item_ids": [4353, 4352, 4351, 4350],
+    "flattened_purchase_item_parent_refs": [4351, 4350, 4349, 4348],
+    "adjustment_header_ids": [1121, 1120, 1119, 1118, 1117],
+    "embedded_adjustment_item_ids": [1087, 1086, 1085, 1084, 1083],
+    "flattened_adjustment_item_ids": [76, 75, 74, 73, 72],
+    "flattened_adjustment_item_parent_refs": [118, 117, 116, 115, 114],
+    "expense_id": 3
+  },
+
+  "verified_parent_child_relationships": {
+    "sales_to_embedded_items": {
+      "status": "VERIFIED",
+      "detail": "All 19 embedded sale items reference supplied sale header IDs"
+    },
+    "purchases_to_embedded_items": {
+      "status": "VERIFIED",
+      "detail": "All 4 embedded purchase items reference supplied purchase header IDs"
+    },
+    "adjustments_to_embedded_items": {
+      "status": "VERIFIED",
+      "detail": "All 5 embedded adjustment items reference supplied adjustment header IDs"
+    }
+  },
+
+  "missing_parent_references": {
+    "flattened_purchase_items": {
+      "status": "ORPHAN",
+      "orphan_count": 4,
+      "missing_parent_ids": [4351, 4350, 4349, 4348],
+      "resolution": "Preserve identities and relationship metadata. Do not attach to supplied purchase headers. Await additional data or business decision."
+    },
+    "flattened_adjustment_items": {
+      "status": "ORPHAN",
+      "orphan_count": 5,
+      "missing_parent_ids": [118, 117, 116, 115, 114],
+      "resolution": "Preserve as separate unresolved child set. Do not join by row order. Do not silently discard. Do not invent missing adjustment headers."
+    }
+  },
+
+  "financial_profiles": {
+    "sales": {
+      "record_count": 3,
+      "business_date": "2026-11-07",
+      "grand_total_sum": 7586.65,
+      "paid_amount_sum": 7586.65,
+      "due_amount_sum": 0,
+      "received_amount": "all_null",
+      "status_code": 1,
+      "payment_status_code": 1,
+      "payment_type_code": 1,
+      "warehouse_id": 1,
+      "customer_id": 1,
+      "status_code_meaning": "unknown",
+      "payment_status_code_meaning": "unknown",
+      "payment_type_code_meaning": "unknown"
+    },
+    "purchases": {
+      "record_count": 4,
+      "business_date": "2024-11-20",
+      "grand_total_sum": 7650000,
+      "received_amount": "all_null",
+      "status_code": 1,
+      "supplier_id": 3,
+      "warehouse_id": 1,
+      "status_code_meaning": "unknown"
+    },
+    "adjustments": {
+      "header_count": 5,
+      "embedded_item_count": 5,
+      "flattened_item_count": 5,
+      "header_date_range": {
+        "earliest": "2026-05-20",
+        "latest": "2026-05-23"
+      },
+      "flattened_item_timestamps": "October 2024",
+      "flattened_item_method_type": 1,
+      "method_type_meaning": "unknown — do not guess whether 1 indicates stock addition or subtraction"
+    },
+    "expenses": {
+      "record_count": 1,
+      "legacy_expense_id": 3,
+      "legacy_category_id": 5,
+      "legacy_warehouse_id": 1,
+      "business_date": "2024-09-08",
+      "amount": 10000,
+      "category_name_observed": "home",
+      "category_mapping_note": "Do NOT assume legacy expense category ID 5 corresponds to any existing NexTill UUID"
+    }
+  },
+
+  "missing_master_datasets": {
+    "products": {
+      "standalone_sheet": false,
+      "fragments_available": "Some product references in sale items and purchase items contain names and embedded unit metadata",
+      "complete_master_data": false
+    },
+    "customers": {
+      "standalone_sheet": false,
+      "fragments_available": "Customer ID 1 referenced in sales headers",
+      "complete_master_data": false
+    },
+    "suppliers": {
+      "standalone_sheet": false,
+      "fragments_available": "Supplier ID 3 referenced in purchase headers",
+      "complete_master_data": false
+    },
+    "warehouses": {
+      "standalone_sheet": false,
+      "fragments_available": "Warehouse ID 1 referenced across all transaction types",
+      "complete_master_data": false
+    },
+    "units": {
+      "standalone_sheet": false,
+      "fragments_available": "Unit names like 'peice' found in embedded item metadata",
+      "complete_master_data": false
+    },
+    "expense_categories": {
+      "standalone_sheet": false,
+      "fragments_available": "Category ID 5 with name 'home' observed in expense record",
+      "complete_master_data": false
+    },
+    "users": {
+      "standalone_sheet": false,
+      "fragments_available": "not_assessed",
+      "complete_master_data": false
+    }
+  },
+
+  "confirmed_data_integrity_issues": [
+    {
+      "issue_id": "DI-001",
+      "severity": "HIGH",
+      "description": "Flattened purchase items reference parent purchase IDs (4348–4351) not present in this workbook",
+      "affected_records": 4,
+      "resolution_status": "UNRESOLVED"
+    },
+    {
+      "issue_id": "DI-002",
+      "severity": "HIGH",
+      "description": "Flattened adjustment items reference parent adjustment IDs (114–118) not present in this workbook",
+      "affected_records": 5,
+      "resolution_status": "UNRESOLVED"
+    },
+    {
+      "issue_id": "DI-003",
+      "severity": "HIGH",
+      "description": "No standalone product master table — product identity mapping cannot be resolved from this workbook alone",
+      "affected_records": "all_transaction_items",
+      "resolution_status": "UNRESOLVED"
+    },
+    {
+      "issue_id": "DI-004",
+      "severity": "HIGH",
+      "description": "No standalone customer master table — customer ID 1 cannot be mapped to a NexTill UUID",
+      "affected_records": 3,
+      "resolution_status": "UNRESOLVED"
+    },
+    {
+      "issue_id": "DI-005",
+      "severity": "HIGH",
+      "description": "No standalone supplier master table — supplier ID 3 cannot be mapped to a NexTill UUID",
+      "affected_records": 4,
+      "resolution_status": "UNRESOLVED"
+    },
+    {
+      "issue_id": "DI-006",
+      "severity": "MEDIUM",
+      "description": "Legacy numeric status codes (1) have unknown business meaning — cannot map to NexTill enums",
+      "affected_records": "all_sales_and_purchases",
+      "resolution_status": "UNRESOLVED"
+    },
+    {
+      "issue_id": "DI-007",
+      "severity": "MEDIUM",
+      "description": "Legacy unit name 'peice' appears to be a misspelling of 'piece' — requires normalization decision",
+      "affected_records": "not_assessed",
+      "resolution_status": "UNRESOLVED"
+    },
+    {
+      "issue_id": "DI-008",
+      "severity": "LOW",
+      "description": "Large blank areas in worksheets may confuse row-based parsers; actual data at non-obvious row offsets",
+      "affected_records": "purchases and adjustments worksheets",
+      "resolution_status": "DOCUMENTED"
+    }
+  ],
+
+  "unresolved_mappings": [
+    "Legacy product IDs to NexTill Product UUIDs",
+    "Legacy customer ID 1 to NexTill Customer UUID",
+    "Legacy supplier ID 3 to NexTill Supplier UUID",
+    "Legacy warehouse ID 1 to proposed NexTill Warehouse UUID",
+    "Legacy expense category ID 5 ('home') to NexTill ExpenseCategory UUID",
+    "Legacy numeric status codes to NexTill enums (PaymentStatus, PurchaseStatus)",
+    "Legacy payment_type code 1 to NexTill PaymentMethod enum",
+    "Legacy unit names to NexTill UOM system",
+    "Legacy user attribution for imported transactions"
+  ],
+
+  "source_limitations": [
+    "Workbook contains only 3 sales, 4 purchases, 5 adjustments, and 1 expense — a very small sample",
+    "No returns data (0 sales returns, 0 purchase returns)",
+    "No transfer data (0 transfers)",
+    "No standalone master tables for any entity type",
+    "Flattened child records include orphans referencing parents outside this workbook",
+    "Numeric status codes have no accompanying legend or lookup table",
+    "Workbook was analyzed externally — this agent has not read or validated the raw file"
+  ]
+}

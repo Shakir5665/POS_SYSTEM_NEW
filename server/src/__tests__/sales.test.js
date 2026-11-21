@@ -40,7 +40,7 @@ beforeAll(async () => {
   const staleProds = await prisma.product.findMany({
     where: {
       OR: [
-        { sku: { in: ['SALES-TEST-A', 'SALES-TEST-B'] } },
+        { sku: { in: ['SALES-TEST-A', 'SALES-TEST-B', 'SALES-TEST-LAST', 'SALES-TEST-SWEET'] } },
         ...(staleCategory ? [{ category_id: staleCategory.id }] : []),
       ],
     },
@@ -56,6 +56,21 @@ beforeAll(async () => {
     await prisma.category.delete({ where: { id: staleCategory.id } })
   }
   await prisma.customer.deleteMany({ where: { name: 'Sales Test Customer' } })
+
+  // Clean up any stale sales/payments created with fixed test references
+  const staleRefs = ['MOMO-REF-12345', 'CARD-TEST-001', 'MOMO-REUSE-TEST-001']
+  const stalePayments = await prisma.payment.findMany({
+    where: { reference: { in: staleRefs } },
+    select: { sale_id: true },
+  })
+  const staleSaleIds = stalePayments.map((p) => p.sale_id).filter(Boolean)
+  if (staleSaleIds.length > 0) {
+    await prisma.inventoryLog.deleteMany({ where: { notes: { in: staleSaleIds.map((id) => `Sale ${id}`) } } })
+    await prisma.payment.deleteMany({ where: { sale_id: { in: staleSaleIds } } })
+    await prisma.saleItem.deleteMany({ where: { sale_id: { in: staleSaleIds } } })
+    await prisma.sale.deleteMany({ where: { id: { in: staleSaleIds } } })
+  }
+  await prisma.payment.deleteMany({ where: { reference: { in: staleRefs } } })
 
   const staleUsers = await prisma.user.findMany({
     where: { username: { in: ['sales_test_cashier', 'sales_test_manager'] } },
@@ -153,6 +168,7 @@ afterAll(async () => {
   await prisma.sale.deleteMany({ where: { user_id: { in: [cashierUser.id, managerUser.id] } } })
   await prisma.customer.delete({ where: { id: testCustomer.id } })
   await prisma.product.deleteMany({ where: { category_id: testCategory.id } })
+  await prisma.product.deleteMany({ where: { sku: { in: ['SALES-TEST-LAST', 'SALES-TEST-SWEET'] } } })
   await prisma.category.delete({ where: { id: testCategory.id } })
   await prisma.authLog.deleteMany({ where: { user_id: { in: [cashierUser.id, managerUser.id] } } })
   await prisma.user.deleteMany({ where: { id: { in: [cashierUser.id, managerUser.id] } } })
