@@ -22,6 +22,9 @@ const saleValidation = [
   body('amount_paid').optional().isFloat({ min: 0 }).withMessage('Amount paid must be >= 0'),
   body('discount_amount').optional().isFloat({ min: 0 }).withMessage('Discount must be >= 0'),
   body('customer_id').optional({ nullable: true }).isUUID().withMessage('Customer ID must be a valid UUID'),
+  body('warehouse_id').optional({ nullable: true }).isUUID().withMessage('Warehouse ID must be a valid UUID'),
+  body('sale_date').optional({ nullable: true }).isISO8601().withMessage('Sale date must be a valid ISO 8601 date'),
+  body('is_legacy_import').optional().isBoolean().withMessage('is_legacy_import must be a boolean'),
 ]
 
 router.post('/', saleValidation, validate, salesController.createSale)

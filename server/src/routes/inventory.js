@@ -10,6 +10,7 @@ router.use(authenticate)
 
 router.get('/', inventoryController.listInventory)
 router.get('/low-stock', inventoryController.getLowStock)
+router.get('/adjustments', authorize(['ADMIN', 'MANAGER']), inventoryController.listStockAdjustments)
 router.get('/log/:productId',
   param('productId').isUUID().withMessage('Invalid product ID'),
   validate,

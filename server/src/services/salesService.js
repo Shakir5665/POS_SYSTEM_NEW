@@ -6,7 +6,7 @@ const { toBaseUnitQuantity, toPricingUnitQuantity, calculateLineGross, calculate
 const { verifyTransaction, createRefund } = require('./paystackService')
 const { getSettingValue } = require('./settingsService')
 
-async function createSale({ items, customer_id, payment_method, amount_paid, discount_amount = 0, notes, reference }, userId) {
+async function createSale({ items, customer_id, payment_method, amount_paid, discount_amount = 0, notes, reference, warehouse_id, sale_date, is_legacy_import = false }, userId) {
   // Step 1: Validate all items exist and have sufficient stock
   const productIds = items.map((i) => i.product_id)
   const products = await prisma.product.findMany({
@@ -252,6 +252,26 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
     if (loyaltyRate.gt(0)) pointsEarned = totalAmount.div(loyaltyRate).floor().toNumber()
   }
 
+  // Resolve default warehouse if warehouse_id not specified
+  let resolvedWarehouseId = warehouse_id
+  if (resolvedWarehouseId) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: resolvedWarehouseId } })
+    if (!wh) {
+      throw new NotFoundError(`Warehouse with ID ${resolvedWarehouseId} not found`)
+    }
+    if (!wh.is_active) {
+      throw new ValidationError(`Cannot assign transaction to inactive warehouse "${wh.name}"`)
+    }
+  } else {
+    const defaultWarehouse = await prisma.warehouse.findFirst({
+      where: { is_default: true, is_active: true },
+      select: { id: true },
+    })
+    if (defaultWarehouse) {
+      resolvedWarehouseId = defaultWarehouse.id
+    }
+  }
+
   // Step 3–6: Execute in a single DB transaction, retried with a fresh
   // transaction ID if a concurrent sale claimed the same one
   const sale = await withUniqueTransactionId((transaction_id) => prisma.$transaction(async (tx) => {
@@ -261,6 +281,9 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
         transaction_id,
         user_id: userId,
         customer_id: customer_id || null,
+        warehouse_id: resolvedWarehouseId || null,
+        sale_date: sale_date ? new Date(sale_date) : null,
+        is_legacy_import: Boolean(is_legacy_import),
         subtotal,
         discount_amount: discountAmt,
         tax_amount: taxAmount,
@@ -394,6 +417,7 @@ async function getSaleById(id) {
     include: {
       user: { select: { id: true, username: true, full_name: true } },
       customer: { select: { id: true, name: true, phone: true } },
+      warehouse: { select: { id: true, code: true, name: true } },
       sale_items: {
         include: {
           product: { select: { id: true, name: true, sku: true, unit_category: true, base_unit: true, pricing_unit: true } },
@@ -413,19 +437,37 @@ async function getSaleById(id) {
   return sale
 }
 
-async function listSales({ page = 1, per_page = 20, start_date, end_date, user_id, customer_id, search } = {}) {
+async function listSales({ page = 1, per_page = 20, start_date, end_date, user_id, customer_id, search, warehouse_id, is_legacy_import } = {}) {
   const skip = (page - 1) * per_page
   const take = Math.min(per_page, 100)
 
   const where = {}
   if (start_date || end_date) {
-    where.created_at = {}
-    if (start_date) where.created_at.gte = new Date(start_date)
-    if (end_date) {
-      const end = new Date(end_date)
-      end.setHours(23, 59, 59, 999)
-      where.created_at.lte = end
+    const start = start_date ? new Date(start_date) : null
+    const end = end_date ? new Date(end_date) : null
+    if (end) end.setHours(23, 59, 59, 999)
+
+    const dateFilter = {}
+    if (start) dateFilter.gte = start
+    if (end) dateFilter.lte = end
+
+    where.AND = where.AND || []
+    where.AND.push({
+      OR: [
+        { sale_date: dateFilter },
+        { sale_date: null, created_at: dateFilter },
+      ],
+    })
+  }
+  if (warehouse_id) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouse_id } })
+    if (!wh) {
+      throw new NotFoundError(`Warehouse with ID ${warehouse_id} not found`)
     }
+    where.warehouse_id = warehouse_id
+  }
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
   }
   if (user_id) where.user_id = user_id
   if (customer_id) where.customer_id = customer_id
@@ -448,6 +490,7 @@ async function listSales({ page = 1, per_page = 20, start_date, end_date, user_i
       include: {
         user: { select: { id: true, username: true, full_name: true } },
         customer: { select: { id: true, name: true } },
+        warehouse: { select: { id: true, code: true, name: true } },
         _count: { select: { sale_items: true } },
       },
       orderBy: { created_at: 'desc' },

@@ -18,6 +18,9 @@ const purchaseValidation = [
   body('initial_payment').optional().isFloat({ min: 0 }).withMessage('Initial payment must be non-negative'),
   body('payment_method').optional().isIn(['CASH', 'MOBILE_MONEY', 'CARD']).withMessage('Payment method must be CASH, MOBILE_MONEY, or CARD'),
   body('status').optional().isIn(['ORDERED', 'RECEIVED']).withMessage('Status must be ORDERED or RECEIVED'),
+  body('warehouse_id').optional({ nullable: true }).isUUID().withMessage('Warehouse ID must be a valid UUID'),
+  body('purchase_date').optional({ nullable: true }).isISO8601().withMessage('Purchase date must be a valid ISO 8601 date'),
+  body('is_legacy_import').optional().isBoolean().withMessage('is_legacy_import must be a boolean'),
   body('notes').optional({ nullable: true }).trim(),
 ]
 

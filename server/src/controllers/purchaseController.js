@@ -4,7 +4,7 @@ async function list(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1
     const per_page = parseInt(req.query.per_page) || 20
-    const { search, status, payment_status, supplier_id } = req.query
+    const { search, status, payment_status, supplier_id, warehouse_id, is_legacy_import, start_date, end_date } = req.query
     const result = await purchaseService.listPurchases({
       page,
       per_page,
@@ -12,6 +12,10 @@ async function list(req, res, next) {
       status,
       payment_status,
       supplier_id,
+      warehouse_id,
+      is_legacy_import,
+      start_date,
+      end_date,
     })
     res.json({
       success: true,

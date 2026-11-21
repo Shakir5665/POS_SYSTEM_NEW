@@ -1,4 +1,14 @@
+const { Prisma } = require('@prisma/client')
 const prisma = require('../utils/prismaClient')
+const { NotFoundError } = require('../utils/errors')
+
+async function ensureWarehouseExists(warehouseId) {
+  if (!warehouseId) return
+  const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId } })
+  if (!wh) {
+    throw new NotFoundError(`Warehouse with ID ${warehouseId} not found`)
+  }
+}
 
 function dateRange(start_date, end_date) {
   const start = start_date ? new Date(start_date) : new Date(new Date().setDate(new Date().getDate() - 30))
@@ -7,10 +17,23 @@ function dateRange(start_date, end_date) {
   return { gte: start, lte: end }
 }
 
-async function getSalesSummary({ start_date, end_date }) {
+async function getSalesSummary({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
+  const where = {
+    payment_status: { not: 'REFUNDED' },
+    OR: [
+      { sale_date: range },
+      { sale_date: null, created_at: range },
+    ],
+  }
+  if (warehouse_id) where.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
   const result = await prisma.sale.aggregate({
-    where: { created_at: range, payment_status: { not: 'REFUNDED' } },
+    where,
     _sum: { total_amount: true, amount_paid: true, balance_due: true, discount_amount: true, tax_amount: true },
     _count: { id: true },
     _avg: { total_amount: true },
@@ -26,25 +49,39 @@ async function getSalesSummary({ start_date, end_date }) {
   }
 }
 
-async function getSalesByDay({ start_date, end_date }) {
+async function getSalesByDay({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
+  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
+  const legacyFilter = is_legacy_import !== undefined
+    ? Prisma.sql`AND s.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
+    : Prisma.empty
+
   const sales = await prisma.$queryRaw`
     SELECT
-      DATE(created_at) as label,
-      COUNT(id)::int as transactions,
-      SUM(total_amount)::float as value
-    FROM "Sale"
-    WHERE created_at >= ${range.gte} AND created_at <= ${range.lte}
-      AND payment_status = 'COMPLETED'
-    GROUP BY DATE(created_at)
-    ORDER BY DATE(created_at) ASC
+      DATE(COALESCE(s.sale_date, s.created_at)) as label,
+      COUNT(s.id)::int as transactions,
+      SUM(s.total_amount)::float as value
+    FROM "Sale" s
+    WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
+      AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
+      AND s.payment_status = 'COMPLETED'
+      ${warehouseFilter}
+      ${legacyFilter}
+    GROUP BY DATE(COALESCE(s.sale_date, s.created_at))
+    ORDER BY DATE(COALESCE(s.sale_date, s.created_at)) ASC
   `
   return sales.map((r) => ({ label: r.label, value: parseFloat(r.value || 0), transactions: r.transactions }))
 }
 
-async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue' }) {
+async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue', warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
   const lim = parseInt(limit) || 10
+  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
+  const legacyFilter = is_legacy_import !== undefined
+    ? Prisma.sql`AND s.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
+    : Prisma.empty
 
   let results
   if (by === 'quantity') {
@@ -55,8 +92,11 @@ async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue'
       FROM "SaleItem" si
       JOIN "Product" p ON p.id = si.product_id
       JOIN "Sale" s ON s.id = si.sale_id
-      WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
+      WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
+        AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
         AND s.payment_status = 'COMPLETED'
+        ${warehouseFilter}
+        ${legacyFilter}
       GROUP BY p.id, p.name, p.sku
       ORDER BY total_quantity DESC
       LIMIT ${lim}
@@ -69,8 +109,11 @@ async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue'
       FROM "SaleItem" si
       JOIN "Product" p ON p.id = si.product_id
       JOIN "Sale" s ON s.id = si.sale_id
-      WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
+      WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
+        AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
         AND s.payment_status = 'COMPLETED'
+        ${warehouseFilter}
+        ${legacyFilter}
       GROUP BY p.id, p.name, p.sku
       ORDER BY total_revenue DESC
       LIMIT ${lim}
@@ -85,8 +128,14 @@ async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue'
   }))
 }
 
-async function getCategoryPerformance({ start_date, end_date }) {
+async function getCategoryPerformance({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
+  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
+  const legacyFilter = is_legacy_import !== undefined
+    ? Prisma.sql`AND s.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
+    : Prisma.empty
+
   const results = await prisma.$queryRaw`
     SELECT
       c.id,
@@ -97,16 +146,25 @@ async function getCategoryPerformance({ start_date, end_date }) {
     JOIN "Product" p ON p.id = si.product_id
     LEFT JOIN "Category" c ON c.id = p.category_id
     JOIN "Sale" s ON s.id = si.sale_id
-    WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
+    WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
+      AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
       AND s.payment_status = 'COMPLETED'
+      ${warehouseFilter}
+      ${legacyFilter}
     GROUP BY c.id, c.name
     ORDER BY value DESC
   `
   return results.map((r) => ({ id: r.id, label: r.label, value: parseFloat(r.value || 0), quantity: r.total_quantity }))
 }
 
-async function getCashierPerformance({ start_date, end_date }) {
+async function getCashierPerformance({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
+  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
+  const legacyFilter = is_legacy_import !== undefined
+    ? Prisma.sql`AND s.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
+    : Prisma.empty
+
   const results = await prisma.$queryRaw`
     SELECT
       u.id,
@@ -116,8 +174,11 @@ async function getCashierPerformance({ start_date, end_date }) {
       SUM(s.total_amount)::float as value
     FROM "Sale" s
     JOIN "User" u ON u.id = s.user_id
-    WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
+    WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
+      AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
       AND s.payment_status = 'COMPLETED'
+      ${warehouseFilter}
+      ${legacyFilter}
     GROUP BY u.id, u.full_name, u.username
     ORDER BY value DESC
   `
@@ -160,8 +221,14 @@ async function getInventoryStatus() {
   }
 }
 
-async function getProfitReport({ start_date, end_date }) {
+async function getProfitReport({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
+  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
+  const legacyFilter = is_legacy_import !== undefined
+    ? Prisma.sql`AND s.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
+    : Prisma.empty
+
   const results = await prisma.$queryRaw`
     SELECT
       p.id,
@@ -175,8 +242,11 @@ async function getProfitReport({ start_date, end_date }) {
     FROM "SaleItem" si
     JOIN "Product" p ON p.id = si.product_id
     JOIN "Sale" s ON s.id = si.sale_id
-    WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
+    WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
+      AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
       AND s.payment_status = 'COMPLETED'
+      ${warehouseFilter}
+      ${legacyFilter}
     GROUP BY p.id, p.name, p.sku, p.cost_price
     ORDER BY profit DESC
   `
@@ -198,12 +268,44 @@ async function getProfitReport({ start_date, end_date }) {
   })
 }
 
-async function getFinancialStatement({ start_date, end_date }) {
+async function getFinancialStatement({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
+
+  const salesWhere = {
+    payment_status: { not: 'REFUNDED' },
+    OR: [
+      { sale_date: range },
+      { sale_date: null, created_at: range },
+    ],
+  }
+  if (warehouse_id) salesWhere.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    salesWhere.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
+  const legacyFilter = is_legacy_import !== undefined
+    ? Prisma.sql`AND s.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
+    : Prisma.empty
+
+  const expenseWhere = { expense_date: range }
+  if (is_legacy_import !== undefined) {
+    expenseWhere.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+  const expenseLegacyFilter = is_legacy_import !== undefined
+    ? Prisma.sql`AND e.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
+    : Prisma.empty
+
+  const customerDebtWhere = { balance_due: { gt: 0 } }
+  if (warehouse_id) customerDebtWhere.warehouse_id = warehouse_id
+
+  const supplierDebtWhere = { status: { not: 'CANCELLED' }, balance_due: { gt: 0 } }
+  if (warehouse_id) supplierDebtWhere.warehouse_id = warehouse_id
 
   const [salesAgg, itemsAgg, expensesAgg, customerDebtAgg, supplierDebtAgg, expensesByCategory] = await Promise.all([
     prisma.sale.aggregate({
-      where: { created_at: range, payment_status: { not: 'REFUNDED' } },
+      where: salesWhere,
       _sum: { total_amount: true, amount_paid: true, balance_due: true },
       _count: { id: true },
     }),
@@ -213,19 +315,22 @@ async function getFinancialStatement({ start_date, end_date }) {
       FROM "SaleItem" si
       JOIN "Product" p ON p.id = si.product_id
       JOIN "Sale" s ON s.id = si.sale_id
-      WHERE s.created_at >= ${range.gte} AND s.created_at <= ${range.lte}
+      WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
+        AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
         AND s.payment_status != 'REFUNDED'
+        ${warehouseFilter}
+        ${legacyFilter}
     `,
     prisma.expense.aggregate({
-      where: { expense_date: range },
+      where: expenseWhere,
       _sum: { amount: true },
     }),
     prisma.sale.aggregate({
-      where: { balance_due: { gt: 0 } },
+      where: customerDebtWhere,
       _sum: { balance_due: true },
     }),
     prisma.purchase.aggregate({
-      where: { status: { not: 'CANCELLED' }, balance_due: { gt: 0 } },
+      where: supplierDebtWhere,
       _sum: { balance_due: true },
     }),
     prisma.$queryRaw`
@@ -233,6 +338,7 @@ async function getFinancialStatement({ start_date, end_date }) {
       FROM "Expense" e
       JOIN "ExpenseCategory" c ON c.id = e.category_id
       WHERE e.expense_date >= ${range.gte} AND e.expense_date <= ${range.lte}
+        ${expenseLegacyFilter}
       GROUP BY c.name
       ORDER BY total DESC
     `,
@@ -267,24 +373,42 @@ async function getFinancialStatement({ start_date, end_date }) {
   }
 }
 
-async function getDashboardSummary() {
+async function getDashboardSummary({ warehouse_id } = {}) {
+  await ensureWarehouseExists(warehouse_id)
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayEnd = new Date()
   todayEnd.setHours(23, 59, 59, 999)
 
+  const todaySalesWhere = {
+    payment_status: { not: 'REFUNDED' },
+    OR: [
+      { sale_date: { gte: today, lte: todayEnd } },
+      { sale_date: null, created_at: { gte: today, lte: todayEnd } },
+    ],
+  }
+  if (warehouse_id) todaySalesWhere.warehouse_id = warehouse_id
+
+  const customerDebtWhere = { balance_due: { gt: 0 } }
+  if (warehouse_id) customerDebtWhere.warehouse_id = warehouse_id
+
+  const supplierDebtWhere = { status: { not: 'CANCELLED' }, balance_due: { gt: 0 } }
+  if (warehouse_id) supplierDebtWhere.warehouse_id = warehouse_id
+
+  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
+
   const [todaySales, customerDebtAgg, supplierDebtAgg, lowStockCount, topProducts] = await Promise.all([
     prisma.sale.aggregate({
-      where: { created_at: { gte: today, lte: todayEnd }, payment_status: { not: 'REFUNDED' } },
+      where: todaySalesWhere,
       _sum: { total_amount: true, amount_paid: true, balance_due: true },
       _count: { id: true },
     }),
     prisma.sale.aggregate({
-      where: { balance_due: { gt: 0 } },
+      where: customerDebtWhere,
       _sum: { balance_due: true },
     }),
     prisma.purchase.aggregate({
-      where: { status: { not: 'CANCELLED' }, balance_due: { gt: 0 } },
+      where: supplierDebtWhere,
       _sum: { balance_due: true },
     }),
     prisma.$queryRaw`SELECT COUNT(*)::int as cnt FROM "Product" WHERE is_active = true AND quantity > 0 AND quantity <= low_stock_threshold`,
@@ -294,6 +418,7 @@ async function getDashboardSummary() {
       JOIN "Product" p ON p.id = si.product_id
       JOIN "Sale" s ON s.id = si.sale_id
       WHERE s.payment_status != 'REFUNDED'
+        ${warehouseFilter}
       GROUP BY p.name
       ORDER BY revenue DESC
       LIMIT 5

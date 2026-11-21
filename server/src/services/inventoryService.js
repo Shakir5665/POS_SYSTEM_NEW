@@ -194,6 +194,61 @@ async function getInventoryLog(productId, { page = 1, per_page = 20 } = {}) {
   return { logs, total, page, per_page: take, total_pages: Math.ceil(total / take) }
 }
 
+async function listStockAdjustments({ page = 1, per_page = 20, warehouse_id, is_legacy_import, start_date, end_date, search } = {}) {
+  const skip = (page - 1) * per_page
+  const take = Math.min(per_page, 100)
+
+  if (warehouse_id) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouse_id } })
+    if (!wh) {
+      throw new NotFoundError(`Warehouse with ID ${warehouse_id} not found`)
+    }
+  }
+
+  const where = {}
+  if (warehouse_id) where.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+  if (start_date || end_date) {
+    where.adjustment_date = {}
+    if (start_date) where.adjustment_date.gte = new Date(start_date)
+    if (end_date) {
+      const end = new Date(end_date)
+      end.setHours(23, 59, 59, 999)
+      where.adjustment_date.lte = end
+    }
+  }
+  if (search && search.trim()) {
+    where.OR = [
+      { adjustment_number: { contains: search.trim(), mode: 'insensitive' } },
+      { reason: { contains: search.trim(), mode: 'insensitive' } },
+      { notes: { contains: search.trim(), mode: 'insensitive' } },
+    ]
+  }
+
+  const [adjustments, total] = await Promise.all([
+    prisma.stockAdjustment.findMany({
+      where,
+      skip,
+      take,
+      orderBy: { adjustment_date: 'desc' },
+      include: {
+        warehouse: { select: { id: true, code: true, name: true } },
+        user: { select: { id: true, username: true, full_name: true } },
+        items: {
+          include: {
+            product: { select: { id: true, name: true, sku: true, base_unit: true } },
+          },
+        },
+      },
+    }),
+    prisma.stockAdjustment.count({ where }),
+  ])
+
+  return { adjustments, total, page, per_page: take, total_pages: Math.ceil(total / take) }
+}
+
 module.exports = {
   listInventory,
   getLowStock,
@@ -202,4 +257,5 @@ module.exports = {
   restockProduct,
   manualAdjust,
   getInventoryLog,
+  listStockAdjustments,
 }

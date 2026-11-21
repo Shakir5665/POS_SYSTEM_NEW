@@ -4,7 +4,7 @@ const { Decimal, toMoney, roundMoney } = require('../utils/money')
 const { toBaseUnitQuantity, validateQuantity } = require('../utils/uom')
 const generatePurchaseNumber = require('../utils/generatePurchaseNumber')
 
-async function listPurchases({ page = 1, per_page = 20, search, status, payment_status, supplier_id } = {}) {
+async function listPurchases({ page = 1, per_page = 20, search, status, payment_status, supplier_id, warehouse_id, is_legacy_import, start_date, end_date } = {}) {
   const skip = (page - 1) * per_page
   const take = Math.min(per_page, 100)
 
@@ -12,6 +12,34 @@ async function listPurchases({ page = 1, per_page = 20, search, status, payment_
   if (status) where.status = status
   if (payment_status) where.payment_status = payment_status
   if (supplier_id) where.supplier_id = supplier_id
+  if (warehouse_id) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouse_id } })
+    if (!wh) {
+      throw new NotFoundError(`Warehouse with ID ${warehouse_id} not found`)
+    }
+    where.warehouse_id = warehouse_id
+  }
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  if (start_date || end_date) {
+    const start = start_date ? new Date(start_date) : null
+    const end = end_date ? new Date(end_date) : null
+    if (end) end.setHours(23, 59, 59, 999)
+
+    const dateFilter = {}
+    if (start) dateFilter.gte = start
+    if (end) dateFilter.lte = end
+
+    where.AND = where.AND || []
+    where.AND.push({
+      OR: [
+        { purchase_date: dateFilter },
+        { purchase_date: null, created_at: dateFilter },
+      ],
+    })
+  }
 
   if (search) {
     where.OR = [
@@ -29,6 +57,7 @@ async function listPurchases({ page = 1, per_page = 20, search, status, payment_
       include: {
         supplier: { select: { id: true, name: true, phone: true } },
         user: { select: { id: true, full_name: true, username: true } },
+        warehouse: { select: { id: true, code: true, name: true } },
         items: true,
       },
     }),
@@ -44,6 +73,7 @@ async function getPurchaseById(id) {
     include: {
       supplier: true,
       user: { select: { id: true, full_name: true, username: true } },
+      warehouse: { select: { id: true, code: true, name: true } },
       items: {
         include: {
           product: {
@@ -72,6 +102,9 @@ async function createPurchase({
   payment_method = 'CASH',
   notes,
   status = 'ORDERED',
+  warehouse_id,
+  purchase_date,
+  is_legacy_import = false,
 }) {
   if (!supplier_id) {
     throw new ValidationError('Supplier is required', [{ field: 'supplier_id', message: 'Supplier is required' }])
@@ -158,6 +191,26 @@ async function createPurchase({
   const purchaseStatus = status === 'RECEIVED' ? 'RECEIVED' : 'ORDERED'
   const receivedAt = purchaseStatus === 'RECEIVED' ? new Date() : null
 
+  // Resolve default warehouse if warehouse_id not specified
+  let resolvedWarehouseId = warehouse_id
+  if (resolvedWarehouseId) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: resolvedWarehouseId } })
+    if (!wh) {
+      throw new NotFoundError(`Warehouse with ID ${resolvedWarehouseId} not found`)
+    }
+    if (!wh.is_active) {
+      throw new ValidationError(`Cannot assign purchase order to inactive warehouse "${wh.name}"`)
+    }
+  } else {
+    const defaultWarehouse = await prisma.warehouse.findFirst({
+      where: { is_default: true, is_active: true },
+      select: { id: true },
+    })
+    if (defaultWarehouse) {
+      resolvedWarehouseId = defaultWarehouse.id
+    }
+  }
+
   return prisma.$transaction(async (tx) => {
     // 1. Create Purchase
     const purchase = await tx.purchase.create({
@@ -165,6 +218,9 @@ async function createPurchase({
         purchase_number: purchaseNumber,
         supplier_id,
         user_id,
+        warehouse_id: resolvedWarehouseId || null,
+        purchase_date: purchase_date ? new Date(purchase_date) : null,
+        is_legacy_import: Boolean(is_legacy_import),
         status: purchaseStatus,
         payment_status: paymentStatus,
         subtotal,
@@ -190,6 +246,7 @@ async function createPurchase({
       include: {
         supplier: true,
         user: { select: { id: true, full_name: true, username: true } },
+        warehouse: { select: { id: true, code: true, name: true } },
         items: true,
       },
     })
