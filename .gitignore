@@ -48,6 +48,9 @@ server/prisma/migrations/*.sql.bak
 
 # Backup files
 backups/
+
+# Local isolated database
+.isolated_pg/
 *.dump
 
 # Claude

@@ -195,8 +195,8 @@ function runReadinessCheck(options = {}) {
     const schema = fs.readFileSync(prismaSchema, 'utf-8')
     const existingModels = [...schema.matchAll(/^model\s+(\w+)\s*\{/gm)].map((m) => m[1])
 
-    // Known proposed models that don't exist yet
-    const proposedModels = ['LegacyIdMap', 'MigrationBatch', 'MigrationIssue', 'Warehouse', 'ProductStock', 'StockAdjustment', 'StockAdjustmentItem', 'ProductUnit']
+    // Approved Phase 2 models (ProductStock and ProductUnit deferred per owner decision)
+    const proposedModels = ['LegacyIdMap', 'MigrationBatch', 'MigrationIssue', 'Warehouse', 'StockAdjustment', 'StockAdjustmentItem']
     const missingProposed = proposedModels.filter((m) => !existingModels.includes(m))
 
     return {

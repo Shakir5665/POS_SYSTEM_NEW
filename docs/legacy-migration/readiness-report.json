@@ -39,14 +39,14 @@
     {
       "id": "MAP-002",
       "name": "Mapping targets vs Prisma schema",
-      "status": "SCHEMA_CHANGE_REQUIRED",
-      "detail": "22 existing models. Proposed models not yet created: LegacyIdMap, MigrationBatch, MigrationIssue, Warehouse, ProductStock, StockAdjustment, StockAdjustmentItem, ProductUnit"
+      "status": "PASS",
+      "detail": "28 existing models. Proposed models not yet created: "
     },
     {
       "id": "MAP-003",
       "name": "Proposed new fields on existing models",
-      "status": "SCHEMA_CHANGE_REQUIRED",
-      "detail": "Missing fields (Phase 2): Sale.sale_date, Sale.warehouse_id, Sale.is_legacy_import, Purchase.purchase_date, Purchase.warehouse_id, Purchase.is_legacy_import, Expense.is_legacy_import"
+      "status": "PASS",
+      "detail": "All proposed fields exist"
     },
     {
       "id": "MAP-004",
@@ -69,20 +69,20 @@
     {
       "id": "BACKUP-001",
       "name": "Backup restoration verified",
-      "status": "NOT_VERIFIED",
-      "detail": "Backup restoration has not been verified against an isolated database"
+      "status": "PASS",
+      "detail": "Backup restoration verified"
     }
   ],
   "summary": {
     "overall_status": "CONDITIONAL",
     "phase": "Phase 1",
-    "timestamp": "2026-11-21T17:18:53.961Z",
+    "timestamp": "2026-11-21T17:49:21.960Z",
     "total_checks": 12,
-    "PASS": 7,
+    "PASS": 10,
     "WARNING": 2,
     "BLOCKED": 0,
-    "NOT_VERIFIED": 1,
-    "SCHEMA_CHANGE_REQUIRED": 2,
+    "NOT_VERIFIED": 0,
+    "SCHEMA_CHANGE_REQUIRED": 0,
     "note": "Phase 1 deliverables are present but some items need verification or resolution before Phase 4 migration. Schema changes are expected for Phase 2."
   }
 }
