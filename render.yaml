@@ -19,6 +19,8 @@ services:
         fromDatabase:
           name: nextill-db
           property: connectionString
+      - key: PRISMA_SCHEMA_DISABLE_ADVISORY_LOCK
+        value: "true"
       - key: JWT_ACCESS_SECRET
         generateValue: true
       - key: JWT_REFRESH_SECRET
