@@ -243,7 +243,7 @@ async function executeMigration(options = {}) {
             if (res.status === 'IMPORTED' || res.status === 'SKIPPED_DUPLICATE') {
               successCount++
             }
-          })
+          }, { maxWait: 10000, timeout: 30000 })
         } catch (err) {
           errorCount++
           issues.push({
@@ -268,7 +268,7 @@ async function executeMigration(options = {}) {
             if (res.status === 'IMPORTED' || res.status === 'SKIPPED_DUPLICATE') {
               successCount++
             }
-          })
+          }, { maxWait: 10000, timeout: 30000 })
         } catch (err) {
           errorCount++
           issues.push({
@@ -297,7 +297,7 @@ async function executeMigration(options = {}) {
             if (res.status === 'IMPORTED' || res.status === 'SKIPPED_DUPLICATE') {
               successCount++
             }
-          })
+          }, { maxWait: 10000, timeout: 30000 })
         } catch (err) {
           errorCount++
           issues.push({
@@ -326,7 +326,7 @@ async function executeMigration(options = {}) {
             if (res.status === 'IMPORTED' || res.status === 'SKIPPED_DUPLICATE') {
               successCount++
             }
-          })
+          }, { maxWait: 10000, timeout: 30000 })
         } catch (err) {
           errorCount++
           issues.push({
@@ -474,7 +474,7 @@ async function rollbackBatch(batchIdentifier) {
         notes: (batch.notes || '') + ` | Rolled back at ${new Date().toISOString()}`,
       },
     })
-  })
+  }, { maxWait: 10000, timeout: 30000 })
 
   return {
     batch_id: batch.id,

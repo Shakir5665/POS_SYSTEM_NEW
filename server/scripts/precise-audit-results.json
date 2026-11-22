@@ -1,0 +1,58 @@
+{
+  "provenance": {
+    "sourceFilename": "RJ_Food_POS_Database_Export.xlsx",
+    "originalSha256": "e3d837e544b020f68c032575e40cc76fb0de8e4cca464d4fdc9bd64005f697f9",
+    "repairedFilename": "NexTill_Phase4B_Complete_Historical_Import_REPAIRED.xlsx",
+    "repairedSha256": "6c3ed8f9eb76c8fdf86898609ae1f120ad829ddbf8169dd574049e2dde06eaf7"
+  },
+  "counts": {
+    "overview": 21,
+    "products": 4170,
+    "sales": 20602,
+    "saleItems": 162123,
+    "purchases": 2710,
+    "purchaseItems": 2645,
+    "adjustments": 1081,
+    "adjustmentItems": 1031,
+    "customers": 9,
+    "suppliers": 1,
+    "categories": 37,
+    "brands": 51,
+    "warehouses": 1,
+    "units": 6,
+    "baseUnits": 6,
+    "expenses": 1,
+    "expenseCategories": 1,
+    "users": 1,
+    "roles": 2,
+    "currencies": 1,
+    "settings": 39,
+    "salesBf": 5813,
+    "purchasesBf": 65,
+    "exceptions": 145,
+    "negativeLines": 1,
+    "reconSummary": 7,
+    "startHere": 16,
+    "sheetMapping": 21
+  },
+  "financialReconciliation": {
+    "sales": {
+      "headerGrandTotal": 64762486.43740029,
+      "itemsSubtotal": 60889281.28740013,
+      "aggregateDiff": 3873205.1500001624,
+      "matchedExact": 14789,
+      "discrepancyHeaders": 5733,
+      "missingAllItems": 80,
+      "totalIssues": 5813
+    },
+    "purchases": {
+      "headerGrandTotal": 907274574.0699999,
+      "itemsSubtotal": 788595645.0699999,
+      "aggregateDiff": 118678929,
+      "matchedExact": 2645,
+      "discrepancyHeaders": 0,
+      "missingAllItems": 65,
+      "totalIssues": 65
+    }
+  }
+}

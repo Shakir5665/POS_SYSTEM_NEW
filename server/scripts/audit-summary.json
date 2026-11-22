@@ -1,0 +1,36 @@
+{
+  "sales": {
+    "count": 20602,
+    "headerTotal": 0,
+    "itemCount": 162123,
+    "itemsTotal": 0,
+    "diff": 0,
+    "salesWithZeroItems": 0,
+    "salesWithDiff": 0,
+    "salesBfRowCount": 5813,
+    "calculatedSalesBfDiffSum": 0,
+    "orphanSaleItemsCount": 0,
+    "negativeSaleItemsCount": 1
+  },
+  "purchases": {
+    "count": 2710,
+    "headerTotal": 0,
+    "itemCount": 2645,
+    "itemsTotal": 0,
+    "diff": 0,
+    "purchasesWithZeroItems": 0,
+    "purchasesWithDiff": 0,
+    "purchasesBfRowCount": 65,
+    "calculatedPurchasesBfDiffSum": 0,
+    "orphanPurchaseItemsCount": 0
+  },
+  "adjustments": {
+    "count": 1081,
+    "itemCount": 1031
+  },
+  "products": {
+    "count": 4170,
+    "duplicateIds": 4169,
+    "duplicateCodes": 0
+  }
+}

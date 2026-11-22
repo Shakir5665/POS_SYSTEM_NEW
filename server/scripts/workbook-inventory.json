@@ -1,0 +1,767 @@
+{
+  "sha256": "6c3ed8f9eb76c8fdf86898609ae1f120ad829ddbf8169dd574049e2dde06eaf7",
+  "size": 13789816,
+  "sheetInventory": [
+    {
+      "sheetName": "Overview",
+      "headerCount": 2,
+      "headers": [
+        "Metric / Entity",
+        "Value"
+      ],
+      "allHeaders": [
+        "Metric / Entity",
+        "Value"
+      ],
+      "jsonRowCount": 21,
+      "rawRowCount": 21
+    },
+    {
+      "sheetName": "Products",
+      "headerCount": 28,
+      "headers": [
+        "Product ID",
+        "Product Name",
+        "Code / Barcode",
+        "Product Code",
+        "Main Product ID",
+        "Category ID",
+        "Category Name",
+        "Brand ID",
+        "Brand Name",
+        "Product Cost",
+        "Product Price (Selling)",
+        "Our Price",
+        "In Stock Quantity",
+        "Stock Alert Limit",
+        "Quantity Limit"
+      ],
+      "allHeaders": [
+        "Product ID",
+        "Product Name",
+        "Code / Barcode",
+        "Product Code",
+        "Main Product ID",
+        "Category ID",
+        "Category Name",
+        "Brand ID",
+        "Brand Name",
+        "Product Cost",
+        "Product Price (Selling)",
+        "Our Price",
+        "In Stock Quantity",
+        "Stock Alert Limit",
+        "Quantity Limit",
+        "Product Unit ID",
+        "Product Unit Name",
+        "Sale Unit ID",
+        "Sale Unit Name",
+        "Purchase Unit ID",
+        "Purchase Unit Name",
+        "Order Tax",
+        "Tax Type",
+        "Barcode Symbol",
+        "Barcode Image URL",
+        "Product Image URL",
+        "Notes",
+        "Created At"
+      ],
+      "jsonRowCount": 4170,
+      "rawRowCount": 4170
+    },
+    {
+      "sheetName": "Sales",
+      "headerCount": 22,
+      "headers": [
+        "Sale ID",
+        "Reference Code",
+        "Date",
+        "Customer ID",
+        "Customer Name",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Grand Total",
+        "Paid Amount",
+        "Due Amount",
+        "Received Amount",
+        "Tax Rate",
+        "Tax Amount",
+        "Discount",
+        "Shipping"
+      ],
+      "allHeaders": [
+        "Sale ID",
+        "Reference Code",
+        "Date",
+        "Customer ID",
+        "Customer Name",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Grand Total",
+        "Paid Amount",
+        "Due Amount",
+        "Received Amount",
+        "Tax Rate",
+        "Tax Amount",
+        "Discount",
+        "Shipping",
+        "Payment Type",
+        "Payment Status",
+        "Status",
+        "Is Return",
+        "Note",
+        "Barcode URL",
+        "Created At"
+      ],
+      "jsonRowCount": 20602,
+      "rawRowCount": 20602
+    },
+    {
+      "sheetName": "Sale_Items",
+      "headerCount": 17,
+      "headers": [
+        "Sale Item ID",
+        "Sale ID",
+        "Product ID",
+        "Product Name",
+        "Product Code",
+        "Product Price",
+        "Net Unit Price",
+        "Quantity",
+        "Unit",
+        "Tax Type",
+        "Tax Value",
+        "Tax Amount",
+        "Discount Type",
+        "Discount Value",
+        "Discount Amount"
+      ],
+      "allHeaders": [
+        "Sale Item ID",
+        "Sale ID",
+        "Product ID",
+        "Product Name",
+        "Product Code",
+        "Product Price",
+        "Net Unit Price",
+        "Quantity",
+        "Unit",
+        "Tax Type",
+        "Tax Value",
+        "Tax Amount",
+        "Discount Type",
+        "Discount Value",
+        "Discount Amount",
+        "Sub Total",
+        "Created At"
+      ],
+      "jsonRowCount": 162123,
+      "rawRowCount": 162123
+    },
+    {
+      "sheetName": "Purchases",
+      "headerCount": 16,
+      "headers": [
+        "Purchase ID",
+        "Reference Code",
+        "Date",
+        "Supplier ID",
+        "Supplier Name",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Grand Total",
+        "Tax Rate",
+        "Tax Amount",
+        "Discount",
+        "Shipping",
+        "Received Amount",
+        "Status",
+        "Notes"
+      ],
+      "allHeaders": [
+        "Purchase ID",
+        "Reference Code",
+        "Date",
+        "Supplier ID",
+        "Supplier Name",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Grand Total",
+        "Tax Rate",
+        "Tax Amount",
+        "Discount",
+        "Shipping",
+        "Received Amount",
+        "Status",
+        "Notes",
+        "Created At"
+      ],
+      "jsonRowCount": 2710,
+      "rawRowCount": 2710
+    },
+    {
+      "sheetName": "Purchase_Items",
+      "headerCount": 17,
+      "headers": [
+        "Item ID",
+        "Purchase ID",
+        "Product ID",
+        "Product Name",
+        "Product Code",
+        "Product Cost",
+        "Net Unit Cost",
+        "Quantity",
+        "Unit",
+        "Tax Type",
+        "Tax Value",
+        "Tax Amount",
+        "Discount Type",
+        "Discount Value",
+        "Discount Amount"
+      ],
+      "allHeaders": [
+        "Item ID",
+        "Purchase ID",
+        "Product ID",
+        "Product Name",
+        "Product Code",
+        "Product Cost",
+        "Net Unit Cost",
+        "Quantity",
+        "Unit",
+        "Tax Type",
+        "Tax Value",
+        "Tax Amount",
+        "Discount Type",
+        "Discount Value",
+        "Discount Amount",
+        "Sub Total",
+        "Created At"
+      ],
+      "jsonRowCount": 2645,
+      "rawRowCount": 2645
+    },
+    {
+      "sheetName": "Adjustments",
+      "headerCount": 7,
+      "headers": [
+        "Adjustment ID",
+        "Reference Code",
+        "Date",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Total Products",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Adjustment ID",
+        "Reference Code",
+        "Date",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Total Products",
+        "Created At"
+      ],
+      "jsonRowCount": 1081,
+      "rawRowCount": 1081
+    },
+    {
+      "sheetName": "Adjustment_Items",
+      "headerCount": 10,
+      "headers": [
+        "Adjustment Item ID",
+        "Adjustment ID",
+        "Product ID",
+        "Product Name",
+        "Product Code",
+        "Quantity",
+        "Method Type",
+        "Method Description",
+        "Sale Unit",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Adjustment Item ID",
+        "Adjustment ID",
+        "Product ID",
+        "Product Name",
+        "Product Code",
+        "Quantity",
+        "Method Type",
+        "Method Description",
+        "Sale Unit",
+        "Created At"
+      ],
+      "jsonRowCount": 1031,
+      "rawRowCount": 1031
+    },
+    {
+      "sheetName": "Customers",
+      "headerCount": 9,
+      "headers": [
+        "Customer ID",
+        "Name",
+        "Email",
+        "Phone",
+        "Country",
+        "City",
+        "Address",
+        "DOB",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Customer ID",
+        "Name",
+        "Email",
+        "Phone",
+        "Country",
+        "City",
+        "Address",
+        "DOB",
+        "Created At"
+      ],
+      "jsonRowCount": 9,
+      "rawRowCount": 9
+    },
+    {
+      "sheetName": "Suppliers",
+      "headerCount": 8,
+      "headers": [
+        "Supplier ID",
+        "Name",
+        "Email",
+        "Phone",
+        "Country",
+        "City",
+        "Address",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Supplier ID",
+        "Name",
+        "Email",
+        "Phone",
+        "Country",
+        "City",
+        "Address",
+        "Created At"
+      ],
+      "jsonRowCount": 1,
+      "rawRowCount": 1
+    },
+    {
+      "sheetName": "Product_Categories",
+      "headerCount": 4,
+      "headers": [
+        "Category ID",
+        "Name",
+        "Products Count",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Category ID",
+        "Name",
+        "Products Count",
+        "Created At"
+      ],
+      "jsonRowCount": 37,
+      "rawRowCount": 37
+    },
+    {
+      "sheetName": "Brands",
+      "headerCount": 5,
+      "headers": [
+        "Brand ID",
+        "Name",
+        "Products Count",
+        "Image URL",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Brand ID",
+        "Name",
+        "Products Count",
+        "Image URL",
+        "Created At"
+      ],
+      "jsonRowCount": 51,
+      "rawRowCount": 51
+    },
+    {
+      "sheetName": "Warehouses",
+      "headerCount": 8,
+      "headers": [
+        "Warehouse ID",
+        "Name",
+        "Phone",
+        "Email",
+        "City",
+        "Country",
+        "Zip Code",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Warehouse ID",
+        "Name",
+        "Phone",
+        "Email",
+        "City",
+        "Country",
+        "Zip Code",
+        "Created At"
+      ],
+      "jsonRowCount": 1,
+      "rawRowCount": 1
+    },
+    {
+      "sheetName": "Units",
+      "headerCount": 8,
+      "headers": [
+        "Unit ID",
+        "Name",
+        "Short Name",
+        "Base Unit ID",
+        "Base Unit Name",
+        "Operator",
+        "Operation Value",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Unit ID",
+        "Name",
+        "Short Name",
+        "Base Unit ID",
+        "Base Unit Name",
+        "Operator",
+        "Operation Value",
+        "Created At"
+      ],
+      "jsonRowCount": 6,
+      "rawRowCount": 6
+    },
+    {
+      "sheetName": "Base_Units",
+      "headerCount": 3,
+      "headers": [
+        "Base Unit ID",
+        "Name",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Base Unit ID",
+        "Name",
+        "Created At"
+      ],
+      "jsonRowCount": 6,
+      "rawRowCount": 6
+    },
+    {
+      "sheetName": "Expenses",
+      "headerCount": 11,
+      "headers": [
+        "Expense ID",
+        "Reference Code",
+        "Date",
+        "Expense Category ID",
+        "Expense Category Name",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Amount",
+        "Title",
+        "Description",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Expense ID",
+        "Reference Code",
+        "Date",
+        "Expense Category ID",
+        "Expense Category Name",
+        "Warehouse ID",
+        "Warehouse Name",
+        "Amount",
+        "Title",
+        "Description",
+        "Created At"
+      ],
+      "jsonRowCount": 1,
+      "rawRowCount": 1
+    },
+    {
+      "sheetName": "Expense_Categories",
+      "headerCount": 4,
+      "headers": [
+        "Expense Category ID",
+        "Name",
+        "Description",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Expense Category ID",
+        "Name",
+        "Description",
+        "Created At"
+      ],
+      "jsonRowCount": 1,
+      "rawRowCount": 1
+    },
+    {
+      "sheetName": "Users",
+      "headerCount": 9,
+      "headers": [
+        "User ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Phone",
+        "Status",
+        "Language",
+        "Role",
+        "Created At"
+      ],
+      "allHeaders": [
+        "User ID",
+        "First Name",
+        "Last Name",
+        "Email",
+        "Phone",
+        "Status",
+        "Language",
+        "Role",
+        "Created At"
+      ],
+      "jsonRowCount": 1,
+      "rawRowCount": 1
+    },
+    {
+      "sheetName": "Roles_Permissions",
+      "headerCount": 6,
+      "headers": [
+        "Role ID",
+        "Name",
+        "Display Name",
+        "Permissions Count",
+        "Permissions",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Role ID",
+        "Name",
+        "Display Name",
+        "Permissions Count",
+        "Permissions",
+        "Created At"
+      ],
+      "jsonRowCount": 2,
+      "rawRowCount": 2
+    },
+    {
+      "sheetName": "Currencies",
+      "headerCount": 5,
+      "headers": [
+        "Currency ID",
+        "Currency Name",
+        "Code",
+        "Symbol",
+        "Created At"
+      ],
+      "allHeaders": [
+        "Currency ID",
+        "Currency Name",
+        "Code",
+        "Symbol",
+        "Created At"
+      ],
+      "jsonRowCount": 1,
+      "rawRowCount": 1
+    },
+    {
+      "sheetName": "Settings",
+      "headerCount": 2,
+      "headers": [
+        "Setting Key",
+        "Setting Value"
+      ],
+      "allHeaders": [
+        "Setting Key",
+        "Setting Value"
+      ],
+      "jsonRowCount": 39,
+      "rawRowCount": 39
+    },
+    {
+      "sheetName": "START_HERE",
+      "headerCount": 3,
+      "headers": [
+        "Field",
+        "Value",
+        "Explanation"
+      ],
+      "allHeaders": [
+        "Field",
+        "Value",
+        "Explanation"
+      ],
+      "jsonRowCount": 16,
+      "rawRowCount": 16
+    },
+    {
+      "sheetName": "RECON_SUMMARY",
+      "headerCount": 3,
+      "headers": [
+        "Metric",
+        "Sales",
+        "Purchases"
+      ],
+      "allHeaders": [
+        "Metric",
+        "Sales",
+        "Purchases"
+      ],
+      "jsonRowCount": 7,
+      "rawRowCount": 7
+    },
+    {
+      "sheetName": "SALES_BF",
+      "headerCount": 13,
+      "headers": [
+        "Record Type",
+        "Legacy ID",
+        "Reference",
+        "Business Date",
+        "Party Legacy ID",
+        "Warehouse Legacy ID",
+        "Source Header Total",
+        "Source Line Subtotals",
+        "Signed B/F Difference",
+        "Line Count",
+        "Reconciliation Status",
+        "Import Review Status",
+        "B/F Treatment"
+      ],
+      "allHeaders": [
+        "Record Type",
+        "Legacy ID",
+        "Reference",
+        "Business Date",
+        "Party Legacy ID",
+        "Warehouse Legacy ID",
+        "Source Header Total",
+        "Source Line Subtotals",
+        "Signed B/F Difference",
+        "Line Count",
+        "Reconciliation Status",
+        "Import Review Status",
+        "B/F Treatment"
+      ],
+      "jsonRowCount": 5813,
+      "rawRowCount": 5813
+    },
+    {
+      "sheetName": "PURCHASES_BF",
+      "headerCount": 13,
+      "headers": [
+        "Record Type",
+        "Legacy ID",
+        "Reference",
+        "Business Date",
+        "Party Legacy ID",
+        "Warehouse Legacy ID",
+        "Source Header Total",
+        "Source Line Subtotals",
+        "Signed B/F Difference",
+        "Line Count",
+        "Reconciliation Status",
+        "Import Review Status",
+        "B/F Treatment"
+      ],
+      "allHeaders": [
+        "Record Type",
+        "Legacy ID",
+        "Reference",
+        "Business Date",
+        "Party Legacy ID",
+        "Warehouse Legacy ID",
+        "Source Header Total",
+        "Source Line Subtotals",
+        "Signed B/F Difference",
+        "Line Count",
+        "Reconciliation Status",
+        "Import Review Status",
+        "B/F Treatment"
+      ],
+      "jsonRowCount": 65,
+      "rawRowCount": 65
+    },
+    {
+      "sheetName": "EXCEPTIONS",
+      "headerCount": 10,
+      "headers": [
+        "Record Type",
+        "Legacy ID",
+        "Reference",
+        "Issue Code",
+        "Source Header Total",
+        "Source Line Subtotals",
+        "Signed B/F Difference",
+        "Line Count",
+        "Resolution",
+        "Action Required"
+      ],
+      "allHeaders": [
+        "Record Type",
+        "Legacy ID",
+        "Reference",
+        "Issue Code",
+        "Source Header Total",
+        "Source Line Subtotals",
+        "Signed B/F Difference",
+        "Line Count",
+        "Resolution",
+        "Action Required"
+      ],
+      "jsonRowCount": 145,
+      "rawRowCount": 145
+    },
+    {
+      "sheetName": "NEGATIVE_LINES",
+      "headerCount": 6,
+      "headers": [
+        "Sale Item ID",
+        "Sale ID",
+        "Product ID",
+        "Quantity",
+        "Source Subtotal",
+        "Action"
+      ],
+      "allHeaders": [
+        "Sale Item ID",
+        "Sale ID",
+        "Product ID",
+        "Quantity",
+        "Source Subtotal",
+        "Action"
+      ],
+      "jsonRowCount": 1,
+      "rawRowCount": 1
+    },
+    {
+      "sheetName": "SHEET_MAPPING",
+      "headerCount": 4,
+      "headers": [
+        "Original Sheet",
+        "Original Source",
+        "Import Treatment",
+        "Reason"
+      ],
+      "allHeaders": [
+        "Original Sheet",
+        "Original Source",
+        "Import Treatment",
+        "Reason"
+      ],
+      "jsonRowCount": 21,
+      "rawRowCount": 21
+    }
+  ]
+}

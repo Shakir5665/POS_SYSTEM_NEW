@@ -1,0 +1,82 @@
+{
+  "verdict": "PHASE_4B_DRY_RUN_VERIFIED — AWAITING_STAGING_APPROVAL",
+  "executedAt": "2026-11-22T08:31:31.985Z",
+  "environment": {
+    "type": "DISPOSABLE_ISOLATED_POSTGRESQL",
+    "database": "nextill_isolated_phase4b",
+    "host": "127.0.0.1:5432",
+    "engine": "PostgreSQL 17.10"
+  },
+  "provenance": {
+    "sourceFile": "NexTill_Phase4B_Complete_Historical_Import_REPAIRED.xlsx",
+    "repairedSha256": "6c3ed8f9eb76c8fdf86898609ae1f120ad829ddbf8169dd574049e2dde06eaf7",
+    "originalExportSha256": "e3d837e544b020f68c032575e40cc76fb0de8e4cca464d4fdc9bd64005f697f9",
+    "fileSizeBytes": 13789816,
+    "sheetsCount": 28
+  },
+  "timings": {
+    "validationMs": 165130,
+    "importDurationSec": 120.96,
+    "peakMemoryDeltaMb": 524.43
+  },
+  "sourceCounts": {
+    "products": 4170,
+    "sales": 20602,
+    "saleItems": 162123,
+    "purchases": 2710,
+    "purchaseItems": 2645,
+    "adjustments": 1081,
+    "adjustmentItems": 1031,
+    "customers": 9,
+    "suppliers": 1,
+    "categories": 37,
+    "brands": 51,
+    "warehouses": 1,
+    "units": 6,
+    "baseUnits": 6,
+    "expenses": 1
+  },
+  "importedCounts": {
+    "batchId": "58487337-f403-42a2-ae2d-7bb2d24727ba",
+    "categories": 37,
+    "customers": 9,
+    "suppliers": 1,
+    "products": 4170,
+    "sales": 20521,
+    "saleItems": 162113,
+    "purchases": 2645,
+    "purchaseItems": 2645,
+    "adjustments": 1081,
+    "expenses": 1,
+    "quarantinedSales": 81,
+    "quarantinedPurchases": 65,
+    "quarantinedSaleItems": 0
+  },
+  "quarantinedCounts": {
+    "sales": 81,
+    "purchases": 65,
+    "saleItems": 1
+  },
+  "financialReconciliation": {
+    "sales": {
+      "headerGrandTotal": "64762486.4374",
+      "itemsSubtotal": "60889281.2874",
+      "aggregateDiff": "3873205.1500",
+      "flaggedHeaderCount": 5813
+    },
+    "purchases": {
+      "headerGrandTotal": "907274574.0700",
+      "itemsSubtotal": "788595645.0700",
+      "aggregateDiff": "118678929.0000",
+      "flaggedHeaderCount": 65
+    }
+  },
+  "invariants": {
+    "productQuantityDrift": 0,
+    "inventoryLogsCreated": 0,
+    "syntheticPaymentsCreated": 0,
+    "loyaltyPointsAwarded": 0,
+    "idempotencyVerified": true,
+    "rollbackVerified": true
+  }
+}

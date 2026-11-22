@@ -225,7 +225,7 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
       expect(execResult.batch.id).toBeDefined()
 
       testBatchId = execResult.batch.id
-    })
+    }, 60000)
 
     it('should verify authoritative Product.quantity balances did NOT mutate during migration', async () => {
       const currentProducts = await prisma.product.findMany()

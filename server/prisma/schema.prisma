@@ -213,6 +213,9 @@ model SaleItem {
   sale               Sale              @relation(fields: [sale_id], references: [id], onDelete: Cascade)
   product            Product           @relation(fields: [product_id], references: [id], onDelete: Restrict)
   sales_return_items SalesReturnItem[]
+
+  @@index([sale_id])
+  @@index([product_id])
 }
 
 model Payment {
