@@ -35,10 +35,20 @@ function normalizeUnit(legacyUnit) {
 /**
  * Resolves or creates the dedicated system migration user (DEC-011).
  */
-async function resolveMigrationUser(tx = prisma) {
+async function resolveMigrationUser(tx = prisma, options = {}) {
   let user = await tx.user.findUnique({
     where: { username: 'migration_import' },
   })
+
+  if (!user && options.dryRun) {
+    return {
+      id: '00000000-0000-0000-0000-000000000000',
+      username: 'migration_import',
+      full_name: 'Legacy Migration System (Simulated)',
+      role: 'ADMIN',
+      is_active: false,
+    }
+  }
 
   if (!user) {
     user = await tx.user.create({
@@ -216,10 +226,45 @@ async function resolveSupplier(legacySupplierId, tx = prisma) {
 
 /**
  * Resolves legacy expense category ID or name.
+ * Automatic fallback to 'Miscellaneous' or first category is REMOVED unless explicitly approved.
+ *
+ * @param {number|string} legacyCategoryId
+ * @param {string} categoryName
+ * @param {Object} tx
+ * @param {Object} [options]
+ * @param {Object} [options.approvedCategoryMappings] - Explicit mapping approvals { [legacyIdOrName]: targetCategoryUuidOrName }
  */
-async function resolveExpenseCategory(legacyCategoryId, categoryName, tx = prisma) {
-  // 1. Check LegacyIdMap
-  if (legacyCategoryId) {
+async function resolveExpenseCategory(legacyCategoryId, categoryName, tx = prisma, options = {}) {
+  const approvedMappings = options.approvedCategoryMappings || {}
+
+  // 1. Check if an approved mapping was explicitly supplied in options
+  if (legacyCategoryId !== undefined && legacyCategoryId !== null && approvedMappings[legacyCategoryId]) {
+    const target = approvedMappings[legacyCategoryId]
+    const cat = await tx.expenseCategory.findFirst({
+      where: {
+        OR: [
+          { id: target },
+          { name: { equals: target, mode: 'insensitive' } },
+        ],
+      },
+    })
+    if (cat) return cat
+  }
+  if (categoryName && approvedMappings[categoryName]) {
+    const target = approvedMappings[categoryName]
+    const cat = await tx.expenseCategory.findFirst({
+      where: {
+        OR: [
+          { id: target },
+          { name: { equals: target, mode: 'insensitive' } },
+        ],
+      },
+    })
+    if (cat) return cat
+  }
+
+  // 2. Check LegacyIdMap
+  if (legacyCategoryId !== undefined && legacyCategoryId !== null) {
     const map = await tx.legacyIdMap.findUnique({
       where: {
         source_system_entity_type_legacy_id: {
@@ -235,7 +280,7 @@ async function resolveExpenseCategory(legacyCategoryId, categoryName, tx = prism
     }
   }
 
-  // 2. Match by name
+  // 3. Match by name if an exact category exists with that name
   if (categoryName) {
     const cat = await tx.expenseCategory.findFirst({
       where: {
@@ -245,14 +290,8 @@ async function resolveExpenseCategory(legacyCategoryId, categoryName, tx = prism
     if (cat) return cat
   }
 
-  // 3. Match Miscellaneous fallback
-  const misc = await tx.expenseCategory.findFirst({
-    where: { name: { equals: 'Miscellaneous', mode: 'insensitive' } },
-  })
-  if (misc) return misc
-
-  // 4. Any first category
-  return tx.expenseCategory.findFirst({ orderBy: { created_at: 'asc' } })
+  // NO automatic fallback to 'Miscellaneous' or first category without approval!
+  return null
 }
 
 module.exports = {

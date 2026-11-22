@@ -81,7 +81,9 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
       expect(report.counts.adjustments.valid).toBe(5)
       expect(report.counts.adjustments.items).toBe(5)
       expect(report.counts.adjustments.orphans).toBe(5)
-      expect(report.counts.expenses.valid).toBe(1)
+      expect(report.counts.expenses.valid).toBe(0) // 'home' (ID 5) unapproved -> not eligible
+      expect(report.counts.expenses.not_eligible).toBe(1)
+      expect(report.metadata.dataset_provenance).toBe('SYNTHETIC_FIXTURE')
     })
 
     it('should strictly assert zero inventory, accounting, or loyalty impact in dry-run report', async () => {
@@ -93,10 +95,10 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
       expect(report.inventory_impact.synthetic_payments_created).toBe(0)
     })
 
-    it('should accurately detect and catalog all 9 orphan items and category fallbacks', async () => {
+    it('should accurately detect and catalog all 9 orphan items and unresolved category mapping', async () => {
       const report = await runDryRun()
 
-      expect(report.issues.length).toBe(10) // 4 purchase orphans + 5 adjustment orphans + 1 category fallback
+      expect(report.issues.length).toBe(10) // 4 purchase orphans + 5 adjustment orphans + 1 unresolved category mapping
 
       const orphanPurchases = report.issues.filter(
         (i) => i.entity_type === 'PurchaseItem' && i.issue_code === 'ORPHAN_CHILD'
@@ -108,10 +110,20 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
       )
       expect(orphanAdjustments.length).toBe(5)
 
-      const categoryFallback = report.issues.find(
-        (i) => i.entity_type === 'Expense' && i.issue_code === 'CATEGORY_FALLBACK'
+      const categoryIssue = report.issues.find(
+        (i) => i.entity_type === 'Expense' && i.issue_code === 'UNRESOLVED_CATEGORY_MAPPING'
       )
-      expect(categoryFallback).toBeDefined()
+      expect(categoryIssue).toBeDefined()
+      expect(categoryIssue.severity).toBe('WARNING')
+      expect(categoryIssue.resolution_status).toBe('UNRESOLVED')
+    })
+
+    it('should validate expense as eligible when approved mapping is supplied', async () => {
+      const report = await runDryRun({
+        approvedCategoryMappings: { 5: 'Miscellaneous' },
+      })
+      expect(report.counts.expenses.valid).toBe(1)
+      expect(report.counts.expenses.not_eligible).toBe(0)
     })
 
     it('should guarantee that dry-run leaves ZERO database mutations in PostgreSQL', async () => {
@@ -204,6 +216,7 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
     it('should execute a full migration batch cleanly', async () => {
       const execResult = await executeMigration({
         notes: 'Integration test migration batch',
+        approvedCategoryMappings: { 5: 'Miscellaneous' },
       })
 
       expect(execResult.status).toBe('COMPLETED')
@@ -307,6 +320,7 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
     it('should safely skip already imported records when executeMigration is re-run', async () => {
       const secondRun = await executeMigration({
         notes: 'Idempotency test run',
+        approvedCategoryMappings: { 5: 'Miscellaneous' },
       })
 
       expect(secondRun.status).toBe('COMPLETED')

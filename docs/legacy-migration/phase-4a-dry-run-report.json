@@ -2,8 +2,11 @@
   "metadata": {
     "source_file": "POS_Complete_Export_v4.xlsx",
     "source_sha256": "b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4",
-    "executed_at": "2026-11-21T19:43:09.189Z",
-    "mode": "DRY_RUN"
+    "executed_at": "2026-11-21T20:10:10.069Z",
+    "mode": "DRY_RUN",
+    "dataset_provenance": "SYNTHETIC_FIXTURE",
+    "dataset_classification": "SYNTHETIC_FIXTURE",
+    "is_synthetic_fixture": true
   },
   "counts": {
     "sales": {
@@ -25,7 +28,8 @@
     },
     "expenses": {
       "total": 1,
-      "valid": 1
+      "valid": 0,
+      "not_eligible": 1
     }
   },
   "inventory_impact": {
@@ -202,21 +206,20 @@
       "batch_id": null,
       "entity_type": "Expense",
       "legacy_id": "3",
-      "issue_code": "CATEGORY_FALLBACK",
-      "severity": "INFO",
-      "description": "Legacy expense category 'home' mapped to fallback category 'Miscellaneous'",
-      "source_data": {
-        "legacy_id": 3,
-        "expense_date": "2024-09-08T00:00:00.000Z",
-        "category_id": 5,
-        "category_name": "home",
-        "warehouse_id": 1,
+      "issue_code": "UNRESOLVED_CATEGORY_MAPPING",
+      "severity": "WARNING",
+      "description": "Legacy expense category 'home' (ID: 5) has no approved mapping. Dependent expense #3 is marked NOT ELIGIBLE for import.",
+      "resolution_status": "UNRESOLVED",
+      "metadata": {
+        "legacy_expense_id": 3,
+        "legacy_category_id": 5,
+        "legacy_category_name": "home",
         "amount": 10000,
-        "notes": "Home supplies expense recorded in legacy system"
+        "expense_date": "2024-09-08T00:00:00.000Z"
       }
     }
   ],
   "safe_to_execute": true,
-  "duration_ms": 249,
+  "duration_ms": 7456,
   "status": "PASSED"
 }

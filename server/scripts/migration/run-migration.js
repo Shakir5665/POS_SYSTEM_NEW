@@ -78,6 +78,7 @@ async function main() {
 
       console.log('--- Dry-Run Summary ---')
       console.log(`Status:          ${report.status === 'PASSED' ? '✓ PASSED' : '✗ BLOCKED'}`)
+      console.log(`Provenance:      ${report.metadata.dataset_provenance || 'SYNTHETIC_FIXTURE'} (${report.metadata.is_synthetic_fixture ? 'Synthetic Test Fixture' : 'Verified Source'})`)
       console.log(`Source File:     ${report.metadata.source_file}`)
       console.log(`SHA-256:         ${report.metadata.source_sha256}`)
       console.log(`Duration:        ${report.duration_ms} ms`)
@@ -85,7 +86,7 @@ async function main() {
       console.log(`Sales:           ${report.counts.sales.valid} / ${report.counts.sales.total} valid (${report.counts.sales.items} items)`)
       console.log(`Purchases:       ${report.counts.purchases.valid} / ${report.counts.purchases.total} valid (${report.counts.purchases.items} items, ${report.counts.purchases.orphans} orphan children)`)
       console.log(`Adjustments:     ${report.counts.adjustments.valid} / ${report.counts.adjustments.total} valid (${report.counts.adjustments.items} items, ${report.counts.adjustments.orphans} orphan children)`)
-      console.log(`Expenses:        ${report.counts.expenses.valid} / ${report.counts.expenses.total} valid`)
+      console.log(`Expenses:        ${report.counts.expenses.valid} / ${report.counts.expenses.total} valid (${report.counts.expenses.not_eligible || 0} not eligible - pending approved category mapping)`)
 
       console.log('\n--- Inventory & Accounting Invariants ---')
       console.log(`Product.quantity mutations:       ${report.inventory_impact.product_quantity_mutations} (Authoritative stock unchanged)`)

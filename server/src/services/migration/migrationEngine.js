@@ -63,8 +63,9 @@ async function runDryRun(options = {}) {
   const issues = []
 
   // 1. Resolve read-only context
-  const migrationUser = await resolveMigrationUser(prisma)
+  const migrationUser = await resolveMigrationUser(prisma, { dryRun: true })
   const warehouse = await resolveWarehouse(1, prisma, { dryRun: true })
+  const approvedCategoryMappings = options.approvedCategoryMappings || {}
 
   const context = {
     batchId: null,
@@ -72,6 +73,7 @@ async function runDryRun(options = {}) {
     warehouse,
     dryRun: true,
     issues,
+    approvedCategoryMappings,
   }
 
   const results = {
@@ -80,12 +82,15 @@ async function runDryRun(options = {}) {
       source_sha256: dataset.metadata?.source_sha256,
       executed_at: new Date().toISOString(),
       mode: 'DRY_RUN',
+      dataset_provenance: dataset.metadata?.provenance || 'SYNTHETIC_FIXTURE',
+      dataset_classification: dataset.metadata?.dataset_classification || dataset.metadata?.provenance || 'SYNTHETIC_FIXTURE',
+      is_synthetic_fixture: (dataset.metadata?.provenance || 'SYNTHETIC_FIXTURE') === 'SYNTHETIC_FIXTURE',
     },
     counts: {
       sales: { total: 0, valid: 0, items: 0 },
       purchases: { total: 0, valid: 0, items: 0, orphans: 0 },
       adjustments: { total: 0, valid: 0, items: 0, orphans: 0 },
-      expenses: { total: 0, valid: 0 },
+      expenses: { total: 0, valid: 0, not_eligible: 0 },
     },
     inventory_impact: {
       product_quantity_mutations: 0,
@@ -148,6 +153,8 @@ async function runDryRun(options = {}) {
       const res = await importExpense(exp, context, prisma)
       if (res.status === 'SIMULATED') {
         results.counts.expenses.valid++
+      } else if (res.status === 'NOT_ELIGIBLE') {
+        results.counts.expenses.not_eligible = (results.counts.expenses.not_eligible || 0) + 1
       }
     }
   }
@@ -216,6 +223,7 @@ async function executeMigration(options = {}) {
     warehouse: null,
     dryRun: false,
     issues,
+    approvedCategoryMappings: options.approvedCategoryMappings || {},
   }
 
   let successCount = 0

@@ -5,26 +5,28 @@
 **Git Branch:** `phase-4a/legacy-migration-engine`  
 **Execution Mode:** Dry-Run Simulation (`--dry-run`, zero database writes)  
 **Source Dataset:** `server/scripts/migration/data/legacy-dataset.json` (SHA-256: `b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4`)  
-**Status:** **PASSED & SAFE TO EXECUTE** (0 Blocking Errors, 0 DB Mutations, 0 Stock Drift)
+**Dataset Provenance:** `SYNTHETIC_FIXTURE` (Synthetic Test Fixture constructed from external audit counts and totals; NOT verified source extract)  
+**Status:** **PASSED DRY-RUN (0 DB Mutations, 0 Stock Drift, 1 Quarantined Expense Pending Mapping)**
 
 ---
 
 ## 1. Executive Summary
 
-A comprehensive pre-migration dry-run validation was executed using the Phase 4A Migration Engine. The dry run validated 100% of the audited legacy POS dataset against NexTill schema constraints, reference mappings, and business invariants without modifying the PostgreSQL database.
+A comprehensive pre-migration dry-run validation was executed using the Phase 4A Migration Engine. The dry run validated the dataset against NexTill schema constraints, reference mappings, and business invariants without modifying the PostgreSQL database.
 
 ### Key Results:
 1. **Zero Database Modifications:** Confirmed 0 rows created, updated, or deleted across all database tables during dry run.
 2. **Authoritative Stock Invariance:** Confirmed exactly 0 mutations to `Product.quantity` and 0 `InventoryLog` records generated.
 3. **Financial Accounting Safety:** Confirmed 0 synthetic `Payment` rows, 0 customer payment allocations, and 0 supplier payment allocations fabricated.
 4. **Loyalty Protection:** Confirmed 0 loyalty points awarded for historical transactions.
-5. **Orphan & Anomaly Detection:** Successfully detected and cataloged all 9 orphan line items (4 purchase items and 5 adjustment items) and 1 expense category fallback into structured `MigrationIssue` records.
+5. **Orphan & Anomaly Detection:** Successfully detected and cataloged all 9 orphan line items (4 purchase items and 5 adjustment items) and 1 unresolved expense category mapping into structured `MigrationIssue` records.
+6. **Expense Category Correction:** Removed automatic fallback of category `home` (ID 5) to `Miscellaneous`. Preserved original ID 5 and name 'home', recorded `UNRESOLVED_CATEGORY_MAPPING` issue, and marked Expense #3 as **NOT ELIGIBLE** for import until an approved mapping is supplied.
 
 ---
 
 ## 2. Dataset Inventory & Dry-Run Validation Counts
 
-| Entity Domain | Source Headers | Source Items | Dry-Run Valid | Valid Line Items | Detected Orphans | Validation Status |
+| Entity Domain | Source Headers | Source Items | Dry-Run Valid | Valid Line Items | Detected Orphans / Quarantined | Validation Status |
 |---|---|---|---|---|---|---|
 | **Sales** | 3 | 19 embedded | 3 | 19 | 0 | **PASSED** |
 | **Flattened Sale Items** | N/A | 5 flattened | N/A | 5 (subset) | 0 (deduplicated) | **PASSED** |
@@ -32,8 +34,8 @@ A comprehensive pre-migration dry-run validation was executed using the Phase 4A
 | **Flattened Purchase Items** | N/A | 4 flattened | 0 | 0 | 4 (missing parents) | **CATALOGED** |
 | **Stock Adjustments** | 5 | 5 embedded | 5 | 5 | 0 | **PASSED** |
 | **Flattened Adjustment Items**| N/A | 5 flattened | 0 | 0 | 5 (missing parents) | **CATALOGED** |
-| **Expenses** | 1 | N/A | 1 | N/A | 0 | **PASSED** |
-| **Total Transactions** | **13** | **28 embedded** | **13** | **28** | **9 orphans** | **PASSED** |
+| **Expenses** | 1 | N/A | 0 | N/A | 1 (not eligible - unapproved category) | **QUARANTINED** |
+| **Total Transactions** | **13** | **28 embedded** | **12** | **28** | **9 orphans + 1 category** | **PASSED (CONDITIONAL)** |
 
 ---
 
@@ -61,7 +63,7 @@ Synthetic Payment rows created:   0
 
 ## 4. Detected Migration Issues Log
 
-A total of **10 issues** were identified during the dry-run pass. All were categorized with severity `WARNING` or `INFO`, with zero blocking `ERROR` issues:
+A total of **10 issues** were identified during the dry-run pass. All were categorized with severity `WARNING`, with zero blocking `ERROR` issues:
 
 | # | Entity | Legacy ID | Issue Code | Severity | Description | Action / Resolution |
 |---|---|---|---|---|---|---|
@@ -74,14 +76,13 @@ A total of **10 issues** were identified during the dry-run pass. All were categ
 | 7 | `StockAdjustmentItem` | `74` | `ORPHAN_CHILD` | `WARNING` | Flattened item #74 references missing parent adjustment #116 | Track in `MigrationIssue` (DEC-007) |
 | 8 | `StockAdjustmentItem` | `73` | `ORPHAN_CHILD` | `WARNING` | Flattened item #73 references missing parent adjustment #115 | Track in `MigrationIssue` (DEC-007) |
 | 9 | `StockAdjustmentItem` | `72` | `ORPHAN_CHILD` | `WARNING` | Flattened item #72 references missing parent adjustment #114 | Track in `MigrationIssue` (DEC-007) |
-| 10 | `Expense` | `3` | `CATEGORY_FALLBACK` | `INFO` | Legacy category 'home' mapped to fallback category 'Miscellaneous' | Categorized under general business expenses without breaking FKs |
+| 10 | `Expense` | `3` | `UNRESOLVED_CATEGORY_MAPPING` | `WARNING` | Legacy category 'home' (ID: 5) has no approved mapping | Marked NOT ELIGIBLE for import; original ID/name preserved; awaiting approved mapping |
 
 ---
 
 ## 5. Execution Readiness Verdict
 
-- **Dry-Run Status:** **`PASSED`**
-- **Safe to Execute:** **`true`**
-- **Blocking Errors:** **`0`**
-- **Staged Execution Command:** `node server/scripts/migration/run-migration.js --execute`
-- **Rollback Supported:** `node server/scripts/migration/run-migration.js --rollback <batch_id>`
+- **Dry-Run Status:** **`PASSED`** (Simulation verified with zero database mutations)
+- **Engine Technical Integrity:** **`VERIFIED`**
+- **Dataset Provenance:** **`SYNTHETIC_FIXTURE`** (Do NOT execute real legacy import with this fixture)
+- **Live Phase 4B Authorization:** **`HOLD / CONDITIONAL`** (Requires verified source dataset extract and stakeholder approvals for expense category and master-data mappings)

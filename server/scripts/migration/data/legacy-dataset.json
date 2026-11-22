@@ -3,7 +3,10 @@
     "source_file": "POS_Complete_Export_v4.xlsx",
     "source_sha256": "b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4",
     "audit_timestamp": "2026-11-21T22:05:00+05:30",
-    "description": "Audited legacy POS export dataset matching legacy-data-audit.json"
+    "description": "Audited legacy POS export dataset matching legacy-data-audit.json",
+    "provenance": "SYNTHETIC_FIXTURE",
+    "dataset_classification": "SYNTHETIC_FIXTURE",
+    "provenance_note": "Constructed test fixture adhering to external audit counts and totals; contains reverse-engineered items and synthetic master references."
   },
   "sales": [
     {

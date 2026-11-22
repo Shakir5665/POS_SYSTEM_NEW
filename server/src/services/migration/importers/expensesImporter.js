@@ -22,7 +22,7 @@ const { SOURCE_SYSTEM, resolveExpenseCategory } = require('../entityResolvers')
  * @returns {Promise<Object>} Import result summary
  */
 async function importExpense(expenseData, context, tx) {
-  const { batchId, migrationUser, warehouse, dryRun, issues } = context
+  const { batchId, migrationUser, warehouse, dryRun, issues, approvedCategoryMappings } = context
   const legacyExpenseIdStr = String(expenseData.legacy_id)
 
   // 1. Idempotency Check
@@ -44,26 +44,45 @@ async function importExpense(expenseData, context, tx) {
     }
   }
 
-  // 2. Resolve Category
-  const category = await resolveExpenseCategory(expenseData.category_id, expenseData.category_name, tx)
-  if (!category && !dryRun) {
-    throw new Error(`Cannot import Expense #${expenseData.legacy_id}: No expense category resolved.`)
-  }
+  // 2. Resolve Category (no automatic fallback to Miscellaneous without approval)
+  const category = await resolveExpenseCategory(
+    expenseData.category_id,
+    expenseData.category_name,
+    tx,
+    { approvedCategoryMappings }
+  )
 
-  if (category && category.name === 'Miscellaneous' && expenseData.category_name !== 'Miscellaneous') {
+  if (!category) {
+    // Preserve original category identifier & name, record unresolved mapping issue,
+    // mark dependent expense as NOT eligible for import.
     issues.push({
-      batch_id: batchId,
+      batch_id: batchId || null,
       entity_type: 'Expense',
       legacy_id: legacyExpenseIdStr,
-      issue_code: 'CATEGORY_FALLBACK',
-      severity: 'INFO',
-      description: `Legacy expense category '${expenseData.category_name}' mapped to fallback category '${category.name}'`,
-      source_data: expenseData,
+      issue_code: 'UNRESOLVED_CATEGORY_MAPPING',
+      severity: 'WARNING',
+      description: `Legacy expense category '${expenseData.category_name}' (ID: ${expenseData.category_id}) has no approved mapping. Dependent expense #${expenseData.legacy_id} is marked NOT ELIGIBLE for import.`,
+      resolution_status: 'UNRESOLVED',
+      metadata: {
+        legacy_expense_id: expenseData.legacy_id,
+        legacy_category_id: expenseData.category_id,
+        legacy_category_name: expenseData.category_name,
+        amount: expenseData.amount,
+        expense_date: expenseData.expense_date,
+      },
     })
+
+    return {
+      status: 'NOT_ELIGIBLE',
+      legacy_id: expenseData.legacy_id,
+      reason: 'UNRESOLVED_CATEGORY_MAPPING',
+      original_category_id: expenseData.category_id,
+      original_category_name: expenseData.category_name,
+    }
   }
 
   const expensePayload = {
-    category_id: category?.id,
+    category_id: category.id,
     user_id: migrationUser.id,
     amount: new Decimal(expenseData.amount || 0).toNumber(),
     expense_date: new Date(expenseData.expense_date || Date.now()),
@@ -95,6 +114,7 @@ async function importExpense(expenseData, context, tx) {
       nextill_id: createdExpense.id,
       batch_id: batchId,
       metadata: {
+        original_category_id: expenseData.category_id,
         original_category_name: expenseData.category_name,
         amount: expenseData.amount,
       },

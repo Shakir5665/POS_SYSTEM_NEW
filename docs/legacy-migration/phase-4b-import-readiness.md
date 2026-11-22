@@ -4,47 +4,55 @@
 **Date:** November 22, 2026  
 **Git Branch:** `phase-4a/legacy-migration-engine`  
 **Base Commit:** `phase-4a/legacy-migration-engine`  
-**Prerequisites:** Phase 4A Dry-Run Validation Passed (`phase-4a-dry-run-report.md`)  
-**Status:** **READY FOR PHASE 4B STAGED IMPORT UPON STAKEHOLDER APPROVAL**
+**Prerequisites:** Phase 4A Verification Gate (`phase-4a-verification-report.md`)  
+**Status:** **GATE BLOCKED / CONDITIONAL — Engine Technically Verified; Live Historical Data Import NOT Authorized**
 
 ---
 
 ## 1. Phase 4A Validation Verification Gate
 
-Before proceeding to Phase 4B live database execution, the system must satisfy all safety criteria:
+Before proceeding to Phase 4B live database execution, the system must satisfy all safety and provenance criteria:
 
 | Gate Check | Required Baseline | Phase 4A Verification Result | Status |
 |---|---|---|---|
-| **Dry-Run Execution** | Must pass with 0 blocking errors | `runDryRun()` PASSED (10 issues: 0 errors, 9 warnings, 1 info) | **PASSED** |
+| **Source Provenance** | Must be verified source extract | `legacy-dataset.json` is classified as `SYNTHETIC_FIXTURE` (contains reverse-engineered items & fabricated product IDs) | **BLOCKED (PROVENANCE GATE)** |
+| **Expense Category Mapping** | Must have explicit approved mapping | Automatic fallback to `Miscellaneous` removed; category 'home' (ID 5) quarantined as `UNRESOLVED_CATEGORY_MAPPING` | **HOLD (PENDING APPROVAL)** |
+| **Dry-Run Execution** | Must pass with 0 blocking errors | `runDryRun()` PASSED (10 issues: 0 errors, 10 warnings/quarantines; 12 valid, 1 not eligible) | **PASSED** |
 | **Zero Database Drift** | 0 rows modified during dry run | Exactly 0 records written to PostgreSQL | **PASSED** |
 | **Stock Balance Invariance** | `Product.quantity` delta = 0 | Baseline stock verified unchanged before and after dry run & rollback | **PASSED** |
 | **Zero Inventory Log Drift**| 0 `InventoryLog` records created | 0 inventory logs created during simulated and rollback runs | **PASSED** |
 | **Accounting Invariance** | 0 synthetic `Payment` rows | Direct header balance recording verified | **PASSED** |
 | **Orphan Child Quarantine** | 9 orphan items quarantined | 4 purchase orphans + 5 adjustment orphans quarantined into `MigrationIssue` | **PASSED** |
 | **Batch Rollback Mechanics**| 100% clean deletion of test batch | `rollbackBatch()` successfully rolled back test batch and cleared all records | **PASSED** |
-| **Backend Integration Suite**| 21/21 suites passing | 267 / 267 automated tests passing | **PASSED** |
-| **Frontend Production Build**| Clean Vite SPA build | Built in 2.50s with 0 errors | **PASSED** |
-| **Migration Readiness Check**| 0 BLOCKED, 0 ERRORS | CONDITIONAL (10 PASS, 2 WARNING, 0 BLOCKED) | **PASSED** |
+| **Staging Execution Suite** | 10/10 staging scenarios verified | `migrationStagingVerification.test.js` passed all 10 synthetic fixture tests | **PASSED** |
+| **Backend Integration Suite**| All suites passing | 22/22 suites passing (including 22 migrationEngine tests + 10 staging tests) | **PASSED** |
+| **Frontend Production Build**| Clean Vite SPA build | Built cleanly with 0 errors | **PASSED** |
+
+> [!CAUTION]
+> **GATE VERDICT: LIVE PHASE 4B IMPORT IS NOT AUTHORIZED.**  
+> While the Phase 4A ingestion engine and rollback mechanisms are technically robust and 100% verified, `legacy-dataset.json` is a synthetic fixture, not an authoritative legacy extract. Furthermore, master data mappings (products, customers, suppliers) and the expense category 'home' remain unapproved. Real historical data import must NOT be executed.
 
 ---
 
-## 2. Outstanding Decisions & Approvals Required
+## 2. Outstanding Decisions & Approvals Required Before Phase 4B Authorization
 
-Before executing Phase 4B against a production or shared database, the product owner / stakeholder must formally approve:
+Before executing Phase 4B against any real database, the following items must be formally supplied and approved:
 
-1. **Status & Method Code Mappings (DEC-004):**
+1. **Authoritative Source Dataset Extraction:**
+   - The current `legacy-dataset.json` is a **synthetic fixture**. An authoritative automated extraction from `POS_Complete_Export_v4.xlsx` must be performed and verified against the raw workbook hash.
+2. **Expense Category Mapping Approval:**
+   - Legacy expense category `home` (ID 5) must be mapped to an approved NexTill `ExpenseCategory` UUID (e.g. `Miscellaneous` or a newly created `Home Supplies` category).
+3. **Status & Method Code Mappings (DEC-004):**
    - Approval to interpret legacy Sale `status = 1` as `PaymentStatus.COMPLETED`.
    - Approval to interpret legacy Purchase `status = 1` as `PurchaseStatus.RECEIVED`.
    - Approval to preserve raw integer `method_type = 1` on adjustment items.
-2. **Master Product Catalog Alignment (DEC-002):**
-   - Approval that legacy products (`Sugar`, `Salt`, `Chilli`, `Basmathi Rice`, `ALA`) map to the corresponding existing NexTill SKUs (`S1`, `SLT1`, `CHL`, `BR1`, `AL`).
-3. **Master Customer and Supplier Attribution (DEC-003):**
-   - Approval to attribute legacy `customer_id = 1` to existing customer record, or leave as null.
+4. **Master Product Catalog Alignment (DEC-002):**
+   - Formal sign-off on product resolution: `LegacyIdMap` vs exact name matching vs explicit SKU mapping.
+5. **Master Customer and Supplier Attribution (DEC-003):**
+   - Approval to attribute legacy `customer_id = 1` to an existing customer record, or leave as null.
    - Approval to attribute legacy `supplier_id = 3` to active supplier `SS-MART`.
-4. **Expense Category Fallback (DEC-004 / Field Mapping):**
-   - Approval to categorize legacy expense `category_id = 5` ("home") under `Miscellaneous`.
-5. **Orphan Quarantine Strategy (DEC-006 & DEC-007):**
-   - Formal sign-off that the 4 orphaned purchase items and 5 orphaned adjustment items remain quarantined in `MigrationIssue` rather than attached to arbitrary headers.
+6. **Orphan Quarantine Strategy (DEC-006 & DEC-007):**
+   - Formal sign-off that the 4 orphaned purchase items and 5 orphaned adjustment items remain quarantined in `MigrationIssue`.
 
 ---
 

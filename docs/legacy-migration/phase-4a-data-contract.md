@@ -131,7 +131,7 @@ The 5 flattened adjustment items reference parent adjustment header IDs not in t
 | `legacy_id` | Integer | Header ID `3` | Mapped to `LegacyIdMap` (`entity_type: "Expense"`) |
 | `amount` | Decimal | Required Decimal(10, 2) (`10000.00`)| Stored in `Expense.amount` |
 | `expense_date` | ISO-8601 Date | Valid timestamp (`"2024-09-08"`) | Stored in `Expense.expense_date` |
-| `category_id` | Integer | Category ID `5` | Resolved via `resolveExpenseCategory()`. If unmapped, falls back to `Miscellaneous`. |
+| `category_id` | Integer | Category ID `5` | Resolved via `resolveExpenseCategory()`. Automatic fallback removed: requires approved mapping; otherwise original ID and name are preserved and expense is quarantined. |
 | `is_legacy_import` | Boolean | Always forced to `true` | Stored in `Expense.is_legacy_import` |
 
 ---
@@ -145,7 +145,7 @@ The 5 flattened adjustment items reference parent adjustment header IDs not in t
 | **Product** | 1. `LegacyIdMap` lookup<br/>2. Case-insensitive exact name match | If unmapped: Logs `MigrationIssue` (`MISSING_PRODUCT`). Excluded from import eligibility unless explicit fallback approved (DEC-002). |
 | **Customer** | 1. `LegacyIdMap` lookup<br/>2. Active customer match | If unmapped: `Sale.customer_id = null` and logs `MigrationIssue` (DEC-003). |
 | **Supplier** | 1. `LegacyIdMap` lookup<br/>2. Active supplier match (`SS-MART`) | If unmapped: Logs `MigrationIssue` (`MISSING_SUPPLIER`). Purchase cannot import without supplier FK. |
-| **Expense Category** | 1. `LegacyIdMap` lookup<br/>2. Exact name match<br/>3. `Miscellaneous` | Logs `MigrationIssue` (`CATEGORY_FALLBACK`) if fallback applied. |
+| **Expense Category** | 1. Approved mapping options (`approvedCategoryMappings`)<br/>2. `LegacyIdMap` lookup<br/>3. Exact name match in `ExpenseCategory` | Automatic fallback to `Miscellaneous` REMOVED. If unmapped: preserves original ID and name, logs `MigrationIssue` (`UNRESOLVED_CATEGORY_MAPPING`, `WARNING`), and marks expense NOT ELIGIBLE for import. |
 | **Units (UOM)** | Normalized dictionary lookup (`peice` -> `pcs`) | Preserves standard conversion factors to `base_unit` (DEC-005). |
 
 ---
@@ -154,12 +154,14 @@ The 5 flattened adjustment items reference parent adjustment header IDs not in t
 
 A record is **ELIGIBLE** for staged import if:
 1. It is a supported entity type (`Sale`, `Purchase`, `StockAdjustment`, `Expense`).
-2. All non-nullable foreign keys (`user_id`, `warehouse_id`, `supplier_id`) resolve to valid database records.
+2. All non-nullable foreign keys (`user_id`, `warehouse_id`, `supplier_id`, `category_id`) resolve to valid database records.
 3. It has valid decimal monetary amounts and quantities.
 4. Its legacy ID is unique and not already mapped in `LegacyIdMap`.
 5. It is not an orphaned child record.
+6. For expenses, an approved category mapping exists.
 
 A record is **QUARANTINED / EXCLUDED** if:
 1. It is an orphaned child record lacking parent headers (the 9 quarantined items).
-2. Required foreign keys fail resolution.
-3. Checksum or schema structure validation fails.
+2. It is an expense record lacking an approved expense category mapping (e.g. legacy category ID 5 "home").
+3. Required foreign keys fail resolution.
+4. Checksum or schema structure validation fails.

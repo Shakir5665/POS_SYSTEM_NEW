@@ -17,13 +17,14 @@ Phase 4A designs, implements, and verifies the **NexTill Legacy POS Migration En
 1. **Dry-Run Validation Pass (`--dry-run`):**
    - Implemented `runDryRun` in [migrationEngine.js](file:///C:/Users/shaki/Desktop/NexTill_POS/server/src/services/migration/migrationEngine.js).
    - In-memory validation pass verifying source checksum, schema constraints, and foreign key resolutions with **zero database writes**.
-   - Verified 3 sales (19 items), 4 purchases (4 items), 5 adjustments (5 items), and 1 expense.
-   - Cataloged 9 orphan line items (4 purchase orphans referencing IDs 4348–4351, 5 adjustment orphans referencing IDs 114–118) and 1 expense category fallback.
+   - Verified 3 sales (19 items), 4 purchases (4 items), 5 adjustments (5 items), and 1 expense (marked NOT ELIGIBLE due to unapproved category 'home' ID 5).
+   - Cataloged 9 orphan line items (4 purchase orphans referencing IDs 4348–4351, 5 adjustment orphans referencing IDs 114–118) and 1 unresolved category mapping.
+   - Identified dataset provenance as `SYNTHETIC_FIXTURE`.
 2. **Dedicated Historical Importers:**
    - [salesImporter.js](file:///C:/Users/shaki/Desktop/NexTill_POS/server/src/services/migration/importers/salesImporter.js): Ingests sales with `is_legacy_import: true`, sets historical `sale_date`, bypasses stock deduction (RISK-01), awards zero loyalty points (RISK-02), and creates zero synthetic payments (RISK-04, DEC-009).
    - [purchasesImporter.js](file:///C:/Users/shaki/Desktop/NexTill_POS/server/src/services/migration/importers/purchasesImporter.js): Ingests purchases with `is_legacy_import: true`, sets `status: 'RECEIVED'`, bypasses stock intake (RISK-07), and records orphan items into `MigrationIssue` (DEC-006).
    - [adjustmentsImporter.js](file:///C:/Users/shaki/Desktop/NexTill_POS/server/src/services/migration/importers/adjustmentsImporter.js): Ingests adjustments with `is_legacy_import: true`, preserves raw legacy `method_type: 1` (DEC-004), bypasses live inventory changes (RISK-10, DEC-008), and records orphan items (DEC-007).
-   - [expensesImporter.js](file:///C:/Users/shaki/Desktop/NexTill_POS/server/src/services/migration/importers/expensesImporter.js): Ingests historical expenses with `is_legacy_import: true` and resolves expense categories.
+   - [expensesImporter.js](file:///C:/Users/shaki/Desktop/NexTill_POS/server/src/services/migration/importers/expensesImporter.js): Ingests historical expenses with `is_legacy_import: true`. Corrected to remove automatic fallback to `Miscellaneous`: preserves original ID 5 and name 'home', logs `UNRESOLVED_CATEGORY_MAPPING` issue, and marks dependent expense as NOT ELIGIBLE for import unless approved mapping is supplied.
 3. **Entity Resolvers & Mapping Registry:**
    - Implemented [entityResolvers.js](file:///C:/Users/shaki/Desktop/NexTill_POS/server/src/services/migration/entityResolvers.js) to resolve warehouses (DEC-001), products (DEC-002), customers and suppliers (DEC-003), UOM normalizations (DEC-005), and system migration user attribution (DEC-011).
 4. **Complete Batch Rollback Capability:**
@@ -100,7 +101,7 @@ flowchart TD
 | **DEC-001** | Warehouse Architecture | All transactions automatically resolve legacy warehouse `1` to the active default warehouse (`WH-TEST-001` / `WH-001`). Recorded in `LegacyIdMap`. | **ENFORCED** |
 | **DEC-002** | Product Identity Mapping | Line items resolve products via `LegacyIdMap` first, then case-insensitive name matching. Unmapped items log a `MigrationIssue` without creating fake products. | **ENFORCED** |
 | **DEC-003** | Customer/Supplier Masters | Customer ID 1 and Supplier ID 3 resolved via `LegacyIdMap` or matched against existing master records. No placeholder customers/suppliers fabricated. | **ENFORCED** |
-| **DEC-004** | Status & Method Codes | Preserved raw legacy `method_type: 1` on adjustment items. Mapped sale status to `COMPLETED` and purchase status to `RECEIVED`. | **ENFORCED** |
+| **DEC-004** | Status & Method Codes | Preserved raw legacy `method_type: 1` on adjustment items. Mapped sale status to `COMPLETED` and purchase status to `RECEIVED`. Automatic fallback for expense category 'home' (ID 5) removed; quarantined as `UNRESOLVED_CATEGORY_MAPPING` pending approved mapping. | **ENFORCED** |
 | **DEC-005** | Unit Normalization | `normalizeUnit` converts legacy strings (`peice`, `piece`, `pcs`) to standard NexTill `pcs`. | **ENFORCED** |
 | **DEC-006** | Missing Parent Purchases | 4 flattened purchase items referencing missing parents (4348–4351) are captured in `MigrationIssue` with `issue_code: 'ORPHAN_CHILD'`. | **ENFORCED** |
 | **DEC-007** | Missing Adjustment Headers | 5 flattened adjustment items referencing missing parents (114–118) are captured in `MigrationIssue` with `issue_code: 'ORPHAN_CHILD'`. | **ENFORCED** |
@@ -114,7 +115,9 @@ flowchart TD
 
 ## 5. Verification & Test Summary
 
-- **Backend Integration Tests:** **21 / 21 test suites passed**, **267 / 267 tests passed** (37.81s).
-- **Dedicated Phase 4A Tests (`migrationEngine.test.js`):** **16 / 16 tests passed** (dry run, staged execution, stock invariance, idempotency, rollback).
-- **Frontend SPA Build:** `vite build` completed cleanly in 2.85s with 0 errors.
-- **Migration Readiness Check:** Overall readiness status remains **CONDITIONAL** with **0 BLOCKED** and **0 ERRORS**.
+- **Backend Integration Tests:** **22 / 22 test suites passed**.
+- **Migration Engine Integration Suite (`migrationEngine.test.js`):** **22 / 22 tests passed** (dry run, simulated vs approved expense mapping, staged execution, stock invariance, idempotency, rollback).
+- **Staging Execution Verification Suite (`migrationStagingVerification.test.js`):** **10 / 10 tests passed** covering all 10 staging scenarios with synthetic fixtures (first import, repeated import, interrupted import and retry, duplicate legacy IDs, partial record failure, rollback, repeated rollback, preservation of unrelated records, zero stock drift, zero synthetic payment creation).
+- **Dataset Provenance Assessment:** `legacy-dataset.json` classified as `SYNTHETIC_FIXTURE`. Live import blocked until a verified source export is available.
+- **Frontend SPA Build:** `vite build` completed cleanly with 0 errors.
+- **Migration Readiness Check:** Overall readiness status remains **CONDITIONAL** with **0 BLOCKED** and **0 ERRORS**. Live Phase 4B import is held pending verified source dataset and approved master data mappings.
