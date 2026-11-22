@@ -52,6 +52,62 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
   beforeAll(async () => {
     await cleanMigrationRecords()
 
+    // Ensure default warehouse exists (DEC-001)
+    await prisma.warehouse.upsert({
+      where: { name: 'Main Warehouse' },
+      update: { is_default: true, is_active: true },
+      create: {
+        name: 'Main Warehouse',
+        code: 'WH-001',
+        is_default: true,
+        is_active: true,
+      },
+    })
+
+    // Ensure default supplier exists (DEC-003)
+    const existingSupplier = await prisma.supplier.findFirst({ where: { name: 'SS-MART' } })
+    if (!existingSupplier) {
+      await prisma.supplier.create({
+        data: {
+          name: 'SS-MART',
+          phone: '0752958134',
+          email: 'mohamedsakir3456@gmail.com',
+          is_active: true,
+        },
+      })
+    }
+
+    // Ensure default expense category exists for approved mapping
+    await prisma.expenseCategory.upsert({
+      where: { name: 'Miscellaneous' },
+      update: { is_active: true },
+      create: {
+        name: 'Miscellaneous',
+        description: 'General operational expenses',
+        is_active: true,
+      },
+    })
+
+    // Ensure Phase 4A synthetic products exist for dry-run/staged tests
+    const category = await prisma.category.findFirst()
+    const testProducts = [
+      { name: 'Sugar', sku: 'LEGACY-SUGAR', price: 100, cost_price: 80, quantity: 50 },
+      { name: 'Salt', sku: 'LEGACY-SALT', price: 50, cost_price: 40, quantity: 50 },
+      { name: 'Chilli', sku: 'LEGACY-CHILLI', price: 200, cost_price: 150, quantity: 50 },
+      { name: 'Basmathi Rice', sku: 'LEGACY-BASMATHI', price: 250, cost_price: 200, quantity: 50 },
+      { name: 'ALA', sku: 'LEGACY-ALA', price: 200, cost_price: 150, quantity: 50 },
+    ]
+    for (const tp of testProducts) {
+      await prisma.product.upsert({
+        where: { sku: tp.sku },
+        update: {},
+        create: {
+          ...tp,
+          category_id: category.id,
+        },
+      })
+    }
+
     // Record baseline stock balances for all products to verify invariance
     const products = await prisma.product.findMany()
     for (const p of products) {

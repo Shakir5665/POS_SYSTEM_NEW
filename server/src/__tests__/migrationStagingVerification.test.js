@@ -118,6 +118,42 @@ describe('Phase 4A: Staging Execution Verification (Synthetic Fixtures Only)', (
   beforeAll(async () => {
     await cleanMigrationRecords()
 
+    // Ensure default warehouse exists (DEC-001)
+    await prisma.warehouse.upsert({
+      where: { name: 'Main Warehouse' },
+      update: { is_default: true, is_active: true },
+      create: {
+        name: 'Main Warehouse',
+        code: 'WH-001',
+        is_default: true,
+        is_active: true,
+      },
+    })
+
+    // Ensure default supplier exists (DEC-003)
+    const existingSupplier = await prisma.supplier.findFirst({ where: { name: 'SS-MART' } })
+    if (!existingSupplier) {
+      await prisma.supplier.create({
+        data: {
+          name: 'SS-MART',
+          phone: '0752958134',
+          email: 'mohamedsakir3456@gmail.com',
+          is_active: true,
+        },
+      })
+    }
+
+    // Ensure default expense category exists for approved mapping
+    await prisma.expenseCategory.upsert({
+      where: { name: 'Miscellaneous' },
+      update: { is_active: true },
+      create: {
+        name: 'Miscellaneous',
+        description: 'General operational expenses',
+        is_active: true,
+      },
+    })
+
     // 1. Snapshot baseline stock balances across all products
     const products = await prisma.product.findMany()
     for (const p of products) {

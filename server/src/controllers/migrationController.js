@@ -113,7 +113,13 @@ async function getMigrationStatus(req, res, next) {
       prisma.legacyIdMap.count(),
     ]);
 
+    const latestExcelBatch = await prisma.migrationBatch.findFirst({
+      where: { entity_type: 'AUTHENTIC_HISTORICAL_EXCEL_IMPORT' },
+      orderBy: { started_at: 'desc' },
+    });
+
     const isStaging = isStagingOrProduction();
+    const hasExcelBatch = !!latestExcelBatch;
 
     res.json({
       success: true,
@@ -122,10 +128,12 @@ async function getMigrationStatus(req, res, next) {
         total_issues: totalIssues,
         unresolved_issues: unresolvedIssues,
         mapped_records: mappedRecords,
-        provenance: 'AUTHENTIC_HISTORICAL_EXCEL_EXPORT',
-        known_original_workbook_sha256: 'e3d837e544b020f68c032575e40cc76fb0de8e4cca464d4fdc9bd64005f697f9',
+        provenance: hasExcelBatch ? 'AUTHENTIC_HISTORICAL_EXCEL_EXPORT' : 'SYNTHETIC_FIXTURE',
+        known_original_workbook_sha256: hasExcelBatch
+          ? 'e3d837e544b020f68c032575e40cc76fb0de8e4cca464d4fdc9bd64005f697f9'
+          : 'b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4',
         known_repaired_workbook_sha256: '6c3ed8f9eb76c8fdf86898609ae1f120ad829ddbf8169dd574049e2dde06eaf7',
-        excel_import_status: 'PHASE_4B_VERIFIED_DRY_RUN_ONLY',
+        excel_import_status: hasExcelBatch ? 'PHASE_4B_VERIFIED_DRY_RUN_ONLY' : 'NOT_YET_AVAILABLE',
         staging_locked: isStaging,
         live_execution_permitted: false,
       },

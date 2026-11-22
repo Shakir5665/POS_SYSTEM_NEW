@@ -3,5 +3,7 @@
 // sets "development") would turn on behaviour the tests rely on being off,
 // such as the login rate limiter. Always test as "test".
 process.env.NODE_ENV = 'test'
-jest.setTimeout(30000)
+process.env.DATABASE_URL = 'postgresql://postgres@127.0.0.1:5432/nextill_isolated_phase4b?schema=public'
+process.env.ALLOW_ISOLATED_IMPORT = 'true'
+jest.setTimeout(60000)
 

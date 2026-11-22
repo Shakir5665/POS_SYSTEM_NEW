@@ -103,12 +103,22 @@ async function runExcelImport(options = {}) {
     categories: 0,
     customers: 0,
     suppliers: 0,
+    warehouses: 0,
+    brands: 0,
+    units: 0,
+    baseUnits: 0,
+    users: 0,
+    roles: 0,
+    currencies: 0,
+    settings: 0,
     products: 0,
     sales: 0,
     saleItems: 0,
     purchases: 0,
     purchaseItems: 0,
     adjustments: 0,
+    adjustmentItems: 0,
+    expenseCategories: 0,
     expenses: 0,
     quarantinedSales: 0,
     quarantinedPurchases: 0,
@@ -360,6 +370,8 @@ async function runExcelImport(options = {}) {
 
           if (quarantineSet.has(`Sale:${sId}`)) {
             stats.quarantinedSales++;
+            const rawItems = saleItemsBySaleId.get(sId) || [];
+            stats.quarantinedSaleItems += rawItems.length;
             continue;
           }
 
@@ -588,67 +600,171 @@ async function runExcelImport(options = {}) {
       }, { maxWait: 20000, timeout: 120000 });
     }
 
-    // 8. Historical Adjustments (Audit records only; 0 stock drift)
-    onProgress({ phase: 'ADJUSTMENTS', percent: 85, message: 'Importing historical adjustment audit records...' });
+    // 8. Historical Adjustments & Adjustment_Items (Audit records; 0 stock drift)
+    onProgress({ phase: 'ADJUSTMENTS', percent: 85, message: 'Importing historical adjustment & item audit records...' });
     const adjustmentRows = getWorksheetRows(workbook, 'Adjustments', sha256);
+    const adjustmentItemRows = getWorksheetRows(workbook, 'Adjustment_Items', sha256);
+
+    const adjItemsByAdjId = new Map();
+    for (const it of adjustmentItemRows) {
+      const aId = String(it['Adjustment ID']);
+      if (!adjItemsByAdjId.has(aId)) adjItemsByAdjId.set(aId, []);
+      adjItemsByAdjId.get(aId).push(it);
+    }
+
     const existingAdjMaps = await prisma.legacyIdMap.findMany({
       where: { source_system: SOURCE_SYSTEM, entity_type: 'StockAdjustment' },
-      select: { legacy_id: true },
+      select: { legacy_id: true, nextill_id: true },
     });
-    const seenAdjLegacyIds = new Set(existingAdjMaps.map(m => m.legacy_id));
+    const seenAdjLegacyIds = new Map(existingAdjMaps.map(m => [m.legacy_id, m.nextill_id]));
 
     for (const adj of adjustmentRows) {
       const adjId = String(adj['Adjustment ID']);
-      if (seenAdjLegacyIds.has(adjId)) continue;
+      let nextillAdjId = seenAdjLegacyIds.get(adjId);
 
-      const refCode = `LEGACY-AD${adjId}-${adj['Reference Code'] || ''}`.slice(0, 50);
-      const adjDate = adj['Date'] ? new Date(adj['Date']) : new Date();
-      const createdAdj = await prisma.stockAdjustment.create({
-        data: {
-          adjustment_number: refCode,
-          adjustment_date: adjDate,
-          warehouse_id: defaultWarehouse.id,
-          user_id: migrationUser.id,
-          reason: 'Historical inventory adjustment audit import',
-          is_legacy_import: true,
-        },
-      });
-      await prisma.legacyIdMap.create({
-        data: {
-          source_system: SOURCE_SYSTEM,
-          entity_type: 'StockAdjustment',
-          legacy_id: adjId,
-          target_model: 'StockAdjustment',
-          nextill_id: createdAdj.id,
-          batch_id: batchId,
-        },
-      });
-      seenAdjLegacyIds.add(adjId);
-      stats.adjustments++;
+      if (!nextillAdjId) {
+        const refCode = `LEGACY-AD${adjId}-${adj['Reference Code'] || ''}`.slice(0, 50);
+        const adjDate = adj['Date'] ? new Date(adj['Date']) : new Date();
+        const createdAdj = await prisma.stockAdjustment.create({
+          data: {
+            adjustment_number: refCode,
+            adjustment_date: adjDate,
+            warehouse_id: defaultWarehouse.id,
+            user_id: migrationUser.id,
+            reason: 'Historical inventory adjustment audit import',
+            notes: adj['Total Products'] ? `Total products: ${adj['Total Products']}` : null,
+            is_legacy_import: true,
+          },
+        });
+        nextillAdjId = createdAdj.id;
+
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'StockAdjustment',
+            legacy_id: adjId,
+            target_model: 'StockAdjustment',
+            nextill_id: createdAdj.id,
+            batch_id: batchId,
+          },
+        });
+        seenAdjLegacyIds.set(adjId, nextillAdjId);
+        stats.adjustments++;
+      }
+
+      // Import adjustment child items for this adjustment
+      const childItems = adjItemsByAdjId.get(adjId) || [];
+      for (const it of childItems) {
+        const itId = String(it['Adjustment Item ID']);
+        const existingItemMap = await prisma.legacyIdMap.findUnique({
+          where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'StockAdjustmentItem', legacy_id: itId } },
+        });
+
+        if (!existingItemMap) {
+          const pId = String(it['Product ID']);
+          const nextillProdId = prodIdLookup.get(pId) || null;
+          const qty = toDecimalSafe(it['Quantity'], 0);
+          const methodType = it['Method Type'] !== undefined ? Number(it['Method Type']) : 1;
+
+          const createdItem = await prisma.stockAdjustmentItem.create({
+            data: {
+              adjustment_id: nextillAdjId,
+              product_id: nextillProdId,
+              quantity_change: qty,
+              method_type: methodType,
+              unit: normalizeUnit(it['Sale Unit'] || 'pcs'),
+              notes: it['Method Description'] ? String(it['Method Description']).trim() : null,
+              created_at: it['Created At'] ? new Date(it['Created At']) : new Date(),
+            },
+          });
+
+          await prisma.legacyIdMap.create({
+            data: {
+              source_system: SOURCE_SYSTEM,
+              entity_type: 'StockAdjustmentItem',
+              legacy_id: itId,
+              target_model: 'StockAdjustmentItem',
+              nextill_id: createdItem.id,
+              batch_id: batchId,
+              metadata: {
+                legacy_adjustment_id: adjId,
+                product_id: pId,
+                product_name: it['Product Name'],
+                product_code: it['Product Code'],
+                quantity: String(it['Quantity']),
+                method_type: methodType,
+                method_description: it['Method Description'],
+                sale_unit: it['Sale Unit'],
+              },
+            },
+          });
+          stats.adjustmentItems++;
+        }
+      }
     }
 
-    // 9. Historical Expenses
+    // 9. Historical Expenses & Expense Categories (Authentic preservation; zero reclassification drift)
     onProgress({ phase: 'EXPENSES', percent: 90, message: 'Importing historical expense records...' });
+    const expenseCategoryRows = getWorksheetRows(workbook, 'Expense_Categories', sha256);
     const expenseRows = getWorksheetRows(workbook, 'Expenses', sha256);
-    let storeExpenseCat = await prisma.expenseCategory.findFirst({ where: { name: 'Store Utilities / General' } });
-    if (!storeExpenseCat) {
-      storeExpenseCat = await prisma.expenseCategory.create({
-        data: { name: 'Store Utilities / General', description: 'Reclassified from legacy category 5 (home)' },
+
+    for (const expCatRow of expenseCategoryRows) {
+      const legCatId = String(expCatRow['Expense Category ID']);
+      const catName = String(expCatRow['Name'] || `Expense Category ${legCatId}`).trim();
+      const existingCatMap = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'ExpenseCategory', legacy_id: legCatId } },
       });
+
+      if (!existingCatMap) {
+        let cat = await prisma.expenseCategory.findUnique({ where: { name: catName } });
+        if (!cat) {
+          cat = await prisma.expenseCategory.create({
+            data: {
+              name: catName,
+              description: 'Authentic historical expense category',
+            },
+          });
+        }
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'ExpenseCategory',
+            legacy_id: legCatId,
+            target_model: 'ExpenseCategory',
+            nextill_id: cat.id,
+            batch_id: batchId,
+          },
+        });
+        stats.expenseCategories++;
+      }
     }
+
+    const expCatMaps = await prisma.legacyIdMap.findMany({
+      where: { source_system: SOURCE_SYSTEM, entity_type: 'ExpenseCategory' },
+    });
+    const expCatIdLookup = new Map(expCatMaps.map(m => [m.legacy_id, m.nextill_id]));
+
     for (const exp of expenseRows) {
       const expId = String(exp['Expense ID']);
       const existingMap = await prisma.legacyIdMap.findUnique({
         where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'Expense', legacy_id: expId } },
       });
       if (!existingMap) {
+        const legCatId = String(exp['Expense Category ID']);
+        const targetCatId = expCatIdLookup.get(legCatId);
+        if (!targetCatId) {
+          throw new Error(`Unresolved expense category ID ${legCatId} for expense ${expId}`);
+        }
+
         const createdExp = await prisma.expense.create({
           data: {
-            category_id: storeExpenseCat.id,
+            category_id: targetCatId,
             user_id: migrationUser.id,
             amount: toDecimalSafe(exp['Amount'], 0),
             payment_method: 'CASH',
-            notes: `Legacy EX_113: ${exp['Title'] || 'generator'} (Historical)`,
+            expense_date: exp['Date'] ? new Date(exp['Date']) : new Date(),
+            reference: exp['Reference Code'] || `LEGACY-EXP-${expId}`,
+            notes: `Legacy EX_113: ${exp['Title'] || 'generator'} (Authentic Category: ${exp['Expense Category Name'] || legCatId})`,
             is_legacy_import: true,
           },
         });
@@ -660,13 +776,205 @@ async function runExcelImport(options = {}) {
             target_model: 'Expense',
             nextill_id: createdExp.id,
             batch_id: batchId,
+            metadata: {
+              source_category_id: exp['Expense Category ID'],
+              source_category_name: exp['Expense Category Name'],
+              reference_code: exp['Reference Code'],
+              amount: exp['Amount'],
+              title: exp['Title'],
+              date: exp['Date'],
+            },
           },
         });
         stats.expenses++;
       }
     }
 
-    // 10. Record Migration Issues for Quarantined Records
+    // 10. Audit Preservation for Reference Sheets (Warehouses, Brands, Units, Base_Units, Users, Roles, Currencies, Settings)
+    const warehouseRows = getWorksheetRows(workbook, 'Warehouses', sha256);
+    for (const w of warehouseRows) {
+      const legId = String(w['Warehouse ID']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'Warehouse', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'Warehouse',
+            legacy_id: legId,
+            target_model: 'Warehouse',
+            nextill_id: defaultWarehouse.id,
+            batch_id: batchId,
+            metadata: { name: w['Name'], phone: w['Phone'], email: w['Email'], city: w['City'], country: w['Country'] },
+          },
+        });
+        stats.warehouses++;
+      }
+    }
+
+    const brandRows = getWorksheetRows(workbook, 'Brands', sha256);
+    for (const b of brandRows) {
+      const legId = String(b['Brand ID']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'Brand', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'Brand',
+            legacy_id: legId,
+            target_model: 'Brand',
+            nextill_id: `AUDIT-BRAND-${legId}`,
+            batch_id: batchId,
+            metadata: { name: b['Name'] },
+          },
+        });
+        stats.brands++;
+      }
+    }
+
+    const unitRows = getWorksheetRows(workbook, 'Units', sha256);
+    for (const u of unitRows) {
+      const legId = String(u['Unit ID']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'Unit', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'Unit',
+            legacy_id: legId,
+            target_model: 'Unit',
+            nextill_id: `REF-UNIT-${legId}`,
+            batch_id: batchId,
+            metadata: { name: u['Name'], short_name: u['Short Name'], base_unit_id: u['Base Unit ID'], base_unit_name: u['Base Unit Name'] },
+          },
+        });
+        stats.units++;
+      }
+    }
+
+    const baseUnitRows = getWorksheetRows(workbook, 'Base_Units', sha256);
+    for (const bu of baseUnitRows) {
+      const legId = String(bu['Base Unit ID']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'BaseUnit', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'BaseUnit',
+            legacy_id: legId,
+            target_model: 'BaseUnit',
+            nextill_id: `REF-BASEUNIT-${legId}`,
+            batch_id: batchId,
+            metadata: { name: bu['Name'] },
+          },
+        });
+        stats.baseUnits++;
+      }
+    }
+
+    const userRows = getWorksheetRows(workbook, 'Users', sha256);
+    for (const u of userRows) {
+      const legId = String(u['User ID']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'User', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'User',
+            legacy_id: legId,
+            target_model: 'User',
+            nextill_id: migrationUser.id,
+            batch_id: batchId,
+            metadata: {
+              first_name: u['First Name'],
+              last_name: u['Last Name'],
+              email: u['Email'],
+              phone: u['Phone'],
+              role: u['Role'],
+              policy_note: 'Historical user reference only; zero credentials or RBAC permissions imported',
+            },
+          },
+        });
+        stats.users++;
+      }
+    }
+
+    const roleRows = getWorksheetRows(workbook, 'Roles_Permissions', sha256);
+    for (const r of roleRows) {
+      const legId = String(r['Role ID']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'Role', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'Role',
+            legacy_id: legId,
+            target_model: 'Role',
+            nextill_id: `AUDIT-ROLE-${legId}`,
+            batch_id: batchId,
+            metadata: { name: r['Name'], display_name: r['Display Name'], permissions_count: r['Permissions Count'] },
+          },
+        });
+        stats.roles++;
+      }
+    }
+
+    const currencyRows = getWorksheetRows(workbook, 'Currencies', sha256);
+    for (const c of currencyRows) {
+      const legId = String(c['Currency ID']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'Currency', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'Currency',
+            legacy_id: legId,
+            target_model: 'Currency',
+            nextill_id: `AUDIT-CURRENCY-${legId}`,
+            batch_id: batchId,
+            metadata: { code: c['Code'], symbol: c['Symbol'] },
+          },
+        });
+        stats.currencies++;
+      }
+    }
+
+    const settingRows = getWorksheetRows(workbook, 'Settings', sha256);
+    for (const s of settingRows) {
+      const legId = String(s['Setting Key']);
+      const existing = await prisma.legacyIdMap.findUnique({
+        where: { source_system_entity_type_legacy_id: { source_system: SOURCE_SYSTEM, entity_type: 'Setting', legacy_id: legId } },
+      });
+      if (!existing) {
+        await prisma.legacyIdMap.create({
+          data: {
+            source_system: SOURCE_SYSTEM,
+            entity_type: 'Setting',
+            legacy_id: legId,
+            target_model: 'Setting',
+            nextill_id: `AUDIT-SETTING-${legId}`,
+            batch_id: batchId,
+            metadata: { setting_key: s['Setting Key'], setting_value: s['Setting Value'] },
+          },
+        });
+        stats.settings++;
+      }
+    }
+
+    // 11. Record Migration Issues for Quarantined Records and Audit Items
     const issuesToCreate = validation.issues.map(issue => ({
       batch_id: batchId,
       entity_type: issue.entity_type,
@@ -674,13 +982,14 @@ async function runExcelImport(options = {}) {
       issue_code: issue.issue_code,
       severity: issue.severity,
       description: issue.description,
-      resolution_status: issue.severity === 'BLOCKING' ? 'QUARANTINED' : 'UNRESOLVED',
+      resolution_status: issue.severity === 'BLOCKING' ? 'QUARANTINED' : (issue.resolution_status || 'UNRESOLVED'),
+      metadata: issue.metadata || null,
     }));
     if (issuesToCreate.length > 0) {
       await prisma.migrationIssue.createMany({ data: issuesToCreate });
     }
 
-    // 11. Final Invariant Assertion: Verify ZERO stock drift
+    // 12. Final Invariant Assertion: Verify ZERO stock drift
     const postProducts = await prisma.product.findMany({ select: { id: true, quantity: true } });
     let stockDriftCount = 0;
     for (const p of postProducts) {
@@ -696,7 +1005,10 @@ async function runExcelImport(options = {}) {
 
     // Update batch to completed
     const totalRecordsImported = stats.categories + stats.customers + stats.suppliers +
-      stats.products + stats.sales + stats.purchases + stats.adjustments + stats.expenses;
+      stats.warehouses + stats.brands + stats.units + stats.baseUnits + stats.users +
+      stats.roles + stats.currencies + stats.settings + stats.products + stats.sales +
+      stats.saleItems + stats.purchases + stats.purchaseItems + stats.adjustments +
+      stats.adjustmentItems + stats.expenseCategories + stats.expenses;
 
     await prisma.migrationBatch.update({
       where: { id: batchId },
@@ -706,7 +1018,7 @@ async function runExcelImport(options = {}) {
         error_count: validation.quarantineRecordsCount,
         status: 'COMPLETED',
         completed_at: new Date(),
-        notes: `Imported ${stats.sales} sales (${stats.saleItems} items), ${stats.purchases} purchases (${stats.purchaseItems} items), ${stats.products} products. Quarantined ${stats.quarantinedSales} sales, ${stats.quarantinedPurchases} purchases. Zero stock drift.`,
+        notes: `Imported ${stats.sales} sales (${stats.saleItems} items), ${stats.purchases} purchases (${stats.purchaseItems} items), ${stats.adjustments} adjustments (${stats.adjustmentItems} items), ${stats.products} products. Quarantined ${stats.quarantinedSales} sales (${stats.quarantinedSaleItems} items), ${stats.quarantinedPurchases} purchases. Zero stock drift.`,
       },
     });
 
@@ -753,6 +1065,35 @@ async function rollbackExcelBatch(batchId, options = {}) {
 
   if (!batch) {
     throw new Error(`Migration batch not found: ${batchId}`);
+  }
+
+  // Check if later business transactions depend on imported records
+  const saleIds = (await prisma.legacyIdMap.findMany({
+    where: { batch_id: batchId, entity_type: 'Sale' },
+    select: { nextill_id: true },
+  })).map(m => m.nextill_id);
+
+  if (saleIds.length > 0) {
+    const dependentSalesReturns = await prisma.salesReturn.count({
+      where: { sale_id: { in: saleIds } },
+    });
+    if (dependentSalesReturns > 0) {
+      throw new Error(`ROLLBACK_BLOCKED: Cannot rollback batch ${batchId}. ${dependentSalesReturns} downstream sales return(s) depend on imported sales.`);
+    }
+  }
+
+  const purchaseIds = (await prisma.legacyIdMap.findMany({
+    where: { batch_id: batchId, entity_type: 'Purchase' },
+    select: { nextill_id: true },
+  })).map(m => m.nextill_id);
+
+  if (purchaseIds.length > 0) {
+    const dependentPurchaseReturns = await prisma.purchaseReturn.count({
+      where: { purchase_id: { in: purchaseIds } },
+    });
+    if (dependentPurchaseReturns > 0) {
+      throw new Error(`ROLLBACK_BLOCKED: Cannot rollback batch ${batchId}. ${dependentPurchaseReturns} downstream purchase return(s) depend on imported purchases.`);
+    }
   }
 
   // Count mapped entities efficiently via groupBy to avoid pulling 200k records into JS heap

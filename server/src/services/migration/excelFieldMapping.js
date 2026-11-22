@@ -14,8 +14,8 @@ const SHEET_DISPOSITIONS = {
   Sale_Items: { disposition: 'IMPORT', description: 'Historical sales line items with Decimal subtotal calculation' },
   Purchases: { disposition: 'IMPORT', description: 'Historical purchases (is_legacy_import: true)' },
   Purchase_Items: { disposition: 'IMPORT', description: 'Historical purchase line items with Decimal cost' },
-  Adjustments: { disposition: 'AUDIT_ONLY', description: 'Historical inventory adjustments; zero stock mutation' },
-  Adjustment_Items: { disposition: 'AUDIT_ONLY', description: 'Historical inventory adjustment line items' },
+  Adjustments: { disposition: 'IMPORT_AUDIT', description: 'Historical inventory adjustments (zero Product.quantity mutation, full audit preservation in StockAdjustment)' },
+  Adjustment_Items: { disposition: 'IMPORT_AUDIT', description: 'Historical inventory adjustment line items (zero Product.quantity mutation, full audit preservation in StockAdjustmentItem)' },
   Customers: { disposition: 'IMPORT', description: 'Customer master records with legacy ID mapping' },
   Suppliers: { disposition: 'IMPORT', description: 'Supplier master records with legacy ID mapping' },
   Product_Categories: { disposition: 'IMPORT', description: 'Category master records' },
@@ -24,7 +24,7 @@ const SHEET_DISPOSITIONS = {
   Units: { disposition: 'REFERENCE', description: 'Legacy transaction units referenced by Sale/Purchase Unit ID' },
   Base_Units: { disposition: 'REFERENCE', description: 'Product base units referenced by Product Unit ID' },
   Expenses: { disposition: 'IMPORT', description: 'Historical operating expenses (is_legacy_import: true)' },
-  Expense_Categories: { disposition: 'IMPORT', description: 'Expense categories (ID 5 "home" reclassified to store utility)' },
+  Expense_Categories: { disposition: 'IMPORT', description: 'Expense categories (Preserves authentic Category 5 "home"; proposed reclassification to store utility pending admin approval)' },
   Users: { disposition: 'AUDIT_ONLY', description: 'Reference only; no credentials or permissions imported' },
   Roles_Permissions: { disposition: 'AUDIT_ONLY', description: 'Reference only; no RBAC grants imported' },
   Currencies: { disposition: 'AUDIT_ONLY', description: 'Reference currency (LKR / Rs.)' },
@@ -128,6 +128,41 @@ const PURCHASE_ITEM_FIELD_MAPPING = [
   { sourceCol: 'Sub Total', type: 'Decimal', targetModel: 'PurchaseItem', targetField: 'total_cost', required: true, conversion: 'ToDecimal' },
 ];
 
+const ADJUSTMENT_FIELD_MAPPING = [
+  { sourceCol: 'Adjustment ID', type: 'Integer', targetModel: 'LegacyIdMap', targetField: 'legacy_id', required: true, conversion: 'String' },
+  { sourceCol: 'Reference Code', type: 'String', targetModel: 'StockAdjustment', targetField: 'adjustment_number', required: true, conversion: 'PrefixLEGACY' },
+  { sourceCol: 'Date', type: 'DateTime', targetModel: 'StockAdjustment', targetField: 'adjustment_date', required: true, conversion: 'ToDate' },
+  { sourceCol: 'Warehouse ID', type: 'Integer', targetModel: 'StockAdjustment', targetField: 'warehouse_id', required: false, conversion: 'ResolveWarehouseFK' },
+  { sourceCol: 'Total Products', type: 'Integer', targetModel: 'StockAdjustment', targetField: 'notes', required: false, conversion: 'StoreMetadata' },
+  { sourceCol: 'Created At', type: 'DateTime', targetModel: 'StockAdjustment', targetField: 'created_at', required: false, conversion: 'ToDate' },
+];
+
+const ADJUSTMENT_ITEM_FIELD_MAPPING = [
+  { sourceCol: 'Adjustment Item ID', type: 'Integer', targetModel: 'LegacyIdMap', targetField: 'legacy_id', required: true, conversion: 'String' },
+  { sourceCol: 'Adjustment ID', type: 'Integer', targetModel: 'StockAdjustmentItem', targetField: 'adjustment_id', required: true, conversion: 'ResolveAdjustmentParentFK' },
+  { sourceCol: 'Product ID', type: 'Integer', targetModel: 'StockAdjustmentItem', targetField: 'product_id', required: true, conversion: 'ResolveProductFK' },
+  { sourceCol: 'Quantity', type: 'Decimal', targetModel: 'StockAdjustmentItem', targetField: 'quantity_change', required: true, conversion: 'ToDecimal' },
+  { sourceCol: 'Method Type', type: 'Integer', targetModel: 'StockAdjustmentItem', targetField: 'method_type', required: false, conversion: 'ToInteger' },
+  { sourceCol: 'Method Description', type: 'String', targetModel: 'StockAdjustmentItem', targetField: 'notes', required: false, conversion: 'Trim' },
+  { sourceCol: 'Sale Unit', type: 'String', targetModel: 'StockAdjustmentItem', targetField: 'unit', required: false, conversion: 'NormalizeUnit' },
+  { sourceCol: 'Created At', type: 'DateTime', targetModel: 'StockAdjustmentItem', targetField: 'created_at', required: false, conversion: 'ToDate' },
+];
+
+const EXPENSE_FIELD_MAPPING = [
+  { sourceCol: 'Expense ID', type: 'Integer', targetModel: 'LegacyIdMap', targetField: 'legacy_id', required: true, conversion: 'String' },
+  { sourceCol: 'Reference Code', type: 'String', targetModel: 'Expense', targetField: 'reference', required: true, conversion: 'Trim' },
+  { sourceCol: 'Date', type: 'DateTime', targetModel: 'Expense', targetField: 'expense_date', required: true, conversion: 'ToDate' },
+  { sourceCol: 'Expense Category ID', type: 'Integer', targetModel: 'Expense', targetField: 'category_id', required: true, conversion: 'ResolveExpenseCategoryFK' },
+  { sourceCol: 'Amount', type: 'Decimal', targetModel: 'Expense', targetField: 'amount', required: true, conversion: 'ToDecimal' },
+  { sourceCol: 'Title', type: 'String', targetModel: 'Expense', targetField: 'notes', required: false, conversion: 'Trim' },
+  { sourceCol: 'Created At', type: 'DateTime', targetModel: 'Expense', targetField: 'created_at', required: false, conversion: 'ToDate' },
+];
+
+const EXPENSE_CATEGORY_FIELD_MAPPING = [
+  { sourceCol: 'Expense Category ID', type: 'Integer', targetModel: 'LegacyIdMap', targetField: 'legacy_id', required: true, conversion: 'String' },
+  { sourceCol: 'Name', type: 'String', targetModel: 'ExpenseCategory', targetField: 'name', required: true, conversion: 'Trim' },
+];
+
 module.exports = {
   SHEET_DISPOSITIONS,
   BASE_UNIT_MAPPING,
@@ -137,4 +172,8 @@ module.exports = {
   SALE_ITEM_FIELD_MAPPING,
   PURCHASE_FIELD_MAPPING,
   PURCHASE_ITEM_FIELD_MAPPING,
+  ADJUSTMENT_FIELD_MAPPING,
+  ADJUSTMENT_ITEM_FIELD_MAPPING,
+  EXPENSE_FIELD_MAPPING,
+  EXPENSE_CATEGORY_FIELD_MAPPING,
 };

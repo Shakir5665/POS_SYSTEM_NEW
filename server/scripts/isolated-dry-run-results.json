@@ -1,6 +1,6 @@
 {
-  "verdict": "PHASE_4B_DRY_RUN_VERIFIED — AWAITING_STAGING_APPROVAL",
-  "executedAt": "2026-11-22T08:31:31.985Z",
+  "verdict": "PHASE_4B_FINAL_GATE_VERIFIED — AWAITING_EXPLICIT_STAGING_IMPORT_APPROVAL",
+  "executedAt": "2026-11-22T09:50:24.642Z",
   "environment": {
     "type": "DISPOSABLE_ISOLATED_POSTGRESQL",
     "database": "nextill_isolated_phase4b",
@@ -15,9 +15,9 @@
     "sheetsCount": 28
   },
   "timings": {
-    "validationMs": 165130,
-    "importDurationSec": 120.96,
-    "peakMemoryDeltaMb": 524.43
+    "validationMs": 151087,
+    "importDurationSec": 115.43,
+    "peakMemoryDeltaMb": 368.91
   },
   "sourceCounts": {
     "products": 4170,
@@ -34,28 +34,44 @@
     "warehouses": 1,
     "units": 6,
     "baseUnits": 6,
-    "expenses": 1
+    "expenses": 1,
+    "expenseCategories": 1,
+    "users": 1,
+    "roles": 2,
+    "currencies": 1,
+    "settings": 39
   },
   "importedCounts": {
-    "batchId": "58487337-f403-42a2-ae2d-7bb2d24727ba",
+    "batchId": "f3050df4-3410-4941-823f-eca0fc36c4d9",
     "categories": 37,
     "customers": 9,
     "suppliers": 1,
+    "warehouses": 1,
+    "brands": 51,
+    "units": 6,
+    "baseUnits": 6,
+    "users": 1,
+    "roles": 2,
+    "currencies": 1,
+    "settings": 39,
     "products": 4170,
     "sales": 20521,
     "saleItems": 162113,
     "purchases": 2645,
     "purchaseItems": 2645,
     "adjustments": 1081,
+    "adjustmentItems": 1031,
+    "expenseCategories": 1,
     "expenses": 1,
     "quarantinedSales": 81,
     "quarantinedPurchases": 65,
-    "quarantinedSaleItems": 0
+    "quarantinedSaleItems": 10
   },
   "quarantinedCounts": {
     "sales": 81,
     "purchases": 65,
-    "saleItems": 1
+    "saleItems": 10,
+    "purchaseItems": 0
   },
   "financialReconciliation": {
     "sales": {
@@ -76,6 +92,8 @@
     "inventoryLogsCreated": 0,
     "syntheticPaymentsCreated": 0,
     "loyaltyPointsAwarded": 0,
+    "adjustmentItemsPreserved": true,
+    "expenseCategoryAuthenticPreserved": true,
     "idempotencyVerified": true,
     "rollbackVerified": true
   }

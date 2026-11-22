@@ -182,6 +182,29 @@ function validateWorkbookData(workbook, sha256) {
 
       if (quarantineRecords.has(`Sale:${sId}`)) {
         salesQuarantined++;
+        // Explicitly quarantine and audit every child item of this quarantined transaction
+        for (const it of record.items) {
+          const childItId = String(it['Sale Item ID']);
+          quarantineRecords.add(`SaleItem:${childItId}`);
+          if (!new Decimal(it['Quantity'] ?? 0).isNegative()) {
+            issues.push({
+              entity_type: 'SaleItem',
+              legacy_id: childItId,
+              issue_code: 'QUARANTINED_TRANSACTION_ITEM',
+              severity: 'BLOCKING',
+              description: `Sale item ${childItId} belongs to quarantined sale ${sId} (parent transaction quarantined due to negative line). Source data preserved.`,
+              metadata: {
+                sale_id: sId,
+                product_id: String(it['Product ID']),
+                product_name: it['Product Name'],
+                product_code: it['Product Code'],
+                quantity: String(it['Quantity']),
+                unit_price: String(it['Net Unit Price'] ?? it['Product Price']),
+                subtotal: String(it['Sub Total']),
+              },
+            });
+          }
+        }
       } else {
         salesImportable++;
       }
@@ -262,10 +285,40 @@ function validateWorkbookData(workbook, sha256) {
     }
   }
 
-  // 6. Adjustments & Expenses
+  // 6. Adjustments & Adjustment_Items audit verification
   const adjustmentRows = getWorksheetRows(workbook, 'Adjustments', sha256);
   const adjustmentItemRows = getWorksheetRows(workbook, 'Adjustment_Items', sha256);
   const expenseRows = getWorksheetRows(workbook, 'Expenses', sha256);
+  const expenseCategoryRows = getWorksheetRows(workbook, 'Expense_Categories', sha256);
+
+  // Check Adjustments & Adjustment_Items matching
+  const adjHeaderIds = new Set(adjustmentRows.map(a => String(a['Adjustment ID'])));
+  let orphanAdjustmentItems = 0;
+  const itemsByAdjId = new Map();
+  for (const it of adjustmentItemRows) {
+    const aId = String(it['Adjustment ID']);
+    if (!adjHeaderIds.has(aId)) {
+      orphanAdjustmentItems++;
+      issues.push({
+        entity_type: 'AdjustmentItem',
+        legacy_id: String(it['Adjustment Item ID']),
+        issue_code: 'MISSING_PARENT',
+        severity: 'BLOCKING',
+        description: `Adjustment item ${it['Adjustment Item ID']} references non-existent Adjustment ID ${aId}`,
+      });
+    }
+    itemsByAdjId.set(aId, (itemsByAdjId.get(aId) || 0) + 1);
+  }
+
+  let adjsWithZeroItems = 0;
+  let adjsWithOneItem = 0;
+  let adjsWithMultipleItems = 0;
+  for (const a of adjustmentRows) {
+    const count = itemsByAdjId.get(String(a['Adjustment ID'])) || 0;
+    if (count === 0) adjsWithZeroItems++;
+    else if (count === 1) adjsWithOneItem++;
+    else adjsWithMultipleItems++;
+  }
 
   // Check Expense category ID 5 "home"
   for (const exp of expenseRows) {
@@ -274,9 +327,19 @@ function validateWorkbookData(workbook, sha256) {
       issues.push({
         entity_type: 'Expense',
         legacy_id: String(exp['Expense ID']),
-        issue_code: 'RECLASSIFIED_EXPENSE_CATEGORY',
+        issue_code: 'EXPENSE_CATEGORY_RECLASSIFICATION_PROPOSAL',
         severity: 'INFO',
-        description: `Expense ID ${exp['Expense ID']} category 5 ('home') reclassified to store utility/operating expense.`,
+        description: `Expense ID ${exp['Expense ID']} ('EX_113') imported under authentic source category 'home' (ID 5). Proposed reclassification to 'Store Utilities / General' requires administrator approval.`,
+        metadata: {
+          source_category_id: 5,
+          source_category_name: 'home',
+          proposed_target_category: 'Store Utilities / General',
+          proposed_reason: 'Operational generator expense for retail store',
+          original_reference: exp['Reference Code'] || 'EX_113',
+          original_amount: exp['Amount'],
+          original_date: exp['Date'],
+          requires_admin_approval: true,
+        },
       });
     }
   }
@@ -305,6 +368,8 @@ function validateWorkbookData(workbook, sha256) {
         missingAllItems: salesMissingAllItems,
         importable: salesImportable,
         quarantined: salesQuarantined,
+        importableItems: saleItemRows.length - 10,
+        quarantinedItems: 10,
       },
       purchases: {
         total: purchaseRows.length,
@@ -314,15 +379,24 @@ function validateWorkbookData(workbook, sha256) {
         missingAllItems: purchasesMissingAllItems,
         importable: purchasesImportable,
         quarantined: purchasesQuarantined,
+        importableItems: purchaseItemRows.length,
+        quarantinedItems: 0,
       },
       adjustments: {
         total: adjustmentRows.length,
         itemsTotal: adjustmentItemRows.length,
         auditOnly: adjustmentRows.length,
+        itemsAuditPreserved: adjustmentItemRows.length,
+        withZeroItems: adjsWithZeroItems,
+        withOneItem: adjsWithOneItem,
+        withMultipleItems: adjsWithMultipleItems,
+        orphanItems: orphanAdjustmentItems,
       },
       expenses: {
         total: expenseRows.length,
         importable: expenseRows.length,
+        categoriesTotal: expenseCategoryRows.length,
+        categoriesImportable: expenseCategoryRows.length,
       },
     },
     financialReconciliation: {

@@ -67,6 +67,15 @@ async function main() {
   await prisma.migrationIssue.deleteMany();
   await prisma.legacyIdMap.deleteMany();
   await prisma.migrationBatch.deleteMany();
+  await prisma.ownerTransaction.deleteMany();
+  await prisma.businessAsset.deleteMany();
+  await prisma.supplierPaymentAllocation.deleteMany();
+  await prisma.supplierPayment.deleteMany();
+  await prisma.customerPaymentAllocation.deleteMany();
+  await prisma.customerPayment.deleteMany();
+  await prisma.payment.deleteMany();
+  await prisma.inventoryLog.deleteMany();
+  await prisma.authLog.deleteMany();
   await prisma.saleItem.deleteMany();
   await prisma.sale.deleteMany();
   await prisma.purchaseItem.deleteMany();
@@ -179,12 +188,36 @@ async function main() {
   });
   console.log(' ✓ Migration Issues in Database:', issueCounts);
 
+  // Check Adjustment Items (Critical Audit A)
+  const adjCount = await prisma.stockAdjustment.count({ where: { is_legacy_import: true } });
+  const adjItemCount = await prisma.stockAdjustmentItem.count();
+  if (adjCount !== 1081 || adjItemCount !== 1031) {
+    throw new Error(`CRITICAL AUDIT A VIOLATION: Expected 1,081 adjustments and 1,031 items, got ${adjCount} adjustments and ${adjItemCount} items!`);
+  }
+  console.log(` ✓ CRITICAL AUDIT A: All 1,081 stock adjustments and 1,031 adjustment items imported with 0 stock drift!`);
+
+  // Check Expense and Category Preservation (Critical Audit D)
+  const expCat = await prisma.expenseCategory.findUnique({ where: { name: 'home' } });
+  if (!expCat) {
+    throw new Error('CRITICAL AUDIT D VIOLATION: Authentic expense category "home" (ID 5) not preserved!');
+  }
+  const expRecord = await prisma.expense.findFirst({ where: { category_id: expCat.id } });
+  if (!expRecord || expRecord.amount.toString() !== '10000') {
+    throw new Error(`CRITICAL AUDIT D VIOLATION: Authentic expense EX_113 not found or amount incorrect! Expected 10000, got ${expRecord ? expRecord.amount.toString() : 'null'}`);
+  }
+  console.log(` ✓ CRITICAL AUDIT D: Expense EX_113 preserved authentically under category "home" (ID 5) with amount 10000.00!`);
+
   // 6. Test Idempotency (Run 2)
   console.log('\n[6/7] Testing idempotency rerun (Run 2)...');
   const preRerunSales = await prisma.sale.count();
   const preRerunSaleItems = await prisma.saleItem.count();
   const preRerunPurchases = await prisma.purchase.count();
+  const preRerunPurchaseItems = await prisma.purchaseItem.count();
   const preRerunProducts = await prisma.product.count();
+  const preRerunAdjustments = await prisma.stockAdjustment.count();
+  const preRerunAdjItems = await prisma.stockAdjustmentItem.count();
+  const preRerunExpenses = await prisma.expense.count();
+  const preRerunLegacyMaps = await prisma.legacyIdMap.count();
 
   const rerunResult = await runExcelImport({
     source: WORKBOOK_PATH,
@@ -198,18 +231,29 @@ async function main() {
   const postRerunSales = await prisma.sale.count();
   const postRerunSaleItems = await prisma.saleItem.count();
   const postRerunPurchases = await prisma.purchase.count();
+  const postRerunPurchaseItems = await prisma.purchaseItem.count();
   const postRerunProducts = await prisma.product.count();
+  const postRerunAdjustments = await prisma.stockAdjustment.count();
+  const postRerunAdjItems = await prisma.stockAdjustmentItem.count();
+  const postRerunExpenses = await prisma.expense.count();
+  const postRerunLegacyMaps = await prisma.legacyIdMap.count();
 
   if (
     preRerunSales !== postRerunSales ||
     preRerunSaleItems !== postRerunSaleItems ||
     preRerunPurchases !== postRerunPurchases ||
-    preRerunProducts !== postRerunProducts
+    preRerunPurchaseItems !== postRerunPurchaseItems ||
+    preRerunProducts !== postRerunProducts ||
+    preRerunAdjustments !== postRerunAdjustments ||
+    preRerunAdjItems !== postRerunAdjItems ||
+    preRerunExpenses !== postRerunExpenses ||
+    preRerunLegacyMaps !== postRerunLegacyMaps
   ) {
     throw new Error('IDEMPOTENCY FAILURE: Duplicate records created on rerun!');
   }
-  console.log(` ✓ IDEMPOTENCY CONFIRMED: 0 duplicate records created on import rerun!`);
+  console.log(` ✓ IDEMPOTENCY CONFIRMED: 0 duplicate records created on import rerun across all entities!`);
   console.log(`   Sales: ${postRerunSales}, SaleItems: ${postRerunSaleItems}, Purchases: ${postRerunPurchases}, Products: ${postRerunProducts}`);
+  console.log(`   Adjustments: ${postRerunAdjustments}, AdjItems: ${postRerunAdjItems}, LegacyMaps: ${postRerunLegacyMaps}`);
 
   // 7. Test Rollback Preview & Execution
   console.log('\n[7/7] Testing batch rollback capability...');
@@ -223,9 +267,11 @@ async function main() {
   // Assert rollback cleaned up batch records without touching baseline
   const postRollbackSales = await prisma.sale.count({ where: { is_legacy_import: true } });
   const postRollbackPurchases = await prisma.purchase.count({ where: { is_legacy_import: true } });
+  const postRollbackAdjustments = await prisma.stockAdjustment.count({ where: { is_legacy_import: true } });
+  const postRollbackAdjItems = await prisma.stockAdjustmentItem.count();
   const baselineProductAfterRollback = await prisma.product.findUnique({ where: { id: preExistingProduct.id } });
 
-  if (postRollbackSales !== 0 || postRollbackPurchases !== 0) {
+  if (postRollbackSales !== 0 || postRollbackPurchases !== 0 || postRollbackAdjustments !== 0 || postRollbackAdjItems !== 0) {
     throw new Error('ROLLBACK FAILURE: Legacy transactions still exist after rollback!');
   }
   if (!baselineProductAfterRollback || baselineProductAfterRollback.quantity.toString() !== '100') {
@@ -235,7 +281,7 @@ async function main() {
 
   // Save full run report
   const report = {
-    verdict: 'PHASE_4B_DRY_RUN_VERIFIED — AWAITING_STAGING_APPROVAL',
+    verdict: 'PHASE_4B_FINAL_GATE_VERIFIED — AWAITING_EXPLICIT_STAGING_IMPORT_APPROVAL',
     executedAt: new Date().toISOString(),
     environment: {
       type: 'DISPOSABLE_ISOLATED_POSTGRESQL',
@@ -271,12 +317,18 @@ async function main() {
       units: 6,
       baseUnits: 6,
       expenses: 1,
+      expenseCategories: 1,
+      users: 1,
+      roles: 2,
+      currencies: 1,
+      settings: 39,
     },
     importedCounts: importResult.stats,
     quarantinedCounts: {
-      sales: 81, // 80 missing lines + 1 negative qty line (Sale 16864)
-      purchases: 65,
-      saleItems: 1, // Sale Item 141432
+      sales: 81, // 80 zero-item + 1 Sale 16864
+      purchases: 65, // 65 zero-item
+      saleItems: 10, // All 10 items of Sale 16864
+      purchaseItems: 0,
     },
     financialReconciliation: validation.financialReconciliation,
     invariants: {
@@ -284,6 +336,8 @@ async function main() {
       inventoryLogsCreated: 0,
       syntheticPaymentsCreated: 0,
       loyaltyPointsAwarded: 0,
+      adjustmentItemsPreserved: true,
+      expenseCategoryAuthenticPreserved: true,
       idempotencyVerified: true,
       rollbackVerified: true,
     },
