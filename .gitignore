@@ -28,6 +28,10 @@ yarn-error.log*
 
 # Uploads
 uploads/
+*.xlsx
+*.xlsx.bak
+*.xls
+*.csv.bak
 
 # OS files
 .DS_Store
