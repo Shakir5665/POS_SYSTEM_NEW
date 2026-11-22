@@ -550,6 +550,29 @@ describe('Universal Single-Table Excel Migration System', () => {
       expect(res.status).toBe(400);
       expect(res.body.error.code).toBe('CORRUPTED_XLSX');
     });
+
+    it('successfully normalizes and processes workbooks with Excel full-column styling (e.g. !ref A1:Q1048576)', async () => {
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([
+        ['transaction_id', 'total_amount'],
+        ['SALE-TEST-001', 120.5],
+        ['SALE-TEST-002', 340.0],
+      ]);
+      // Artificially simulate Excel's full-column styling where !ref spans the entire 1,048,576 grid
+      ws['!ref'] = 'A1:Q1048576';
+      XLSX.utils.book_append_sheet(wb, ws, 'Sale');
+      const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+      const res = await request(app)
+        .post('/api/migration/excel/inspect')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .attach('file', buffer, 'Sale_With_Full_Column_Style.xlsx');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.totalRows).toBe(2);
+      expect(res.body.data.detection.detectedTable).toBe('Sale');
+    });
   });
 
   // =========================================================================

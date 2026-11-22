@@ -16,7 +16,7 @@ const categoryValidation = [
 
 // Expense validation
 const expenseValidation = [
-  body('category_id').isUUID().withMessage('Valid category ID is required'),
+  body('category_id').isString().trim().notEmpty().withMessage('Valid category ID is required'),
   body('amount').isFloat({ gt: 0 }).withMessage('Amount must be greater than 0'),
   body('payment_method').optional().isIn(['CASH', 'MOBILE_MONEY', 'CARD']).withMessage('Payment method must be CASH, MOBILE_MONEY, or CARD'),
   body('expense_date').optional().isISO8601().withMessage('Valid expense date is required'),
@@ -58,14 +58,14 @@ router.post('/categories', authorize(['ADMIN', 'MANAGER']), categoryValidation, 
 // Operating expenses
 router.get('/expenses', authorize(['ADMIN', 'MANAGER']), financeController.listExpenses)
 router.post('/expenses', authorize(['ADMIN', 'MANAGER']), expenseValidation, validate, financeController.createExpense)
-router.delete('/expenses/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid expense ID'), validate, financeController.deleteExpense)
+router.delete('/expenses/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid expense ID'), validate, financeController.deleteExpense)
 
 // Business assets
 router.get('/assets', authorize(['ADMIN', 'MANAGER']), financeController.listAssets)
-router.get('/assets/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid asset ID'), validate, financeController.getAsset)
+router.get('/assets/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid asset ID'), validate, financeController.getAsset)
 router.post('/assets', authorize(['ADMIN', 'MANAGER']), assetValidation, validate, financeController.createAsset)
-router.put('/assets/:id', authorize(['ADMIN', 'MANAGER']), [param('id').isUUID().withMessage('Invalid asset ID'), ...assetValidation.map((v) => v.optional())], validate, financeController.updateAsset)
-router.delete('/assets/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid asset ID'), validate, financeController.deleteAsset)
+router.put('/assets/:id', authorize(['ADMIN', 'MANAGER']), [param('id').isString().trim().notEmpty().withMessage('Invalid asset ID'), ...assetValidation.map((v) => v.optional())], validate, financeController.updateAsset)
+router.delete('/assets/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid asset ID'), validate, financeController.deleteAsset)
 
 // Owner transactions
 router.get('/owner-transactions', authorize(['ADMIN']), financeController.listOwnerTransactions)

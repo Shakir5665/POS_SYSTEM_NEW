@@ -2,7 +2,7 @@
 
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../utils/prismaClient');
-const { getTableMetadata } = require('./universalSchemaService');
+const { getTableMetadata, findMatchingColumn } = require('./universalSchemaService');
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -101,7 +101,11 @@ function parseAndValidateCell(rawVal, colDef, _rowIdx) {
 
   // String / Text
   if (valType === 'String') {
-    return { ok: true, value: String(rawVal).trim() };
+    const trimmed = String(rawVal).trim();
+    if (trimmed === '' && colDef.isNullable) {
+      return { ok: true, value: null };
+    }
+    return { ok: true, value: trimmed };
   }
 
   // Int / BigInt
@@ -225,23 +229,25 @@ async function validateWorkbookData({
   // 1. Header Validation
   const matchingHeaders = [];
   const unknownHeaders = [];
-  const presentColumnMap = {};
+  const headerToColDefMap = {};
 
   for (const h of headers) {
     const trimmed = String(h || '').trim();
     if (!trimmed) continue;
-    if (tableMeta.columnsByName[trimmed]) {
+    const matchedCol = findMatchingColumn(tableMeta, trimmed);
+    if (matchedCol) {
       matchingHeaders.push(trimmed);
-      presentColumnMap[trimmed] = tableMeta.columnsByName[trimmed];
+      headerToColDefMap[trimmed] = matchedCol;
     } else {
       unknownHeaders.push(trimmed);
     }
   }
 
-  // Check required writable columns
+  // Check required writable columns against matched columns
+  const matchedColNames = new Set(Object.values(headerToColDefMap).map((c) => c.columnName));
   const requiredWritableCols = tableMeta.columns.filter((c) => c.isRequired && !c.hasDefault && !c.isId);
   const missingRequiredHeaders = requiredWritableCols
-    .filter((c) => !headers.includes(c.columnName))
+    .filter((c) => !matchedColNames.has(c.columnName))
     .map((c) => c.columnName);
 
   // If unknown columns exist or required writable columns are missing, record structural issues
@@ -264,8 +270,13 @@ async function validateWorkbookData({
   // 2. Row-by-Row Cell Validation & Transformation
   const parsedRows = [];
   const rowIssues = [];
-  const pkOccurrences = new Map();
-  const matchingKeyOccurrences = new Map();
+  const uniqueOccurrencesMap = new Map(); // colName -> Map(val -> rowIdx)
+  const uniqueDbValueCollections = {}; // colName -> Set of non-null values
+  const uniqueColumns = tableMeta.columns.filter((c) => c.isUnique);
+  for (const uc of uniqueColumns) {
+    uniqueOccurrencesMap.set(uc.columnName, new Map());
+    uniqueDbValueCollections[uc.columnName] = new Set();
+  }
 
   // For Foreign Key collection
   const fkValueCollections = {};
@@ -286,9 +297,9 @@ async function validateWorkbookData({
     const currentRowIssues = [];
 
     // Process every header present in file
-    for (const colName of matchingHeaders) {
-      const colDef = tableMeta.columnsByName[colName];
-      const rawCellVal = rawRow[colName];
+    for (const h of matchingHeaders) {
+      const colDef = headerToColDefMap[h];
+      const rawCellVal = rawRow[h];
 
       // Protected field check
       if (colDef.isProtected) {
@@ -296,11 +307,11 @@ async function validateWorkbookData({
           protectedViolationCount++;
           currentRowIssues.push({
             row: rowIdx,
-            column: colName,
+            column: h,
             originalValue: rawCellVal,
             code: 'PROTECTED_FIELD_VIOLATION',
             severity: 'WARNING',
-            message: colDef.protectedReason || `Column "${colName}" is protected from generic spreadsheet updates.`,
+            message: colDef.protectedReason || `Column "${h}" is protected from generic spreadsheet updates.`,
             recommendation: 'Clear this column or use the approved business workflow.',
           });
         }
@@ -310,7 +321,7 @@ async function validateWorkbookData({
       if (!cellResult.ok) {
         currentRowIssues.push({
           row: rowIdx,
-          column: colName,
+          column: h,
           originalValue: rawCellVal,
           code: cellResult.code,
           severity: 'ERROR',
@@ -319,12 +330,13 @@ async function validateWorkbookData({
         });
       } else {
         if (cellResult.value !== undefined) {
-          transformedRow[colName] = cellResult.value;
+          transformedRow[colDef.fieldName] = cellResult.value;
+          transformedRow[colDef.columnName] = cellResult.value;
         }
 
         // Collect FK for batch database verification
         if (colDef.isForeignKey && cellResult.value !== null && cellResult.value !== undefined) {
-          fkValueCollections[colName]?.add(cellResult.value);
+          fkValueCollections[colDef.columnName]?.add(cellResult.value);
         }
       }
     }
@@ -344,48 +356,46 @@ async function validateWorkbookData({
       }
     }
 
-    // Check duplicate primary keys within the file
-    const pkCol = tableMeta.primaryKeys[0];
-    if (pkCol && transformedRow[pkCol]) {
-      const pkVal = String(transformedRow[pkCol]);
-      if (pkOccurrences.has(pkVal)) {
-        duplicateCount++;
-        currentRowIssues.push({
-          row: rowIdx,
-          column: pkCol,
-          originalValue: pkVal,
-          code: 'DUPLICATE_PRIMARY_KEY_IN_FILE',
-          severity: 'ERROR',
-          message: `Primary key "${pkVal}" is duplicated within row ${pkOccurrences.get(pkVal)} and row ${rowIdx}.`,
-          recommendation: 'Ensure each record has a distinct primary key or leave it blank to auto-generate.',
-        });
-      } else {
-        pkOccurrences.set(pkVal, rowIdx);
-      }
-    }
-
-    // Check duplicate matching key within file if different from PK
-    if (selectedMatchingKey && selectedMatchingKey !== pkCol && transformedRow[selectedMatchingKey]) {
-      const mkVal = String(transformedRow[selectedMatchingKey]);
-      if (matchingKeyOccurrences.has(mkVal)) {
-        duplicateCount++;
-        currentRowIssues.push({
-          row: rowIdx,
-          column: selectedMatchingKey,
-          originalValue: mkVal,
-          code: 'DUPLICATE_MATCHING_KEY_IN_FILE',
-          severity: 'ERROR',
-          message: `Unique matching key "${selectedMatchingKey}"="${mkVal}" is duplicated within row ${matchingKeyOccurrences.get(mkVal)} and row ${rowIdx}.`,
-          recommendation: `Ensure unique constraints are respected for column "${selectedMatchingKey}".`,
-        });
-      } else {
-        matchingKeyOccurrences.set(mkVal, rowIdx);
+    // Check in-file duplicates for ALL unique columns in the table (including PK and matchingKey)
+    for (const uc of uniqueColumns) {
+      const uVal =
+        transformedRow[uc.fieldName] !== undefined
+          ? transformedRow[uc.fieldName]
+          : transformedRow[uc.columnName];
+      if (uVal !== null && uVal !== undefined && uVal !== '') {
+        const valStr = String(uVal).trim();
+        if (valStr !== '') {
+          const occMap = uniqueOccurrencesMap.get(uc.columnName);
+          if (occMap && occMap.has(valStr)) {
+            duplicateCount++;
+            const prevRow = occMap.get(valStr);
+            const isPk = tableMeta.primaryKeys.includes(uc.columnName);
+            const issue = {
+              row: rowIdx,
+              column: uc.columnName,
+              originalValue: valStr,
+              code: isPk ? 'DUPLICATE_PRIMARY_KEY_IN_FILE' : 'DUPLICATE_UNIQUE_VALUE_IN_FILE',
+              severity: 'ERROR',
+              message: `Unique column "${uc.columnName}" with value "${valStr}" is duplicated within row ${prevRow} and row ${rowIdx}.`,
+              recommendation: `Ensure unique constraints are respected for column "${uc.columnName}", or leave blank if nullable.`,
+            };
+            currentRowIssues.push(issue);
+            rowIssues.push(issue);
+          } else if (occMap) {
+            occMap.set(valStr, rowIdx);
+            uniqueDbValueCollections[uc.columnName]?.add(uVal);
+          }
+        }
       }
     }
 
     // Collect matching key for DB query
-    if (transformedRow[selectedMatchingKey] !== undefined && transformedRow[selectedMatchingKey] !== null) {
-      matchingKeyValues.add(transformedRow[selectedMatchingKey]);
+    const mkVal =
+      transformedRow[selectedMatchingKey] !== undefined
+        ? transformedRow[selectedMatchingKey]
+        : transformedRow[tableMeta.columnsByName[selectedMatchingKey]?.fieldName];
+    if (mkVal !== undefined && mkVal !== null && mkVal !== '') {
+      matchingKeyValues.add(mkVal);
     }
 
     parsedRows.push({
@@ -448,20 +458,47 @@ async function validateWorkbookData({
   // 4. Batched Matching Key Check & Mode Candidates (Insert / Update / Upsert)
   const existingDbRecords = new Set();
   const targetModelClient = prisma[tableMeta.modelName.charAt(0).toLowerCase() + tableMeta.modelName.slice(1)];
+  const matchingKeyField = tableMeta.columnsByName[selectedMatchingKey]?.fieldName || selectedMatchingKey;
 
   if (targetModelClient && matchingKeyValues.size > 0) {
     try {
       const existing = await targetModelClient.findMany({
         where: {
-          [selectedMatchingKey]: { in: Array.from(matchingKeyValues) },
+          [matchingKeyField]: { in: Array.from(matchingKeyValues) },
         },
-        select: { [selectedMatchingKey]: true },
+        select: { [matchingKeyField]: true },
       });
       for (const rec of existing) {
-        existingDbRecords.add(rec[selectedMatchingKey]);
+        existingDbRecords.add(rec[matchingKeyField]);
       }
     } catch (err) {
       console.warn(`Existing records query error for ${tableMeta.modelName}:`, err.message);
+    }
+  }
+
+  // Pre-query database for collisions on ALL unique columns (e.g. phone, email, sku, barcode) in INSERT mode
+  const dbUniqueCollisions = new Map(); // colName -> Set of existing values
+  if (targetModelClient && effectiveMode === 'INSERT') {
+    const uniqueColsToCheck = tableMeta.columns.filter((c) => c.isUnique);
+    for (const uc of uniqueColsToCheck) {
+      const valsSet = uniqueDbValueCollections[uc.columnName];
+      if (!valsSet || valsSet.size === 0) continue;
+      try {
+        const found = await targetModelClient.findMany({
+          where: {
+            [uc.fieldName]: { in: Array.from(valsSet) },
+          },
+          select: { [uc.fieldName]: true },
+        });
+        if (found.length > 0) {
+          dbUniqueCollisions.set(
+            uc.columnName,
+            new Set(found.map((r) => String(r[uc.fieldName])))
+          );
+        }
+      } catch (err) {
+        console.warn(`Unique collision check query error for ${uc.columnName}:`, err.message);
+      }
     }
   }
 
@@ -472,11 +509,13 @@ async function validateWorkbookData({
   for (const pr of parsedRows) {
     if (pr.status === 'INVALID') continue;
 
-    const mkVal = pr.data[selectedMatchingKey];
+    const mkVal = pr.data[matchingKeyField] !== undefined ? pr.data[matchingKeyField] : pr.data[selectedMatchingKey];
     const existsInDb = mkVal !== undefined && mkVal !== null && existingDbRecords.has(mkVal);
 
     if (effectiveMode === 'INSERT') {
+      let hasConflict = false;
       if (existsInDb) {
+        hasConflict = true;
         expectedConflicts++;
         pr.status = 'CONFLICT';
         const issue = {
@@ -490,7 +529,34 @@ async function validateWorkbookData({
         };
         pr.issues.push(issue);
         rowIssues.push(issue);
-      } else {
+      }
+
+      // Check other unique columns for DB conflicts
+      for (const [colName, valSet] of dbUniqueCollisions.entries()) {
+        if (colName === selectedMatchingKey) continue;
+        const uColDef = tableMeta.columnsByName[colName];
+        const val = uColDef && (pr.data[uColDef.fieldName] !== undefined ? pr.data[uColDef.fieldName] : pr.data[colName]);
+        if (val !== null && val !== undefined && val !== '' && valSet.has(String(val))) {
+          if (!hasConflict) {
+            hasConflict = true;
+            expectedConflicts++;
+            pr.status = 'CONFLICT';
+          }
+          const issue = {
+            row: pr.rowIdx,
+            column: colName,
+            originalValue: val,
+            code: 'UNIQUE_KEY_CONFLICT',
+            severity: 'ERROR',
+            message: `Record with unique column "${colName}"="${val}" already exists in database (Insert Only mode).`,
+            recommendation: `Provide a unique value for ${colName} or use Upsert / Update Existing mode.`,
+          };
+          pr.issues.push(issue);
+          rowIssues.push(issue);
+        }
+      }
+
+      if (!hasConflict) {
         expectedInserts++;
         pr.status = 'INSERT_CANDIDATE';
       }
@@ -574,10 +640,11 @@ async function validateWorkbookData({
     },
     matchingColumns: matchingHeaders.map((h) => ({
       columnName: h,
-      type: tableMeta.columnsByName[h]?.type,
-      isRequired: tableMeta.columnsByName[h]?.isRequired,
-      isId: tableMeta.columnsByName[h]?.isId,
-      isProtected: tableMeta.columnsByName[h]?.isProtected,
+      dbColumnName: headerToColDefMap[h]?.columnName,
+      type: headerToColDefMap[h]?.type || tableMeta.columnsByName[h]?.type,
+      isRequired: headerToColDefMap[h]?.isRequired ?? tableMeta.columnsByName[h]?.isRequired,
+      isId: headerToColDefMap[h]?.isId ?? tableMeta.columnsByName[h]?.isId,
+      isProtected: headerToColDefMap[h]?.isProtected ?? tableMeta.columnsByName[h]?.isProtected,
     })),
     missingRequiredColumns: missingRequiredHeaders,
     unknownColumns: unknownHeaders,

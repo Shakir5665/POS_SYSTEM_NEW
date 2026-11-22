@@ -35,7 +35,7 @@ router.get(
   supplierController.list
 )
 
-router.get('/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid supplier ID'), validate, supplierController.get)
+router.get('/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid supplier ID'), validate, supplierController.get)
 
 router.post(
   '/',
@@ -48,7 +48,7 @@ router.post(
 router.put(
   '/:id',
   authorize(['ADMIN', 'MANAGER']),
-  [param('id').isUUID().withMessage('Invalid supplier ID'), ...supplierValidation.map((v) => v.optional())],
+  [param('id').isString().trim().notEmpty().withMessage('Invalid supplier ID'), ...supplierValidation.map((v) => v.optional())],
   validate,
   supplierController.update
 )
@@ -56,7 +56,7 @@ router.put(
 router.get(
   '/:id/purchases',
   authorize(['ADMIN', 'MANAGER']),
-  param('id').isUUID().withMessage('Invalid supplier ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid supplier ID'),
   validate,
   supplierController.getPurchases
 )
@@ -64,7 +64,7 @@ router.get(
 router.get(
   '/:id/payments',
   authorize(['ADMIN', 'MANAGER']),
-  param('id').isUUID().withMessage('Invalid supplier ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid supplier ID'),
   validate,
   supplierController.getPayments
 )
@@ -72,7 +72,7 @@ router.get(
 router.post(
   '/:id/payments',
   authorize(['ADMIN', 'MANAGER']),
-  [param('id').isUUID().withMessage('Invalid supplier ID'), ...paymentValidation],
+  [param('id').isString().trim().notEmpty().withMessage('Invalid supplier ID'), ...paymentValidation],
   validate,
   supplierController.recordPayment
 )
@@ -80,7 +80,7 @@ router.post(
 router.get(
   '/:id/statement',
   authorize(['ADMIN', 'MANAGER']),
-  param('id').isUUID().withMessage('Invalid supplier ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid supplier ID'),
   validate,
   supplierController.getStatement
 )

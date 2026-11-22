@@ -33,7 +33,7 @@ const APPROVED_TABLES_CONFIG = {
     protectedColumns: [],
     supportsUpsert: true,
     defaultMatchingKey: 'id',
-    allowedMatchingKeys: ['id', 'phone', 'email'],
+    allowedMatchingKeys: ['id', 'email'],
   },
   Supplier: {
     description: 'Procurement suppliers and contact details',
@@ -462,11 +462,112 @@ function getTableMetadata(name) {
   return null;
 }
 
+/**
+ * Normalize string for column comparison (e.g. "Customer Name" -> "customername", "cost_price" -> "costprice")
+ */
+function normalizeColumnIdentifier(str) {
+  if (!str) return '';
+  return String(str).toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+/**
+ * Intelligent column finder that resolves:
+ * 1. Exact columnName or fieldName
+ * 2. Case-insensitive match
+ * 3. Normalized stripped match (ignoring underscores, spaces, dashes)
+ * 4. Common business alias matches (e.g., 'customer name' -> 'name', 'phone number' -> 'phone', 'cost price' -> 'cost_price')
+ */
+function findMatchingColumn(tableMeta, headerName) {
+  if (!tableMeta || !headerName) return null;
+  const raw = String(headerName).trim();
+  if (!raw) return null;
+
+  // 1. Exact match
+  if (tableMeta.columnsByName && tableMeta.columnsByName[raw]) return tableMeta.columnsByName[raw];
+  if (tableMeta.columnsByField && tableMeta.columnsByField[raw]) return tableMeta.columnsByField[raw];
+
+  // 2. Case-insensitive match
+  const lower = raw.toLowerCase();
+  for (const col of tableMeta.columns) {
+    if (col.columnName.toLowerCase() === lower || col.fieldName.toLowerCase() === lower) {
+      return col;
+    }
+  }
+
+  // 3. Normalized stripped match
+  const norm = normalizeColumnIdentifier(raw);
+  for (const col of tableMeta.columns) {
+    if (
+      normalizeColumnIdentifier(col.columnName) === norm ||
+      normalizeColumnIdentifier(col.fieldName) === norm
+    ) {
+      return col;
+    }
+  }
+
+  // 4. Common business aliases (scoped by table or generic)
+  const tableAliases = {
+    Customer: {
+      customername: 'name',
+      clientname: 'name',
+    },
+    Supplier: {
+      suppliername: 'name',
+      vendorname: 'name',
+    },
+    Product: {
+      productname: 'name',
+      itemname: 'name',
+      productcode: 'sku',
+      itemcode: 'sku',
+      sellingprice: 'price',
+      unitprice: 'price',
+      productprice: 'price',
+      costprice: 'cost_price',
+      buyprice: 'cost_price',
+      purchaseprice: 'cost_price',
+    },
+    Warehouse: {
+      warehousecode: 'code',
+      warehousename: 'name',
+    },
+    Category: {
+      categoryname: 'name',
+    },
+  };
+
+  const genericAliases = {
+    phonenumber: 'phone',
+    contactnumber: 'phone',
+    mobile: 'phone',
+    mobilenumber: 'phone',
+    telephone: 'phone',
+    emailaddress: 'email',
+  };
+
+  const modelName = tableMeta.modelName || tableMeta.tableName;
+  const scopedAlias = tableAliases[modelName]?.[norm];
+  const genericAlias = genericAliases[norm];
+  const aliasTarget = scopedAlias || genericAlias;
+
+  if (aliasTarget) {
+    for (const col of tableMeta.columns) {
+      if (col.columnName === aliasTarget || col.fieldName === aliasTarget) {
+        return col;
+      }
+    }
+  }
+
+  return null;
+}
+
 module.exports = {
   buildSchemaMetadata,
   getApprovedTables,
   getRestrictedTables,
   getTableMetadata,
+  findMatchingColumn,
+  normalizeColumnIdentifier,
   APPROVED_TABLES_CONFIG,
   RESTRICTED_TABLES,
 };

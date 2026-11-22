@@ -6,9 +6,48 @@ const crypto = require('crypto');
 const XLSX = require('xlsx');
 const { detectTable } = require('./tableDetector');
 
-const MAX_CELL_LIMIT = 500000; // Safeguard against ZIP bomb / decompression bomb
-const MAX_ROW_LIMIT = 100000;
+const MAX_CELL_LIMIT = 3000000; // Safeguard against ZIP bomb / decompression bomb
+const MAX_ROW_LIMIT = 150000;
 const MAX_COL_LIMIT = 200;
+
+/**
+ * Accurately calculate the populated bounding range of a worksheet.
+ * Fixes Microsoft Excel / LibreOffice full-column styling where !ref is artificially
+ * inflated to the bottom of the worksheet grid (e.g. A1:Q1048576).
+ */
+function getActualSheetRange(worksheet) {
+  let minR = Infinity;
+  let maxR = -1;
+  let minC = Infinity;
+  let maxC = -1;
+
+  for (const key of Object.keys(worksheet)) {
+    if (key.startsWith('!')) continue;
+    const cell = worksheet[key];
+    if (
+      !cell ||
+      cell.v === undefined ||
+      cell.v === null ||
+      (typeof cell.v === 'string' && cell.v.trim() === '')
+    ) {
+      continue;
+    }
+    const decoded = XLSX.utils.decode_cell(key);
+    if (decoded.r < minR) minR = decoded.r;
+    if (decoded.r > maxR) maxR = decoded.r;
+    if (decoded.c < minC) minC = decoded.c;
+    if (decoded.c > maxC) maxC = decoded.c;
+  }
+
+  if (maxR === -1 || maxC === -1) {
+    return null;
+  }
+
+  return {
+    s: { r: minR, c: minC },
+    e: { r: maxR, c: maxC },
+  };
+}
 
 /**
  * Calculates SHA-256 fingerprint of a file or buffer.
@@ -95,7 +134,13 @@ function parseSingleTableWorkbook(source, options = {}) {
     throw error;
   }
 
-  // Check bounds
+  // Recalculate true populated bounds (fixes Excel's unbounded full-column styling A1:Q1048576)
+  const actualRange = getActualSheetRange(worksheet);
+  if (actualRange) {
+    worksheet['!ref'] = XLSX.utils.encode_range(actualRange);
+  }
+
+  // Check bounds against actual populated dimensions
   const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1:A1');
   const numRows = range.e.r - range.s.r + 1;
   const numCols = range.e.c - range.s.c + 1;

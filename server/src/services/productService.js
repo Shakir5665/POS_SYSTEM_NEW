@@ -166,7 +166,7 @@ async function createProduct(data) {
   return product
 }
 
-async function updateProduct(id, data) {
+async function updateProduct(id, data, userId = null) {
   const existing = await prisma.product.findUnique({ where: { id } })
   if (!existing) throw new NotFoundError('Product not found')
 
@@ -273,25 +273,60 @@ async function updateProduct(id, data) {
 
   const activePrice = targetOur
 
+  const updateData = {
+    ...(data.name !== undefined && { name: data.name }),
+    ...(data.sku !== undefined && { sku: data.sku }),
+    ...(data.barcode !== undefined && { barcode: data.barcode || null }),
+    ...(data.category_id !== undefined && { category_id: data.category_id || null }),
+    ...(data.unit_category !== undefined && { unit_category: data.unit_category }),
+    ...(data.base_unit !== undefined && { base_unit: data.base_unit }),
+    ...(data.pricing_unit !== undefined && { pricing_unit: data.pricing_unit }),
+    ...(data.usual_price !== undefined || (data.price !== undefined && data.our_price === undefined) ? { usual_price: targetUsual } : {}),
+    ...(data.our_price !== undefined || (data.price !== undefined && data.usual_price === undefined) ? { our_price: targetOur } : {}),
+    price: activePrice,
+    ...(targetCost !== undefined && { cost_price: targetCost }),
+    ...(targetWholesale !== undefined && { wholesale_price: targetWholesale }),
+    ...(data.quantity !== undefined && { quantity: data.quantity }),
+    ...(data.low_stock_threshold !== undefined && { low_stock_threshold: data.low_stock_threshold }),
+    ...(data.image_url !== undefined && { image_url: data.image_url || null }),
+  }
+
+  let newQuantityDecimal = undefined
+  let quantityChanged = false
+  if (data.quantity !== undefined && data.quantity !== null && data.quantity !== '') {
+    newQuantityDecimal = new Decimal(data.quantity)
+    const existingQuantityDecimal = new Decimal(existing.quantity || 0)
+    if (!newQuantityDecimal.equals(existingQuantityDecimal)) {
+      quantityChanged = true
+    }
+  }
+
+  if (quantityChanged && userId) {
+    const [product] = await prisma.$transaction([
+      prisma.product.update({
+        where: { id },
+        data: updateData,
+        include: { category: { select: { id: true, name: true } } },
+      }),
+      prisma.inventoryLog.create({
+        data: {
+          product_id: id,
+          change_type: 'ADJUSTMENT',
+          unit: targetBase,
+          quantity_change: newQuantityDecimal.minus(new Decimal(existing.quantity || 0)),
+          previous_quantity: new Decimal(existing.quantity || 0),
+          new_quantity: newQuantityDecimal,
+          user_id: userId,
+          notes: 'Corrected quantity on product edit',
+        },
+      }),
+    ])
+    return product
+  }
+
   const product = await prisma.product.update({
     where: { id },
-    data: {
-      ...(data.name !== undefined && { name: data.name }),
-      ...(data.sku !== undefined && { sku: data.sku }),
-      ...(data.barcode !== undefined && { barcode: data.barcode || null }),
-      ...(data.category_id !== undefined && { category_id: data.category_id || null }),
-      ...(data.unit_category !== undefined && { unit_category: data.unit_category }),
-      ...(data.base_unit !== undefined && { base_unit: data.base_unit }),
-      ...(data.pricing_unit !== undefined && { pricing_unit: data.pricing_unit }),
-      ...(data.usual_price !== undefined || (data.price !== undefined && data.our_price === undefined) ? { usual_price: targetUsual } : {}),
-      ...(data.our_price !== undefined || (data.price !== undefined && data.usual_price === undefined) ? { our_price: targetOur } : {}),
-      price: activePrice,
-      ...(targetCost !== undefined && { cost_price: targetCost }),
-      ...(targetWholesale !== undefined && { wholesale_price: targetWholesale }),
-      ...(data.quantity !== undefined && { quantity: data.quantity }),
-      ...(data.low_stock_threshold !== undefined && { low_stock_threshold: data.low_stock_threshold }),
-      ...(data.image_url !== undefined && { image_url: data.image_url || null }),
-    },
+    data: updateData,
     include: { category: { select: { id: true, name: true } } },
   })
 

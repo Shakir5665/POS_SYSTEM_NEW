@@ -18,7 +18,7 @@ const createValidation = [
 ]
 
 const updateValidation = [
-  param('id').isUUID().withMessage('Invalid warehouse ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid warehouse ID'),
   body('code').optional().isString().trim().notEmpty().withMessage('Warehouse code cannot be empty'),
   body('name').optional().isString().trim().notEmpty().withMessage('Warehouse name cannot be empty'),
   body('address').optional({ nullable: true }).isString().trim(),
@@ -28,7 +28,7 @@ const updateValidation = [
 
 router.get('/default', warehouseController.getDefault)
 router.get('/', [query('is_active').optional().isBoolean()], validate, warehouseController.list)
-router.get('/:id', param('id').isUUID().withMessage('Invalid warehouse ID'), validate, warehouseController.get)
+router.get('/:id', param('id').isString().trim().notEmpty().withMessage('Invalid warehouse ID'), validate, warehouseController.get)
 router.post('/', createValidation, validate, warehouseController.create)
 router.put('/:id', updateValidation, validate, warehouseController.update)
 

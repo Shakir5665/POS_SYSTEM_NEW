@@ -1,7 +1,7 @@
 'use strict';
 
 const path = require('path');
-const { buildSchemaMetadata, getApprovedTables } = require('./universalSchemaService');
+const { buildSchemaMetadata, getApprovedTables, findMatchingColumn } = require('./universalSchemaService');
 
 /**
  * Clean a filename to extract potential table name target
@@ -68,22 +68,22 @@ function detectTable({ headers = [], sheetName = '', filename = '', rowCount = 0
 
   for (const table of approvedTables) {
     const tableMeta = schema.tables[table.modelName];
-    const columnsByName = tableMeta.columnsByName;
-
     const matchingColumns = [];
     const unknownColumns = [];
 
     for (const h of cleanedHeaders) {
-      if (columnsByName[h]) {
-        matchingColumns.push(columnsByName[h]);
+      const matched = findMatchingColumn(tableMeta, h);
+      if (matched) {
+        matchingColumns.push(matched);
       } else {
         unknownColumns.push(h);
       }
     }
 
     // Required writable columns: required and has no default and not ID
+    const matchedNames = new Set(matchingColumns.map((c) => c.columnName));
     const requiredWritable = tableMeta.columns.filter((c) => c.isRequired && !c.hasDefault && !c.isId);
-    const missingRequired = requiredWritable.filter((c) => !cleanedHeaders.includes(c.columnName));
+    const missingRequired = requiredWritable.filter((c) => !matchedNames.has(c.columnName));
 
     const matchRatio = cleanedHeaders.length > 0 ? matchingColumns.length / cleanedHeaders.length : 0;
     const requiredCoverage =
@@ -204,27 +204,29 @@ function buildDetectionDetails(
   const unknownColumns = [];
 
   for (const h of cleanedHeaders) {
-    if (columnsByName[h]) {
+    const col = findMatchingColumn(tableMeta, h);
+    if (col) {
       matchingColumns.push({
-        columnName: columnsByName[h].columnName,
-        type: columnsByName[h].type,
-        isRequired: columnsByName[h].isRequired,
-        isId: columnsByName[h].isId,
-        isUnique: columnsByName[h].isUnique,
-        hasDefault: columnsByName[h].hasDefault,
-        defaultKind: columnsByName[h].defaultKind,
-        isForeignKey: columnsByName[h].isForeignKey,
-        isProtected: columnsByName[h].isProtected,
-        protectedReason: columnsByName[h].protectedReason,
+        columnName: col.columnName,
+        type: col.type,
+        isRequired: col.isRequired,
+        isId: col.isId,
+        isUnique: col.isUnique,
+        hasDefault: col.hasDefault,
+        defaultKind: col.defaultKind,
+        isForeignKey: col.isForeignKey,
+        isProtected: col.isProtected,
+        protectedReason: col.protectedReason,
       });
     } else {
       unknownColumns.push(h);
     }
   }
 
+  const matchedNames = new Set(matchingColumns.map((c) => c.columnName));
   const requiredWritable = tableMeta.columns.filter((c) => c.isRequired && !c.hasDefault && !c.isId);
   const missingRequiredColumns = requiredWritable
-    .filter((c) => !cleanedHeaders.includes(c.columnName))
+    .filter((c) => !matchedNames.has(c.columnName))
     .map((c) => ({
       columnName: c.columnName,
       type: c.type,

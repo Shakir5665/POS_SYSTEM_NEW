@@ -28,7 +28,7 @@ router.post(
 router.put(
   '/:id',
   [
-    param('id').isUUID(),
+    param('id').isString().trim().notEmpty().withMessage('Invalid user ID'),
     body('role').optional().isIn(['ADMIN', 'MANAGER', 'CASHIER']),
     body('is_active').optional().isBoolean(),
     body('full_name').optional().notEmpty().trim(),
@@ -41,14 +41,14 @@ router.put(
 // Reset password (also unlocks the account)
 router.post(
   '/:id/reset-password',
-  [param('id').isUUID(), body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')],
+  [param('id').isString().trim().notEmpty().withMessage('Invalid user ID'), body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')],
   validate,
   userController.resetPassword
 )
 
-router.post('/:id/unlock', [param('id').isUUID()], validate, userController.unlockUser)
+router.post('/:id/unlock', [param('id').isString().trim().notEmpty().withMessage('Invalid user ID')], validate, userController.unlockUser)
 
 // Permanently delete user (ADMIN only)
-router.delete('/:id', [param('id').isUUID()], validate, userController.deleteUser)
+router.delete('/:id', [param('id').isString().trim().notEmpty().withMessage('Invalid user ID')], validate, userController.deleteUser)
 
 module.exports = router

@@ -10,11 +10,11 @@ const router = express.Router()
 router.use(authenticate)
 
 const salesReturnValidation = [
-  body('sale_id').isUUID().withMessage('Valid sale ID required'),
+  body('sale_id').isString().trim().notEmpty().withMessage('Valid sale ID required'),
   body('reason').isString().trim().notEmpty().withMessage('Return reason is required'),
   body('refund_method').optional().isIn(['CASH', 'MOBILE_MONEY', 'CARD', 'CREDIT']).withMessage('Invalid refund method'),
   body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
-  body('items.*.sale_item_id').isUUID().withMessage('Valid sale item ID required'),
+  body('items.*.sale_item_id').isString().trim().notEmpty().withMessage('Valid sale item ID required'),
   body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Returned quantity must be > 0'),
   body('items.*.restock').optional().isBoolean(),
   body('items.*.disposition').optional().isString().trim(),
@@ -24,7 +24,7 @@ const salesReturnValidation = [
 
 const saleValidation = [
   body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
-  body('items.*.product_id').isUUID().withMessage('Each item must have a valid product ID'),
+  body('items.*.product_id').isString().trim().notEmpty().withMessage('Each item must have a valid product ID'),
   body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Each item quantity must be > 0'),
   body('items.*.unit').optional().isString().trim(),
   body('items.*.predefined_discount_applied').optional().isBoolean().withMessage('Predefined discount applied must be boolean'),
@@ -35,8 +35,8 @@ const saleValidation = [
     .withMessage('Payment method must be CASH, MOBILE_MONEY, CARD, or CREDIT'),
   body('amount_paid').optional().isFloat({ min: 0 }).withMessage('Amount paid must be >= 0'),
   body('discount_amount').optional().isFloat({ min: 0 }).withMessage('Discount must be >= 0'),
-  body('customer_id').optional({ nullable: true }).isUUID().withMessage('Customer ID must be a valid UUID'),
-  body('warehouse_id').optional({ nullable: true }).isUUID().withMessage('Warehouse ID must be a valid UUID'),
+  body('customer_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Customer ID must be a valid ID'),
+  body('warehouse_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Warehouse ID must be a valid ID'),
   body('sale_date').optional({ nullable: true }).isISO8601().withMessage('Sale date must be a valid ISO 8601 date').custom((val, { req }) => {
     if (val && req.user && req.user.role !== 'ADMIN') {
       throw new Error('Backdating sales transactions requires ADMIN authorization')
@@ -53,18 +53,18 @@ const saleValidation = [
 
 // Sales Returns endpoints (must be before /:id)
 router.get('/returns', authorize(['ADMIN', 'MANAGER']), salesReturnController.list)
-router.get('/returns/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID(), validate, salesReturnController.get)
+router.get('/returns/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid return ID'), validate, salesReturnController.get)
 router.post('/returns', authorize(['ADMIN', 'MANAGER']), salesReturnValidation, validate, salesReturnController.create)
 
 router.post('/', saleValidation, validate, salesController.createSale)
 router.get('/', salesController.listSales)
-router.get('/:id/eligibility', authorize(['ADMIN', 'MANAGER']), param('id').isUUID(), validate, salesReturnController.getEligibility)
-router.get('/:id', param('id').isUUID(), validate, salesController.getSale)
-router.get('/:id/receipt', param('id').isUUID(), validate, salesController.getReceipt)
+router.get('/:id/eligibility', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesReturnController.getEligibility)
+router.get('/:id', param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesController.getSale)
+router.get('/:id/receipt', param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesController.getReceipt)
 router.post(
   '/:id/refund',
   authorize(['ADMIN', 'MANAGER']),
-  param('id').isUUID(),
+  param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'),
   validate,
   salesController.processRefund
 )

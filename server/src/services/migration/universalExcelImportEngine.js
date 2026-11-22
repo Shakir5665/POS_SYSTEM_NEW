@@ -3,13 +3,13 @@
 const crypto = require('crypto');
 const { v4: uuidv4 } = require('uuid');
 const prisma = require('../../utils/prismaClient');
-const { getTableMetadata } = require('./universalSchemaService');
-const { validateWorkbookData } = require('./universalExcelValidator');
+const { getTableMetadata, findMatchingColumn } = require('./universalSchemaService');
+const { validateWorkbookData, isFormulaInjection } = require('./universalExcelValidator');
 
 // In-memory active job tracker for real-time progress polling
 const activeJobs = new Map();
 
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 50;
 
 /**
  * Create a new import job plan awaiting user confirmation.
@@ -162,6 +162,20 @@ async function executeJobBatches(job) {
   const matchingKey = job.matchingKey || 'id';
   const matchingKeyField = tableMeta.columnsByName[matchingKey]?.fieldName || matchingKey;
 
+  // Build header-to-column mapping once for the entire job
+  const headerToColDef = {};
+  for (const h of job.headers) {
+    const matched = findMatchingColumn(tableMeta, h);
+    if (matched) {
+      headerToColDef[h] = matched;
+    }
+  }
+  const colToHeaderMap = {};
+  for (const [h, colDef] of Object.entries(headerToColDef)) {
+    if (!colToHeaderMap[colDef.columnName]) colToHeaderMap[colDef.columnName] = h;
+    if (!colToHeaderMap[colDef.fieldName]) colToHeaderMap[colDef.fieldName] = h;
+  }
+
   const validRows = job.rawRows;
   const totalRows = validRows.length;
 
@@ -179,7 +193,7 @@ async function executeJobBatches(job) {
 
       const batch = validRows.slice(i, i + BATCH_SIZE);
 
-      // Execute current batch in an isolated database transaction
+      // Execute current batch in an isolated database transaction with SAVEPOINT per row
       await prisma.$transaction(
         async (tx) => {
           const txModel = tx[tableMeta.modelName.charAt(0).toLowerCase() + tableMeta.modelName.slice(1)];
@@ -188,40 +202,55 @@ async function executeJobBatches(job) {
             const rowIdx = i + b + 1;
             const rawRow = batch[b];
 
-            // Transform raw row using table column definitions
+            // Transform raw row using table column definitions and flexible header lookup
             const transformedData = {};
             for (const colDef of tableMeta.columns) {
-              if (job.headers.includes(colDef.columnName)) {
-                const cellVal = rawRow[colDef.columnName];
-                if (cellVal !== undefined && cellVal !== null && cellVal !== '') {
-                  // If string starts with formula marker, sanitize
-                  if (typeof cellVal === 'string' && /^[=+\-@]/.test(cellVal.trim())) {
-                    transformedData[colDef.fieldName] = `'${cellVal.trim()}`;
-                  } else if (colDef.type === 'DateTime') {
-                    transformedData[colDef.fieldName] = new Date(cellVal);
-                  } else if (colDef.type === 'Int' || colDef.type === 'BigInt') {
-                    transformedData[colDef.fieldName] = Number(cellVal);
-                  } else if (colDef.type === 'Decimal' || colDef.type === 'Float') {
-                    transformedData[colDef.fieldName] = Number(cellVal);
-                  } else if (colDef.type === 'Boolean') {
-                    transformedData[colDef.fieldName] = Boolean(cellVal === true || String(cellVal).toLowerCase() === 'true' || cellVal === 1);
-                  } else if (colDef.type === 'String') {
-                    transformedData[colDef.fieldName] = String(cellVal).trim();
-                  } else {
-                    transformedData[colDef.fieldName] = cellVal;
-                  }
-                } else if (colDef.isNullable) {
+              const h = colToHeaderMap[colDef.columnName] || colToHeaderMap[colDef.fieldName];
+              const cellVal = h ? rawRow[h] : undefined;
+              const isBlank =
+                cellVal === undefined ||
+                cellVal === null ||
+                (typeof cellVal === 'string' && cellVal.trim() === '');
+
+              if (isBlank) {
+                if (colDef.isNullable) {
                   transformedData[colDef.fieldName] = null;
+                } else if (colDef.hasDefault || colDef.isId) {
+                  // Handled below by generator or default
+                } else {
+                  transformedData[colDef.fieldName] = '';
                 }
               } else {
-                // Auto-generate omitted generated fields (Rule B)
-                if (colDef.isId && colDef.defaultKind === 'uuid(4)') {
-                  transformedData[colDef.fieldName] = uuidv4();
-                } else if (colDef.columnName === 'created_at' && colDef.defaultKind === 'now') {
-                  transformedData[colDef.fieldName] = new Date();
-                } else if (colDef.isUpdatedAt) {
-                  transformedData[colDef.fieldName] = new Date();
+                // If string starts with formula marker, sanitize
+                if (typeof cellVal === 'string' && isFormulaInjection(cellVal)) {
+                  transformedData[colDef.fieldName] = `'${cellVal.trim()}`;
+                } else if (colDef.type === 'DateTime') {
+                  transformedData[colDef.fieldName] = new Date(cellVal);
+                } else if (colDef.type === 'Int' || colDef.type === 'BigInt') {
+                  transformedData[colDef.fieldName] = Number(cellVal);
+                } else if (colDef.type === 'Decimal' || colDef.type === 'Float') {
+                  transformedData[colDef.fieldName] = Number(cellVal);
+                } else if (colDef.type === 'Boolean') {
+                  transformedData[colDef.fieldName] = Boolean(
+                    cellVal === true || String(cellVal).toLowerCase() === 'true' || cellVal === 1
+                  );
+                } else if (colDef.type === 'String') {
+                  const trimmed = String(cellVal).trim();
+                  transformedData[colDef.fieldName] = (colDef.isNullable && trimmed === '') ? null : trimmed;
+                } else {
+                  transformedData[colDef.fieldName] = cellVal;
                 }
+              }
+            }
+
+            // Auto-generate omitted or blank generated fields (Rule B & Rule C)
+            for (const colDef of tableMeta.columns) {
+              if (colDef.isId && colDef.defaultKind === 'uuid(4)' && !transformedData[colDef.fieldName]) {
+                transformedData[colDef.fieldName] = uuidv4();
+              } else if (colDef.columnName === 'created_at' && colDef.defaultKind === 'now' && !transformedData[colDef.fieldName]) {
+                transformedData[colDef.fieldName] = new Date();
+              } else if (colDef.isUpdatedAt && !transformedData[colDef.fieldName]) {
+                transformedData[colDef.fieldName] = new Date();
               }
             }
 
@@ -231,8 +260,11 @@ async function executeJobBatches(job) {
               transformedData.is_legacy_import = true;
             }
 
-            // Perform Insert, Update, or Upsert
+            // Perform Insert, Update, or Upsert under row-level SAVEPOINT
             const keyValue = transformedData[matchingKeyField];
+            const spName = `sp_${b}`;
+
+            await tx.$executeRawUnsafe(`SAVEPOINT ${spName}`);
 
             try {
               if (job.mode === 'INSERT') {
@@ -240,8 +272,7 @@ async function executeJobBatches(job) {
                 insertedCount++;
               } else if (job.mode === 'UPDATE') {
                 if (!keyValue) {
-                  failedCount++;
-                  continue;
+                  throw new Error(`Matching key "${matchingKeyField}" is missing or empty.`);
                 }
                 // Exclude primary key from update payload
                 const updatePayload = { ...transformedData };
@@ -282,21 +313,35 @@ async function executeJobBatches(job) {
                   }
                 }
               }
+
+              // Row succeeded: release savepoint
+              await tx.$executeRawUnsafe(`RELEASE SAVEPOINT ${spName}`);
             } catch (rowErr) {
+              // Row failed: rollback to savepoint to clear transaction error state in PostgreSQL
+              await tx.$executeRawUnsafe(`ROLLBACK TO SAVEPOINT ${spName}`);
               failedCount++;
+
+              let cleanMsg = rowErr.message || 'Database write error';
+              if (cleanMsg.includes('Unique constraint failed')) {
+                const match = cleanMsg.match(/Unique constraint failed on the fields: \(([^)]+)\)/);
+                cleanMsg = match ? `Unique constraint failed on field(s): ${match[1]}` : 'Unique constraint violation in database.';
+              } else if (cleanMsg.includes('Foreign key constraint failed')) {
+                cleanMsg = 'Foreign key constraint violation in database.';
+              }
+
               job.rowIssues.push({
                 row: rowIdx,
                 column: matchingKey,
                 originalValue: keyValue,
                 code: 'DATABASE_WRITE_ERROR',
                 severity: 'ERROR',
-                message: rowErr.message,
+                message: cleanMsg,
                 recommendation: 'Check constraint violations or foreign keys in database.',
               });
             }
           }
         },
-        { timeout: 30000 }
+        { timeout: 60000, maxWait: 10000 }
       );
 
       // Update progress metrics
@@ -348,9 +393,19 @@ async function executeJobBatches(job) {
       },
     });
 
-    // Record top issues in MigrationIssue table
+    // Record top issues in MigrationIssue table without duplicate row/code
     if (job.rowIssues.length > 0) {
-      const issuesToInsert = job.rowIssues.slice(0, 50).map((iss) => ({
+      const seenIssues = new Set();
+      const uniqueIssues = [];
+      for (const iss of job.rowIssues) {
+        const key = `${iss.row}_${iss.code}_${iss.column}`;
+        if (!seenIssues.has(key)) {
+          seenIssues.add(key);
+          uniqueIssues.push(iss);
+        }
+      }
+
+      const issuesToInsert = uniqueIssues.slice(0, 100).map((iss) => ({
         batch_id: job.dbBatchId,
         entity_type: job.tableName,
         legacy_id: iss.originalValue ? String(iss.originalValue).slice(0, 50) : null,

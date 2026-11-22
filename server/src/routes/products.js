@@ -35,7 +35,7 @@ const upload = multer({
 const productValidation = [
   body('name').notEmpty().trim().withMessage('Name is required'),
   body('sku').notEmpty().trim().withMessage('SKU is required'),
-  body('category_id').optional({ nullable: true }).isUUID().withMessage('Valid category ID is required'),
+  body('category_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Valid category ID is required'),
   body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME', 'LENGTH']).withMessage('Unit category must be COUNT, WEIGHT, VOLUME, or LENGTH'),
   body('base_unit').optional().isString().trim(),
   body('pricing_unit').optional().isString().trim(),
@@ -91,16 +91,16 @@ router.use(authenticate)
 // Category routes — must be before /:id to avoid being shadowed
 router.get('/categories', productController.listCategories)
 router.post('/categories', authorize(['ADMIN', 'MANAGER']), categoryValidation, validate, productController.createCategory)
-router.put('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid category ID'), categoryValidation, validate, productController.updateCategory)
-router.delete('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid category ID'), validate, productController.deleteCategory)
+router.put('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid category ID'), categoryValidation, validate, productController.updateCategory)
+router.delete('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid category ID'), validate, productController.deleteCategory)
 
 // Product routes
 router.get('/', listProductsValidation(), validate, productController.listProducts)
 router.get('/barcode/:code', productController.getProductByBarcode)
-router.get('/:id', param('id').isUUID().withMessage('Invalid product ID'), validate, productController.getProduct)
+router.get('/:id', param('id').isString().trim().notEmpty().withMessage('Invalid product ID'), validate, productController.getProduct)
 router.post('/', authorize(['ADMIN', 'MANAGER']), upload.single('image'), productValidation, validate, productController.createProduct)
 router.put('/:id', authorize(['ADMIN', 'MANAGER']), upload.single('image'), updateProductValidation(), validate, productController.updateProduct)
-router.delete('/:id', authorize(['ADMIN']), param('id').isUUID().withMessage('Invalid product ID'), validate, productController.deleteProduct)
+router.delete('/:id', authorize(['ADMIN']), param('id').isString().trim().notEmpty().withMessage('Invalid product ID'), validate, productController.deleteProduct)
 
 function listProductsValidation() {
   return [
@@ -111,8 +111,8 @@ function listProductsValidation() {
 
 function updateProductValidation() {
   return [
-    param('id').isUUID().withMessage('Invalid product ID'),
-    body('category_id').optional({ nullable: true }).isUUID().withMessage('Valid category ID is required'),
+    param('id').isString().trim().notEmpty().withMessage('Invalid product ID'),
+    body('category_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Valid category ID is required'),
     body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME', 'LENGTH']).withMessage('Unit category must be COUNT, WEIGHT, VOLUME, or LENGTH'),
     body('base_unit').optional().isString().trim(),
     body('pricing_unit').optional().isString().trim(),

@@ -731,7 +731,6 @@ export default function ProductFormPage() {
                 onChange={(e) => setField('quantity', e.target.value)}
                 placeholder="0"
                 error={errors.quantity}
-                disabled={isEditing}
               />
               <Input
                 label={`Low Stock Threshold (${form.base_unit})`}
@@ -744,8 +743,8 @@ export default function ProductFormPage() {
               />
             </div>
             {isEditing && (
-              <p className="text-xs text-gray-400">
-                To adjust stock, use the Inventory page after saving.
+              <p className="text-xs text-gray-500">
+                You can directly edit the quantity here to correct mistakes, or use the Inventory page for regular stock adjustments.
               </p>
             )}
           </div>

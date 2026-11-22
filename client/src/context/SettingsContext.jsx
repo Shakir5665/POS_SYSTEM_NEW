@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { SettingsContext, DEFAULT_SETTINGS } from './contexts'
+import { useState, useEffect, useCallback, useMemo, useContext } from 'react'
+import { SettingsContext, AuthContext, DEFAULT_SETTINGS } from './contexts'
 import { settingsService } from '../services/settings'
 import { setActiveCurrencySymbol } from '../utils/formatCurrency'
 
@@ -21,6 +21,9 @@ function getInitialSettings() {
 }
 
 export function SettingsProvider({ children }) {
+  const auth = useContext(AuthContext)
+  const isAuthenticated = auth?.isAuthenticated
+
   const [settings, setSettings] = useState(() => {
     const initial = getInitialSettings()
     if (initial.currency_symbol) {
@@ -47,6 +50,7 @@ export function SettingsProvider({ children }) {
   }, [])
 
   useEffect(() => {
+    if (!isAuthenticated) return
     settingsService
       .get()
       .then((res) => {
@@ -58,7 +62,7 @@ export function SettingsProvider({ children }) {
       .catch(() => {
         // Fall back silently
       })
-  }, [updateSettings])
+  }, [isAuthenticated, updateSettings])
 
   const contextValue = useMemo(() => ({
     ...settings,

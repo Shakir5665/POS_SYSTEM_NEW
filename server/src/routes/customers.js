@@ -28,44 +28,44 @@ router.get(
   validate,
   customerController.listCustomers
 )
-router.get('/:id', param('id').isUUID().withMessage('Invalid customer ID'), validate, customerController.getCustomer)
+router.get('/:id', param('id').isString().trim().notEmpty().withMessage('Invalid customer ID'), validate, customerController.getCustomer)
 router.post('/', authorize(['ADMIN', 'MANAGER', 'CASHIER']), customerValidation, validate, customerController.createCustomer)
 router.put(
   '/:id',
   authorize(['ADMIN', 'MANAGER']),
-  [param('id').isUUID().withMessage('Invalid customer ID'), ...customerValidation.map((v) => v.optional())],
+  [param('id').isString().trim().notEmpty().withMessage('Invalid customer ID'), ...customerValidation.map((v) => v.optional())],
   validate,
   customerController.updateCustomer
 )
 router.get(
   '/:id/purchases',
-  param('id').isUUID().withMessage('Invalid customer ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid customer ID'),
   validate,
   customerController.getCustomerPurchases
 )
 router.get(
   '/:id/credit-sales',
-  param('id').isUUID().withMessage('Invalid customer ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid customer ID'),
   validate,
   customerController.getCustomerCreditSales
 )
 router.get(
   '/:id/payments',
-  param('id').isUUID().withMessage('Invalid customer ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid customer ID'),
   validate,
   customerController.getCustomerPayments
 )
 router.post(
   '/:id/payments',
   authorize(['ADMIN', 'MANAGER', 'CASHIER']),
-  param('id').isUUID().withMessage('Invalid customer ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid customer ID'),
   paymentValidation,
   validate,
   customerController.recordCustomerPayment
 )
 router.get(
   '/:id/statement',
-  param('id').isUUID().withMessage('Invalid customer ID'),
+  param('id').isString().trim().notEmpty().withMessage('Invalid customer ID'),
   validate,
   customerController.getCustomerAccountStatement
 )

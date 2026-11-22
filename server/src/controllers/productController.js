@@ -62,7 +62,7 @@ async function updateProduct(req, res, next) {
     if (req.file) {
       data.image_url = `/uploads/products/${req.file.filename}`
     }
-    const product = await productService.updateProduct(req.params.id, data)
+    const product = await productService.updateProduct(req.params.id, data, req.user?.id)
     res.json({ success: true, data: product, message: 'Product updated successfully' })
   } catch (err) {
     next(err)

@@ -131,7 +131,7 @@ model Product {
 model Customer {
   id             String   @id @default(uuid())
   name           String
-  phone          String?  @unique
+  phone          String?
   email          String?  @unique
   address        String?
   loyalty_points Int      @default(0)
