@@ -9,7 +9,7 @@ const { getTableMetadata } = require('./universalSchemaService');
  */
 function getSampleValue(colDef, sampleIndex = 0) {
   if (colDef.isId) {
-    return uuidv4();
+    return sampleIndex === 0 ? uuidv4() : `${1000 + sampleIndex}`;
   }
 
   if (colDef.isEnum && colDef.enumValues && colDef.enumValues.length > 0) {
@@ -180,7 +180,7 @@ function getTableSchemaGuide(tableName) {
       isProtected: c.isProtected,
       protectedReason: c.protectedReason,
       guidance: c.isId
-        ? 'UUID primary key. If provided, explicit UUID is preserved; if omitted or blank, a new UUID v4 is generated.'
+        ? 'Primary key. Accepts either UUID v4 (e.g. 550e8400-...) or Integer ID (e.g. 1001, 1). If omitted or blank in Excel, a new UUID v4 is automatically generated.'
         : c.isProtected
         ? c.protectedReason
         : c.isEnum

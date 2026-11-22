@@ -205,6 +205,8 @@ async function executeJobBatches(job) {
                     transformedData[colDef.fieldName] = Number(cellVal);
                   } else if (colDef.type === 'Boolean') {
                     transformedData[colDef.fieldName] = Boolean(cellVal === true || String(cellVal).toLowerCase() === 'true' || cellVal === 1);
+                  } else if (colDef.type === 'String') {
+                    transformedData[colDef.fieldName] = String(cellVal).trim();
                   } else {
                     transformedData[colDef.fieldName] = cellVal;
                   }

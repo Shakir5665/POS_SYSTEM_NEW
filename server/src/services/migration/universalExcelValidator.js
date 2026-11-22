@@ -65,16 +65,24 @@ function parseAndValidateCell(rawVal, colDef, _rowIdx) {
   // 2. Type conversions & validations
   const valType = colDef.type;
 
-  // UUID type
-  if (colDef.isId && valType === 'String' && colDef.defaultKind === 'uuid(4)') {
+  // ID validation (Supports UUID v4, Integer IDs like 1, 1001, and custom string IDs)
+  if (colDef.isId && valType === 'String') {
     const strVal = String(rawVal).trim();
     if (UUID_REGEX.test(strVal)) {
-      return { ok: true, value: strVal, isExplicitUuid: true };
+      return { ok: true, value: strVal, isExplicitUuid: true, idFormat: 'UUID' };
+    }
+    // Integer / Numeric ID (e.g. 1, 2, 1001, 99999)
+    if (/^\d+$/.test(strVal)) {
+      return { ok: true, value: strVal, isExplicitId: true, idFormat: 'INTEGER' };
+    }
+    // Clean string identifier without formula injection
+    if (strVal.length > 0 && strVal.length <= 128 && !isFormulaInjection(strVal)) {
+      return { ok: true, value: strVal, isExplicitId: true, idFormat: 'STRING' };
     }
     return {
       ok: false,
-      error: `Field "${colDef.columnName}" must be a valid UUID v4 format (got "${rawVal}").`,
-      code: 'INVALID_UUID_FORMAT',
+      error: `Field "${colDef.columnName}" must be a valid UUID v4 format (e.g. 550e8400-e29b-41d4-a716-446655440000) or an Integer ID (e.g. 1, 1001). Got "${rawVal}".`,
+      code: 'INVALID_ID_FORMAT',
     };
   }
 

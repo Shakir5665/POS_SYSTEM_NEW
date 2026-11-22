@@ -193,6 +193,19 @@ describe('Universal Single-Table Excel Migration System', () => {
       expect(result.previewRecords[0].data.id).toBe(explicitUuid);
     });
 
+    it('preserves explicitly supplied Integer IDs (e.g. 1001 or 42)', async () => {
+      const explicitIntId = '1001';
+      const result = await validateWorkbookData({
+        tableName: 'Category',
+        headers: ['id', 'name', 'description'],
+        rawRows: [{ id: 1001, name: 'UNIV-CAT-INT-ID-TEST', description: 'Integer ID test' }],
+        mode: 'INSERT',
+      });
+
+      expect(result.isValidPlan).toBe(true);
+      expect(result.previewRecords[0].data.id).toBe(explicitIntId);
+    });
+
     it('generates valid UUID v4 when ID column is omitted or blank (Rule B & Rule C)', async () => {
       const result = await validateWorkbookData({
         tableName: 'Category',

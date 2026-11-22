@@ -444,6 +444,14 @@ export default function MigrationPage() {
                 )}
               </div>
 
+              {/* Universal ID Support Info Banner */}
+              <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-lg text-xs flex items-center gap-2.5 text-blue-900">
+                <span className="text-base flex-shrink-0">💡</span>
+                <div>
+                  <span className="font-bold">Flexible Primary Key &amp; Reference Support:</span> The <code>id</code> column and foreign key references accept both <strong>UUID v4</strong> (e.g. <code>550e8400-e29b-41d4-a716-446655440000</code>) and <strong>Integer IDs</strong> (e.g. <code>1</code>, <code>2</code>, <code>1001</code>). If omitted or blank in Excel, an authentic UUID v4 is automatically generated.
+                </div>
+              </div>
+
               {!selectedFile ? (
                 <div
                   onDragOver={(e) => e.preventDefault()}
@@ -518,7 +526,7 @@ export default function MigrationPage() {
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-2">
                   <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
                     <label htmlFor={tableSelectId} className="text-xs text-gray-500 block mb-1">Target Database Table</label>
                     <select
@@ -553,6 +561,14 @@ export default function MigrationPage() {
                         {inspectedFile.detection?.missingRequiredColumns?.length || 0} Missing
                       </span>
                     </p>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-xs text-gray-500">Primary Key Support</p>
+                    <p className="text-sm font-bold text-emerald-700 flex items-center gap-1 mt-0.5">
+                      <span>✓</span> UUID or Integer ID
+                    </p>
+                    <p className="text-3xs text-gray-400 mt-0.5">Auto-generated if blank</p>
                   </div>
                 </div>
 
