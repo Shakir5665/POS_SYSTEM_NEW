@@ -44,6 +44,7 @@ enum UnitCategory {
   COUNT
   WEIGHT
   VOLUME
+  LENGTH
 }
 
 enum AssetStatus {

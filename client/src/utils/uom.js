@@ -38,11 +38,25 @@ export const UOM_CONFIG = {
       { value: 'L', label: 'Litres (L)', factor: 1000, step: 0.05, min: 0.001 },
     ],
   },
+  LENGTH: {
+    label: 'Length (Metres, Centimetres, Yards…)',
+    baseUnit: 'm',
+    defaultPricingUnit: 'm',
+    units: [
+      { value: 'm', label: 'Metres (m)', factor: 1, step: 0.1, min: 0.001 },
+      { value: 'cm', label: 'Centimetres (cm)', factor: 0.01, step: 1, min: 0.01 },
+      { value: 'mm', label: 'Millimetres (mm)', factor: 0.001, step: 1, min: 0.1 },
+      { value: 'yd', label: 'Yards (yd)', factor: 0.9144, step: 0.1, min: 0.001 },
+      { value: 'ft', label: 'Feet (ft)', factor: 0.3048, step: 0.1, min: 0.001 },
+      { value: 'in', label: 'Inches (in)', factor: 0.0254, step: 0.5, min: 0.01 },
+    ],
+  },
 }
 
 export function getUnitCategory(unit) {
   if (['g', 'kg'].includes(unit)) return 'WEIGHT'
   if (['ml', 'L'].includes(unit)) return 'VOLUME'
+  if (['m', 'meter', 'meters', 'cm', 'centimeter', 'centimeters', 'mm', 'millimeter', 'millimeters', 'yd', 'yard', 'yards', 'ft', 'foot', 'feet', 'in', 'inch', 'inches'].includes(unit)) return 'LENGTH'
   return 'COUNT'
 }
 
@@ -50,6 +64,7 @@ export function getAllUnitsFlat() {
   return [
     ...UOM_CONFIG.WEIGHT.units,
     ...UOM_CONFIG.VOLUME.units,
+    ...UOM_CONFIG.LENGTH.units,
     ...UOM_CONFIG.COUNT.units,
   ]
 }

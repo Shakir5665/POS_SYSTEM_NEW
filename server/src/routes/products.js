@@ -36,7 +36,7 @@ const productValidation = [
   body('name').notEmpty().trim().withMessage('Name is required'),
   body('sku').notEmpty().trim().withMessage('SKU is required'),
   body('category_id').optional({ nullable: true }).isUUID().withMessage('Valid category ID is required'),
-  body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME']).withMessage('Unit category must be COUNT, WEIGHT, or VOLUME'),
+  body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME', 'LENGTH']).withMessage('Unit category must be COUNT, WEIGHT, VOLUME, or LENGTH'),
   body('base_unit').optional().isString().trim(),
   body('pricing_unit').optional().isString().trim(),
   body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be greater than 0'),
@@ -113,7 +113,7 @@ function updateProductValidation() {
   return [
     param('id').isUUID().withMessage('Invalid product ID'),
     body('category_id').optional({ nullable: true }).isUUID().withMessage('Valid category ID is required'),
-    body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME']).withMessage('Unit category must be COUNT, WEIGHT, or VOLUME'),
+    body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME', 'LENGTH']).withMessage('Unit category must be COUNT, WEIGHT, VOLUME, or LENGTH'),
     body('base_unit').optional().isString().trim(),
     body('pricing_unit').optional().isString().trim(),
     body('price').optional().isFloat({ min: 0.01 }).withMessage('Price must be > 0'),

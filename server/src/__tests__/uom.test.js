@@ -17,6 +17,7 @@ describe('UOM Engine', () => {
       expect(isValidCategory('COUNT')).toBe(true)
       expect(isValidCategory('WEIGHT')).toBe(true)
       expect(isValidCategory('VOLUME')).toBe(true)
+      expect(isValidCategory('LENGTH')).toBe(true)
       expect(isValidCategory('INVALID')).toBe(false)
     })
 
@@ -31,16 +32,23 @@ describe('UOM Engine', () => {
       expect(isValidUnitForCategory('VOLUME', 'ml')).toBe(true)
       expect(isValidUnitForCategory('VOLUME', 'L')).toBe(true)
       expect(isValidUnitForCategory('VOLUME', 'g')).toBe(false)
+
+      expect(isValidUnitForCategory('LENGTH', 'm')).toBe(true)
+      expect(isValidUnitForCategory('LENGTH', 'cm')).toBe(true)
+      expect(isValidUnitForCategory('LENGTH', 'yd')).toBe(true)
+      expect(isValidUnitForCategory('LENGTH', 'kg')).toBe(false)
     })
 
     it('provides correct default units', () => {
       expect(getBaseUnit('COUNT')).toBe('pcs')
       expect(getBaseUnit('WEIGHT')).toBe('g')
       expect(getBaseUnit('VOLUME')).toBe('ml')
+      expect(getBaseUnit('LENGTH')).toBe('m')
 
       expect(getDefaultPricingUnit('COUNT')).toBe('pcs')
       expect(getDefaultPricingUnit('WEIGHT')).toBe('kg')
       expect(getDefaultPricingUnit('VOLUME')).toBe('L')
+      expect(getDefaultPricingUnit('LENGTH')).toBe('m')
     })
   })
 
@@ -65,6 +73,17 @@ describe('UOM Engine', () => {
       // 2 L -> 2000 ml
       expect(toBaseUnitQuantity(2, 'L', 'VOLUME').toNumber()).toBe(2000)
     })
+
+    it('converts length units to metres', () => {
+      // 2.5 m -> 2.5 m
+      expect(toBaseUnitQuantity(2.5, 'm', 'LENGTH').toNumber()).toBe(2.5)
+      // 150 cm -> 1.5 m
+      expect(toBaseUnitQuantity(150, 'cm', 'LENGTH').toNumber()).toBe(1.5)
+      // 1000 mm -> 1 m
+      expect(toBaseUnitQuantity(1000, 'mm', 'LENGTH').toNumber()).toBe(1)
+      // 2 yd -> 1.829 m (0.9144 * 2 = 1.8288 rounded to 1.829)
+      expect(toBaseUnitQuantity(2, 'yd', 'LENGTH').toNumber()).toBe(1.829)
+    })
   })
 
   describe('pricing and line total calculation', () => {
@@ -83,6 +102,16 @@ describe('UOM Engine', () => {
       expect(cost.toString()).toBe('7.5')
     })
 
+    it('calculates line gross for length: 2.5m at 50.00 per m = 125.00', () => {
+      const gross = calculateLineGross(2.5, 'm', 'm', '50.00', 'LENGTH')
+      expect(gross.toString()).toBe('125')
+    })
+
+    it('calculates line gross for length: 50cm at 100.00 per m = 50.00', () => {
+      const gross = calculateLineGross(50, 'cm', 'm', '100.00', 'LENGTH')
+      expect(gross.toString()).toBe('50')
+    })
+
     it('calculates line gross for count: 3 pcs at 15.00 per pcs = 45.00', () => {
       const gross = calculateLineGross(3, 'pcs', 'pcs', '15.00', 'COUNT')
       expect(gross.toString()).toBe('45')
@@ -99,6 +128,12 @@ describe('UOM Engine', () => {
       expect(validateQuantity(0.125, 'kg', 'WEIGHT')).toBe(true)
       expect(validateQuantity(500, 'g', 'WEIGHT')).toBe(true)
       expect(() => validateQuantity(0.1234, 'kg', 'WEIGHT')).toThrow()
+    })
+
+    it('accepts decimals for LENGTH up to 3 places', () => {
+      expect(validateQuantity(1.75, 'm', 'LENGTH')).toBe(true)
+      expect(validateQuantity(25.5, 'cm', 'LENGTH')).toBe(true)
+      expect(() => validateQuantity(1.1234, 'm', 'LENGTH')).toThrow()
     })
 
     it('rejects zero or negative quantities', () => {

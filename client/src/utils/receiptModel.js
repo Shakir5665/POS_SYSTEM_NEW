@@ -1,3 +1,5 @@
+import { getUnitFactor } from './uom'
+
 /**
  * Shared Receipt Data Model & Calculation Logic
  * Single source of truth for both on-screen receipt preview and printable receipt.
@@ -54,11 +56,13 @@ export function formatReceiptItem(item) {
   const pricingUnitStr = (item.pricing_unit || '').toLowerCase()
   const isWeight = item.unit_category === 'WEIGHT' || ['g', 'kg'].includes(unitStr) || ['g', 'kg'].includes(pricingUnitStr)
   const isVolume = item.unit_category === 'VOLUME' || ['ml', 'l'].includes(unitStr) || ['ml', 'l'].includes(pricingUnitStr)
+  const isLength = item.unit_category === 'LENGTH' || ['m', 'cm', 'mm', 'yd', 'ft', 'in', 'meter', 'meters', 'yard', 'yards'].includes(unitStr) || ['m', 'cm', 'mm', 'yd', 'ft', 'in', 'meter', 'meters', 'yard', 'yards'].includes(pricingUnitStr)
 
-  if (isWeight || isVolume) {
-    const factorSelling = unitStr === 'g' || unitStr === 'ml' ? 1 : 1000
-    const factorPricing = pricingUnitStr === 'g' || pricingUnitStr === 'ml' ? 1 : 1000
-    pricingFactor = factorSelling / factorPricing
+  if (isWeight || isVolume || isLength) {
+    const cat = isWeight ? 'WEIGHT' : (isVolume ? 'VOLUME' : 'LENGTH')
+    const factorSelling = getUnitFactor(cat, item.unit || item.base_unit || (cat === 'WEIGHT' ? 'kg' : (cat === 'VOLUME' ? 'L' : 'm')))
+    const factorPricing = getUnitFactor(cat, item.pricing_unit || item.base_unit || (cat === 'WEIGHT' ? 'kg' : (cat === 'VOLUME' ? 'L' : 'm')))
+    pricingFactor = factorPricing ? (factorSelling / factorPricing) : 1
   }
   const pricingQty = qty * pricingFactor
 

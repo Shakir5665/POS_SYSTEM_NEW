@@ -10,7 +10,7 @@ function cartReducer(state, action) {
       const product = action.payload
       const existing = state.items.find((i) => i.product_id === product.product_id)
       if (existing) {
-        const step = existing.unit_category === 'COUNT' ? 1 : (existing.unit === 'g' || existing.unit === 'ml' ? 100 : 1)
+        const step = existing.unit_category === 'COUNT' ? 1 : (existing.unit === 'g' || existing.unit === 'ml' ? 100 : (existing.unit === 'cm' || existing.unit === 'mm' ? 10 : 1))
         const currentQty = Number(existing.quantity || 0)
         const maxStock = getAvailableStockForItem(existing, state.items)
         const addAmount = product.initialQuantity !== undefined ? Number(product.initialQuantity) : step

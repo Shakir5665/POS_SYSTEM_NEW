@@ -531,8 +531,9 @@ export default function ProductFormPage() {
                   <option value="COUNT">Count (Pieces, Units, Packs…)</option>
                   <option value="WEIGHT">Weight (g, kg)</option>
                   <option value="VOLUME">Volume (ml, L)</option>
+                  <option value="LENGTH">Length (m, cm, yd…)</option>
                 </select>
-                <p className="text-xs text-gray-400 mt-1">Select whether item is sold by count, weight, or volume</p>
+                <p className="text-xs text-gray-400 mt-1">Select whether item is sold by count, weight, volume, or length</p>
               </div>
 
               <div>
@@ -551,7 +552,7 @@ export default function ProductFormPage() {
                       }))
                       if (errors.base_unit) setErrors((prev) => { const err = { ...prev }; delete err.base_unit; return err })
                     }}
-                    placeholder={form.unit_category === 'WEIGHT' ? 'e.g. g, kg' : form.unit_category === 'VOLUME' ? 'e.g. ml, L' : 'e.g. pcs, pack, box'}
+                    placeholder={form.unit_category === 'WEIGHT' ? 'e.g. g, kg' : form.unit_category === 'VOLUME' ? 'e.g. ml, L' : form.unit_category === 'LENGTH' ? 'e.g. m, cm, yd' : 'e.g. pcs, pack, box'}
                     className={`block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white ${
                       errors.base_unit ? 'border-danger-500 bg-danger-50' : 'border-gray-300'
                     }`}
@@ -598,7 +599,7 @@ export default function ProductFormPage() {
                     list="pricing-unit-options"
                     value={form.pricing_unit}
                     onChange={(e) => setField('pricing_unit', e.target.value)}
-                    placeholder={form.unit_category === 'WEIGHT' ? 'e.g. kg, g' : form.unit_category === 'VOLUME' ? 'e.g. L, ml' : 'e.g. pcs, pack, box'}
+                    placeholder={form.unit_category === 'WEIGHT' ? 'e.g. kg, g' : form.unit_category === 'VOLUME' ? 'e.g. L, ml' : form.unit_category === 'LENGTH' ? 'e.g. m, cm, yd' : 'e.g. pcs, pack, box'}
                     className={`block w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white ${
                       errors.pricing_unit ? 'border-danger-500 bg-danger-50' : 'border-gray-300'
                     }`}

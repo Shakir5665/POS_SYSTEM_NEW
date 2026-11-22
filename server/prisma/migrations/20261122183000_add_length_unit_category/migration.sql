@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "UnitCategory" ADD VALUE IF NOT EXISTS 'LENGTH';

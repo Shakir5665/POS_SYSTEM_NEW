@@ -59,6 +59,51 @@ const UOM_CONFIG = {
     },
     decimals: 3,
   },
+  LENGTH: {
+    baseUnit: 'm',
+    defaultPricingUnit: 'm',
+    allowedUnits: [
+      'm',
+      'meter',
+      'meters',
+      'cm',
+      'centimeter',
+      'centimeters',
+      'mm',
+      'millimeter',
+      'millimeters',
+      'yd',
+      'yard',
+      'yards',
+      'ft',
+      'foot',
+      'feet',
+      'in',
+      'inch',
+      'inches',
+    ],
+    factors: {
+      m: new Decimal(1),
+      meter: new Decimal(1),
+      meters: new Decimal(1),
+      cm: new Decimal('0.01'),
+      centimeter: new Decimal('0.01'),
+      centimeters: new Decimal('0.01'),
+      mm: new Decimal('0.001'),
+      millimeter: new Decimal('0.001'),
+      millimeters: new Decimal('0.001'),
+      yd: new Decimal('0.9144'),
+      yard: new Decimal('0.9144'),
+      yards: new Decimal('0.9144'),
+      ft: new Decimal('0.3048'),
+      foot: new Decimal('0.3048'),
+      feet: new Decimal('0.3048'),
+      in: new Decimal('0.0254'),
+      inch: new Decimal('0.0254'),
+      inches: new Decimal('0.0254'),
+    },
+    decimals: 3,
+  },
 }
 
 function isValidCategory(category) {
@@ -68,6 +113,7 @@ function isValidCategory(category) {
 function getUnitCategory(unit) {
   if (['g', 'kg'].includes(unit)) return 'WEIGHT'
   if (['ml', 'L'].includes(unit)) return 'VOLUME'
+  if (UOM_CONFIG.LENGTH.allowedUnits.includes(unit)) return 'LENGTH'
   return 'COUNT'
 }
 
@@ -75,7 +121,7 @@ function isValidUnitForCategory(category, unit) {
   const conf = UOM_CONFIG[category]
   if (!conf || !unit) return false
   if (category === 'COUNT') {
-    if (['g', 'kg', 'ml', 'L'].includes(unit)) return false
+    if (['g', 'kg', 'ml', 'L', ...UOM_CONFIG.LENGTH.allowedUnits].includes(unit)) return false
     return typeof unit === 'string' && unit.trim().length > 0
   }
   return conf.allowedUnits.includes(unit)

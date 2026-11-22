@@ -1,3 +1,5 @@
+import { getUnitFactor } from './uom'
+
 /**
  * Exact money arithmetic for the cart. Amounts are converted to whole
  * pesewas (integers) before any maths, so 3 × LKR 0.10 is exactly LKR 0.30.
@@ -23,9 +25,9 @@ function divideRoundHalfUp(numerator, denominator) {
 
 function getPricingQuantity(item) {
   const qty = Number(item.quantity || 0)
-  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME' || item.unit_category === 'LENGTH') {
+    const factorSelling = getUnitFactor(item.unit_category, item.unit || item.pricing_unit)
+    const factorPricing = getUnitFactor(item.unit_category, item.pricing_unit || item.unit)
     return (qty * factorSelling) / factorPricing
   }
   return qty

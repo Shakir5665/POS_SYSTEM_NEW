@@ -7,7 +7,7 @@ import { salesService } from '../services/sales'
 import { customersService } from '../services/customers'
 import { formatCurrency } from '../utils/formatCurrency'
 import { toPesewas, fromPesewas, lineTotalPesewas } from '../utils/money'
-import { formatQuantityWithUnit, getAvailableStockForItem } from '../utils/uom'
+import { formatQuantityWithUnit, getAvailableStockForItem, getUnitFactor } from '../utils/uom'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
@@ -756,9 +756,9 @@ export function CartItem({
   const predefinedDiff = Math.max(0, usualPrice - catalogOurPrice)
 
   let pricingQty = currentVal
-  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME') {
-    const factorSelling = item.unit === 'g' || item.unit === 'ml' ? 1 : 1000
-    const factorPricing = (item.pricing_unit || 'kg') === 'g' || (item.pricing_unit || 'L') === 'ml' ? 1 : 1000
+  if (item.unit_category === 'WEIGHT' || item.unit_category === 'VOLUME' || item.unit_category === 'LENGTH') {
+    const factorSelling = getUnitFactor(item.unit_category, item.unit || item.pricing_unit)
+    const factorPricing = getUnitFactor(item.unit_category, item.pricing_unit || item.unit)
     pricingQty = (currentVal * factorSelling) / factorPricing
   }
   const predefinedDiscountAmount = isPredefinedApplied && hasPredefinedDiscount
@@ -1151,6 +1151,21 @@ export function CartItem({
             </div>
           )}
 
+          {item.unit_category === 'LENGTH' && (
+            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs">
+              {['m', 'cm', 'yd'].map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => onUnitChange(item.product_id, u)}
+                  className={`px-2 py-1 font-medium transition ${item.unit === u ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          )}
+
           {item.unit_category === 'COUNT' && (
             <span className="text-xs text-gray-400 font-medium">{item.unit || item.base_unit || 'pcs'}</span>
           )}
@@ -1501,6 +1516,10 @@ export default function POSPage() {
         updateUnit(productId, item.unit === 'g' ? 'kg' : 'g')
       } else if (item.unit_category === 'VOLUME') {
         updateUnit(productId, item.unit === 'ml' ? 'L' : 'ml')
+      } else if (item.unit_category === 'LENGTH') {
+        const lengthUnits = ['m', 'cm', 'yd']
+        const nextIdx = (lengthUnits.indexOf(item.unit) + 1) % lengthUnits.length
+        updateUnit(productId, lengthUnits[nextIdx])
       }
     },
     onOpenPayment: () => handleOpenPayment(),
