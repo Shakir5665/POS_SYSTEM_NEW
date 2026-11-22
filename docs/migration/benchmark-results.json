@@ -1,0 +1,38 @@
+[
+  {
+    "size": 100,
+    "fileSizeKb": "39.6",
+    "parseDuration": 35,
+    "valDuration": 63,
+    "writeDuration": 132,
+    "totalDuration": 249,
+    "throughput": 401.6,
+    "writeThroughput": 757.6,
+    "peakMemoryMb": 1,
+    "errorRate": "0.00%"
+  },
+  {
+    "size": 1000,
+    "fileSizeKb": "265.4",
+    "parseDuration": 31,
+    "valDuration": 16,
+    "writeDuration": 718,
+    "totalDuration": 792,
+    "throughput": 1262.6,
+    "writeThroughput": 1392.8,
+    "peakMemoryMb": 8,
+    "errorRate": "0.00%"
+  },
+  {
+    "size": 10000,
+    "fileSizeKb": "2620.2",
+    "parseDuration": 318,
+    "valDuration": 144,
+    "writeDuration": 8692,
+    "totalDuration": 9352,
+    "throughput": 1069.3,
+    "writeThroughput": 1150.5,
+    "peakMemoryMb": 28,
+    "errorRate": "0.00%"
+  }
+]
