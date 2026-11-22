@@ -307,33 +307,7 @@ export default function MigrationPage() {
     }
   }, [jobPollInterval])
 
-  // Legacy tab handlers
-  const handleValidateLegacy = async () => {
-    try {
-      await migrationService.validateExcel()
-      toast.success('Validation complete')
-    } catch (err) {
-      toast.error(err.response?.data?.error?.message || 'Validation failed')
-    }
-  }
 
-  const handleDryRunLegacy = async () => {
-    try {
-      await migrationService.dryRunExcel()
-      toast.success('Zero-Write Dry Run finished')
-    } catch (err) {
-      toast.error(err.response?.data?.error?.message || 'Dry run failed')
-    }
-  }
-
-  const handlePreviewRollback = async (batchId) => {
-    try {
-      await migrationService.previewRollback(batchId)
-      toast.success('Rollback preview generated')
-    } catch (err) {
-      toast.error(err.response?.data?.error?.message || 'Failed to preview rollback')
-    }
-  }
 
   // Pagination for Preview Records
   const previewRows = validationReport?.previewRecords || []
@@ -402,16 +376,7 @@ export default function MigrationPage() {
           >
             Issues &amp; Unresolved Mappings ({issues.length})
           </button>
-          <button
-            onClick={() => setActiveTab('excel-import')}
-            className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition border-b-2 whitespace-nowrap ${
-              activeTab === 'excel-import'
-                ? 'border-primary-600 text-primary-700 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Excel Import (Phase 4B Readiness)
-          </button>
+
         </div>
 
         {/* ========================================================================= */}
@@ -1179,20 +1144,7 @@ export default function MigrationPage() {
                   label: 'Date',
                   render: (val) => <span className="text-xs text-gray-500">{new Date(val).toLocaleDateString()}</span>,
                 },
-                {
-                  key: 'actions',
-                  label: 'Actions',
-                  render: (_, row) => (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handlePreviewRollback(row.id)}
-                      disabled={row.status === 'ROLLED_BACK'}
-                    >
-                      Rollback Preview
-                    </Button>
-                  ),
-                },
+
               ]}
               data={batches}
               isLoading={loading}
@@ -1250,31 +1202,7 @@ export default function MigrationPage() {
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* TAB 5: Excel Import (Phase 4B Readiness) - Preserved for tests & audits */}
-        {/* ========================================================================= */}
-        {activeTab === 'excel-import' && (
-          <div className="space-y-6">
-            <div className="p-4 bg-amber-500/10 border border-amber-300 rounded-xl space-y-1">
-              <h3 className="font-bold text-amber-900 text-sm">Phase 4B Migration Execution Locked</h3>
-              <p className="text-xs text-amber-800 font-mono">
-                Authentic workbook fingerprint: b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4
-              </p>
-            </div>
 
-            <div className="flex items-center gap-3 bg-white p-4 rounded-xl border border-gray-200">
-              <Button variant="secondary" onClick={handleValidateLegacy}>
-                1. Validate Data &amp; B/F
-              </Button>
-              <Button variant="primary" onClick={handleDryRunLegacy}>
-                2. Run Zero-Write Dry Run
-              </Button>
-              <Button variant="danger" disabled title="Staging execution is disabled in Phase 4B">
-                🔒 Execute Live Import (Locked)
-              </Button>
-            </div>
-          </div>
-        )}
 
         {/* Confirmation Modal */}
         {showConfirmModal && (

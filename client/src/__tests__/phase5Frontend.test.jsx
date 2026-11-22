@@ -214,21 +214,16 @@ describe('Phase 5 Frontend Comprehensive Verification', () => {
         </MemoryRouter>
       )
 
-      expect(screen.getByText('Legacy Migration Engine')).toBeInTheDocument()
+      expect(screen.getByText('Universal Excel Import')).toBeInTheDocument()
       expect(screen.getAllByText(/Migration Batches/i).length).toBeGreaterThan(0)
       expect(screen.getByText(/Issues & Unresolved Mappings/i)).toBeInTheDocument()
-      expect(screen.getByText(/Excel Import \(Phase 4B Readiness\)/i)).toBeInTheDocument()
+      expect(screen.queryByText(/Excel Import \(Phase 4B Readiness\)/i)).not.toBeInTheDocument()
 
       // Switch to Issues tab to verify known unresolved mappings alert
       fireEvent.click(screen.getByText(/Issues & Unresolved Mappings/i))
       expect(screen.getByText(/Known Unresolved Legacy Mappings/i)).toBeInTheDocument()
       expect(screen.getByText(/Expense Category ID 5/i)).toBeInTheDocument()
       expect(screen.getByText(/Orphan Sub-Records/i)).toBeInTheDocument()
-
-      // Switch to Excel Import tab to verify locked state
-      fireEvent.click(screen.getByText(/Excel Import \(Phase 4B Readiness\)/i))
-      expect(screen.getByText(/Phase 4B Migration Execution Locked/i)).toBeInTheDocument()
-      expect(screen.getByText(/b392557f09df3dd191aed9f178f89722d10a44b43294949c670e53f24bac03a4/i)).toBeInTheDocument()
     })
   })
 

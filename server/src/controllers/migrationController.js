@@ -1,27 +1,7 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
 const prisma = require('../utils/prismaClient');
-const { parseWorkbook } = require('../services/migration/excelParser');
-const { validateWorkbookData } = require('../services/migration/excelValidator');
-const { runExcelImport, rollbackExcelBatch } = require('../services/migration/excelImportEngine');
-const { isStagingOrProduction, assertExecutionPermitted } = require('../services/migration/migrationGuard');
-
-const DEFAULT_WORKBOOK_PATH = path.resolve(__dirname, '../../../NexTill_Phase4B_Complete_Historical_Import_REPAIRED.xlsx');
-
-function resolveSourceFile(req) {
-  if (req.file && req.file.path) {
-    return req.file.path;
-  }
-  if (req.body && req.body.filePath) {
-    return path.resolve(req.body.filePath);
-  }
-  if (fs.existsSync(DEFAULT_WORKBOOK_PATH)) {
-    return DEFAULT_WORKBOOK_PATH;
-  }
-  throw new Error('No historical Excel workbook file provided or found on server');
-}
+const { isStagingOrProduction } = require('../services/migration/migrationGuard');
 
 /**
  * List migration batches
@@ -143,135 +123,9 @@ async function getMigrationStatus(req, res, next) {
   }
 }
 
-/**
- * Inspect uploaded or canonical Excel workbook
- */
-async function inspectExcelWorkbook(req, res, next) {
-  try {
-    const source = resolveSourceFile(req);
-    const parsed = parseWorkbook(source);
-    res.json({
-      success: true,
-      data: {
-        sha256: parsed.sha256,
-        size: parsed.size,
-        sheetNames: parsed.sheetNames,
-        missingExpectedSheets: parsed.missingExpectedSheets,
-        isValidStructure: parsed.isValidStructure,
-        provenance: parsed.provenance,
-      },
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * Validate workbook data and compute B/F reconciliation
- */
-async function validateExcelWorkbook(req, res, next) {
-  try {
-    const source = resolveSourceFile(req);
-    const parsed = parseWorkbook(source);
-    const report = validateWorkbookData(parsed.workbook, parsed.sha256);
-    res.json({
-      success: true,
-      data: report,
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * Run zero-write Dry Run against the workbook
- */
-async function dryRunExcelWorkbook(req, res, next) {
-  try {
-    const source = resolveSourceFile(req);
-    const result = await runExcelImport({ source, dryRun: true });
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * Execute live import (Strictly rejected on staging/prod)
- */
-async function executeExcelImport(req, res, next) {
-  try {
-    // Assert backend security guard: reject staging or production
-    assertExecutionPermitted({ dryRun: false });
-
-    const source = resolveSourceFile(req);
-    const result = await runExcelImport({ source, dryRun: false });
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (err) {
-    if (err.code === 'STAGING_IMPORT_LOCKED' || err.code === 'ISOLATED_IMPORT_GUARD') {
-      return res.status(403).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    next(err);
-  }
-}
-
-/**
- * Preview rollback of a batch
- */
-async function previewRollback(req, res, next) {
-  try {
-    const { id } = req.params;
-    const result = await rollbackExcelBatch(id, { dryRun: true });
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (err) {
-    next(err);
-  }
-}
-
-/**
- * Execute rollback of a batch (Guarded)
- */
-async function executeRollback(req, res, next) {
-  try {
-    assertExecutionPermitted({ dryRun: false });
-    const { id } = req.params;
-    const result = await rollbackExcelBatch(id, { dryRun: false });
-    res.json({
-      success: true,
-      data: result,
-    });
-  } catch (err) {
-    if (err.code === 'STAGING_IMPORT_LOCKED' || err.code === 'ISOLATED_IMPORT_GUARD') {
-      return res.status(403).json({
-        success: false,
-        error: { code: err.code, message: err.message },
-      });
-    }
-    next(err);
-  }
-}
-
 module.exports = {
   listBatches,
   getBatch,
   listIssues,
   getMigrationStatus,
-  inspectExcelWorkbook,
-  validateExcelWorkbook,
-  dryRunExcelWorkbook,
-  executeExcelImport,
-  previewRollback,
-  executeRollback,
 };
