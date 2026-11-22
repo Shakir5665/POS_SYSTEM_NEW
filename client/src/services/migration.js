@@ -5,7 +5,11 @@ export const migrationService = {
   getStatus: () => api.get('/migration/status'),
   listBatches: () => api.get('/migration/batches'),
   getBatch: (id) => api.get(`/migration/batches/${id}`),
+  deleteBatch: (id) => api.delete(`/migration/batches/${id}`),
+  clearAllBatches: () => api.delete('/migration/batches'),
   listIssues: (params) => api.get('/migration/issues', { params }),
+  deleteIssue: (id) => api.delete(`/migration/issues/${id}`),
+  clearAllIssues: () => api.delete('/migration/issues'),
 
   // Universal Single-Table Excel Migration System Endpoints
   listApprovedTables: () => api.get('/migration/excel/tables'),

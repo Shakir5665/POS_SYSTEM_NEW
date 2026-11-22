@@ -34,8 +34,10 @@ router.get('/excel/jobs', universalMigrationController.listJobs);
 router.get('/status', migrationController.getMigrationStatus);
 router.get('/batches', migrationController.listBatches);
 router.get('/batches/:id', param('id').isUUID(), validate, migrationController.getBatch);
+router.delete('/batches/:id', param('id').isUUID(), validate, migrationController.deleteBatch);
+router.delete('/batches', migrationController.clearAllBatches);
 router.get('/issues', migrationController.listIssues);
-
-module.exports = router;
+router.delete('/issues/:id', param('id').isUUID(), validate, migrationController.deleteIssue);
+router.delete('/issues', migrationController.clearAllIssues);
 
 module.exports = router;

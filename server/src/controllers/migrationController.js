@@ -55,6 +55,58 @@ async function getBatch(req, res, next) {
 }
 
 /**
+ * Delete a single migration batch and its associated issues/maps
+ * DELETE /api/migration/batches/:id
+ */
+async function deleteBatch(req, res, next) {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.migrationBatch.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Migration batch not found' },
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.migrationIssue.deleteMany({ where: { batch_id: id } }),
+      prisma.legacyIdMap.deleteMany({ where: { batch_id: id } }),
+      prisma.migrationBatch.delete({ where: { id } }),
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Migration batch and related logs deleted successfully',
+      data: { id },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Clear all migration batches and related audit logs
+ * DELETE /api/migration/batches
+ */
+async function clearAllBatches(req, res, next) {
+  try {
+    await prisma.$transaction([
+      prisma.migrationIssue.deleteMany(),
+      prisma.legacyIdMap.deleteMany(),
+      prisma.migrationBatch.deleteMany(),
+    ]);
+
+    res.json({
+      success: true,
+      message: 'All migration batches and logs cleared successfully',
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
  * List migration issues with filters
  */
 async function listIssues(req, res, next) {
@@ -75,6 +127,50 @@ async function listIssues(req, res, next) {
     res.json({
       success: true,
       data: issues,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Delete a single migration issue
+ * DELETE /api/migration/issues/:id
+ */
+async function deleteIssue(req, res, next) {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.migrationIssue.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        error: { code: 'NOT_FOUND', message: 'Migration issue not found' },
+      });
+    }
+
+    await prisma.migrationIssue.delete({ where: { id } });
+
+    res.json({
+      success: true,
+      message: 'Migration issue dismissed/deleted successfully',
+      data: { id },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+/**
+ * Clear all migration issues
+ * DELETE /api/migration/issues
+ */
+async function clearAllIssues(req, res, next) {
+  try {
+    await prisma.migrationIssue.deleteMany();
+
+    res.json({
+      success: true,
+      message: 'All migration issues cleared successfully',
     });
   } catch (err) {
     next(err);
@@ -126,6 +222,10 @@ async function getMigrationStatus(req, res, next) {
 module.exports = {
   listBatches,
   getBatch,
+  deleteBatch,
+  clearAllBatches,
   listIssues,
+  deleteIssue,
+  clearAllIssues,
   getMigrationStatus,
 };

@@ -307,6 +307,50 @@ export default function MigrationPage() {
     }
   }, [jobPollInterval])
 
+  // Batch & Issue Management Handlers
+  const handleDeleteBatch = async (batchId) => {
+    if (!window.confirm('Are you sure you want to delete this migration batch and its associated audit logs?')) return
+    try {
+      await migrationService.deleteBatch(batchId)
+      toast.success('Migration batch deleted successfully')
+      fetchData()
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to delete batch')
+    }
+  }
+
+  const handleClearAllBatches = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL migration batches and audit logs? This action cannot be undone.')) return
+    try {
+      await migrationService.clearAllBatches()
+      toast.success('All migration batches and logs cleared')
+      fetchData()
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to clear batches')
+    }
+  }
+
+  const handleDeleteIssue = async (issueId) => {
+    try {
+      await migrationService.deleteIssue(issueId)
+      toast.success('Migration issue dismissed')
+      fetchData()
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to delete issue')
+    }
+  }
+
+  const handleClearAllIssues = async () => {
+    if (!window.confirm('Are you sure you want to clear ALL migration issues?')) return
+    try {
+      await migrationService.clearAllIssues()
+      toast.success('All migration issues cleared')
+      fetchData()
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to clear issues')
+    }
+  }
+
 
 
   // Pagination for Preview Records
@@ -951,15 +995,24 @@ export default function MigrationPage() {
                             {new Date(j.createdAt).toLocaleDateString()}
                           </td>
                           <td className="px-3 py-2 text-right">
-                            {j.failed > 0 && (
+                            <div className="flex items-center justify-end gap-1.5">
+                              {j.failed > 0 && (
+                                <Button
+                                  variant="secondary"
+                                  size="sm"
+                                  onClick={() => handleDownloadErrors(j.id)}
+                                >
+                                  Errors (CSV)
+                                </Button>
+                              )}
                               <Button
-                                variant="secondary"
+                                variant="danger"
                                 size="sm"
-                                onClick={() => handleDownloadErrors(j.id)}
+                                onClick={() => handleDeleteBatch(j.id)}
                               >
-                                Download Errors (CSV)
+                                Delete
                               </Button>
-                            )}
+                            </div>
                           </td>
                         </tr>
                       ))
@@ -1082,74 +1135,101 @@ export default function MigrationPage() {
         {/* TAB 3: Historical Migration Batches (Preserved for tests & diagnostics) */}
         {/* ========================================================================= */}
         {activeTab === 'batches' && (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-2xs">
-            <Table
-              columns={[
-                {
-                  key: 'batch_number',
-                  label: 'Batch #',
-                  render: (val, row) => (
-                    <button
-                      onClick={() => toast(`Batch #${row.batch_number} (${row.entity_type}) selected`)}
-                      className="font-mono font-semibold text-primary-600 hover:text-primary-800 text-left hover:underline"
-                    >
-                      {val}
-                    </button>
-                  ),
-                },
-                {
-                  key: 'entity_type',
-                  label: 'Entity Type',
-                  render: (val) => <span className="font-medium text-gray-800">{val}</span>,
-                },
-                {
-                  key: 'source_file',
-                  label: 'Source / Checksum',
-                  render: (val, row) => (
-                    <div>
-                      <p className="text-xs font-mono text-gray-700">{val || 'Historical Export'}</p>
-                      {row.source_sha256 && (
-                        <p className="text-2xs font-mono text-gray-400 truncate max-w-xs">
-                          SHA-256: {row.source_sha256.slice(0, 16)}...
-                        </p>
-                      )}
-                    </div>
-                  ),
-                },
-                {
-                  key: 'records',
-                  label: 'Records (Total / Ok / Err)',
-                  render: (_, row) => (
-                    <div className="text-xs font-mono">
-                      <span className="font-semibold text-gray-900">{row.record_count}</span> /{' '}
-                      <span className="text-success-600 font-semibold">{row.success_count}</span> /{' '}
-                      <span className={row.error_count > 0 ? 'text-danger-600 font-semibold' : 'text-gray-400'}>
-                        {row.error_count}
-                      </span>
-                    </div>
-                  ),
-                },
-                {
-                  key: 'status',
-                  label: 'Status',
-                  render: (val) => {
-                    if (val === 'COMPLETED') return <Badge variant="success">Completed</Badge>
-                    if (val === 'ROLLED_BACK') return <Badge variant="danger">Rolled Back</Badge>
-                    if (val === 'RUNNING') return <Badge variant="warning">Running</Badge>
-                    return <Badge variant="secondary">{val}</Badge>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200">
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">Migration Batches</h3>
+                <p className="text-xs text-gray-500">
+                  Comprehensive audit trail of all historical and universal database migration runs.
+                </p>
+              </div>
+              {batches.length > 0 && (
+                <Button variant="danger" size="sm" onClick={handleClearAllBatches}>
+                  Clear All Batches
+                </Button>
+              )}
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-2xs">
+              <Table
+                columns={[
+                  {
+                    key: 'batch_number',
+                    label: 'Batch #',
+                    render: (val, row) => (
+                      <button
+                        onClick={() => toast(`Batch #${row.batch_number} (${row.entity_type}) selected`)}
+                        className="font-mono font-semibold text-primary-600 hover:text-primary-800 text-left hover:underline"
+                      >
+                        {val}
+                      </button>
+                    ),
                   },
-                },
-                {
-                  key: 'created_at',
-                  label: 'Date',
-                  render: (val) => <span className="text-xs text-gray-500">{new Date(val).toLocaleDateString()}</span>,
-                },
-
-              ]}
-              data={batches}
-              isLoading={loading}
-              emptyMessage="No migration batches recorded yet."
-            />
+                  {
+                    key: 'entity_type',
+                    label: 'Entity Type',
+                    render: (val) => <span className="font-medium text-gray-800">{val}</span>,
+                  },
+                  {
+                    key: 'source_file',
+                    label: 'Source / Checksum',
+                    render: (val, row) => (
+                      <div>
+                        <p className="text-xs font-mono text-gray-700">{val || 'Historical Export'}</p>
+                        {row.source_sha256 && (
+                          <p className="text-2xs font-mono text-gray-400 truncate max-w-xs">
+                            SHA-256: {row.source_sha256.slice(0, 16)}...
+                          </p>
+                        )}
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'records',
+                    label: 'Records (Total / Ok / Err)',
+                    render: (_, row) => (
+                      <div className="text-xs font-mono">
+                        <span className="font-semibold text-gray-900">{row.record_count}</span> /{' '}
+                        <span className="text-success-600 font-semibold">{row.success_count}</span> /{' '}
+                        <span className={row.error_count > 0 ? 'text-danger-600 font-semibold' : 'text-gray-400'}>
+                          {row.error_count}
+                        </span>
+                      </div>
+                    ),
+                  },
+                  {
+                    key: 'status',
+                    label: 'Status',
+                    render: (val) => {
+                      if (val === 'COMPLETED') return <Badge variant="success">Completed</Badge>
+                      if (val === 'ROLLED_BACK') return <Badge variant="danger">Rolled Back</Badge>
+                      if (val === 'RUNNING') return <Badge variant="warning">Running</Badge>
+                      return <Badge variant="secondary">{val}</Badge>
+                    },
+                  },
+                  {
+                    key: 'created_at',
+                    label: 'Date',
+                    render: (val) => <span className="text-xs text-gray-500">{new Date(val).toLocaleDateString()}</span>,
+                  },
+                  {
+                    key: 'actions',
+                    label: 'Actions',
+                    render: (_, row) => (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDeleteBatch(row.id)}
+                      >
+                        Delete
+                      </Button>
+                    ),
+                  },
+                ]}
+                data={batches}
+                isLoading={loading}
+                emptyMessage="No migration batches recorded yet."
+              />
+            </div>
           </div>
         )}
 
@@ -1158,6 +1238,20 @@ export default function MigrationPage() {
         {/* ========================================================================= */}
         {activeTab === 'issues' && (
           <div className="space-y-4">
+            <div className="flex items-center justify-between bg-white p-4 rounded-xl border border-gray-200">
+              <div>
+                <h3 className="font-bold text-gray-900 text-sm">Issues &amp; Unresolved Mappings</h3>
+                <p className="text-xs text-gray-500">
+                  Logged validation errors, reference discrepancies, and quarantined records.
+                </p>
+              </div>
+              {issues.length > 0 && (
+                <Button variant="danger" size="sm" onClick={handleClearAllIssues}>
+                  Clear All Issues
+                </Button>
+              )}
+            </div>
+
             <div className="p-4 bg-amber-500/10 border border-amber-300 rounded-xl space-y-2">
               <h3 className="font-bold text-amber-900 text-sm">Known Unresolved Legacy Mappings</h3>
               <p className="text-xs text-amber-800">
@@ -1192,6 +1286,19 @@ export default function MigrationPage() {
                     key: 'description',
                     label: 'Description',
                     render: (val) => <p className="text-xs text-gray-700 max-w-md">{val}</p>,
+                  },
+                  {
+                    key: 'actions',
+                    label: 'Actions',
+                    render: (_, row) => (
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleDeleteIssue(row.id)}
+                      >
+                        Delete
+                      </Button>
+                    ),
                   },
                 ]}
                 data={issues}
