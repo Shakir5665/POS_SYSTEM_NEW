@@ -1357,6 +1357,30 @@ export default function POSPage() {
     loadInitialData()
   }, [])
 
+  // Background search to discover uncached products across all database records
+  useEffect(() => {
+    const q = searchQuery.trim()
+    if (!q) return
+
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await productsService.list({ search: q, per_page: 50, is_active: true })
+        const serverResults = res.data?.data || []
+        if (serverResults.length > 0) {
+          setAllProducts((prev) => {
+            const existingIds = new Set(prev.map((p) => p.id))
+            const newOnes = serverResults.filter((p) => !existingIds.has(p.id))
+            return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+          })
+        }
+      } catch {
+        // silent fallback to local in-memory products
+      }
+    }, 200)
+
+    return () => clearTimeout(timeout)
+  }, [searchQuery])
+
   // Derived: products filtered by search query and selected category
   const products = allProducts.filter((p) => {
     const matchesCategory = selectedCategory === 'ALL' || p.category_id === selectedCategory
@@ -1626,7 +1650,33 @@ export default function POSPage() {
       }
     }
 
-    // 5. Fallback: Query backend by barcode for uncached / unloaded products
+    // 5. Fallback: Query backend by search term (name/SKU/barcode) or barcode for uncached database products
+    try {
+      const searchRes = await productsService.list({ search: q, per_page: 10, is_active: true })
+      const found = searchRes.data?.data || []
+      if (found.length > 0) {
+        setAllProducts((prev) => {
+          const existingIds = new Set(prev.map((p) => p.id))
+          const newOnes = found.filter((p) => !existingIds.has(p.id))
+          return newOnes.length > 0 ? [...prev, ...newOnes] : prev
+        })
+        const exactMatch =
+          found.find(
+            (p) =>
+              (p.barcode && p.barcode.toLowerCase() === q.toLowerCase()) ||
+              (p.sku && p.sku.toLowerCase() === q.toLowerCase()) ||
+              (p.name && p.name.toLowerCase() === q.toLowerCase())
+          ) || found[0]
+        handleAddProduct(exactMatch)
+        setSearchQuery('')
+        setSelectedProductIndex(0)
+        return
+      }
+    } catch {
+      // fallback to barcode query
+    }
+
+    // 6. Direct barcode scanner endpoint fallback
     await handleBarcodeSearch(q)
   }
 
