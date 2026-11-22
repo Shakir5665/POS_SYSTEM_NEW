@@ -18,6 +18,7 @@ import { Button } from '../components/Button'
 import { reportsService } from '../services/reports'
 import { formatCurrency, formatCompactCurrency, formatCompactNumber } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
+import { exportCsv } from '../utils/csv'
 
 const PIE_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#0891B2']
 
@@ -66,17 +67,6 @@ function KpiCard({ label, value, tooltip, subtitle, highlight = false, danger = 
       {subtitle && <p className="text-2xs text-gray-400 mt-1">{subtitle}</p>}
     </div>
   )
-}
-
-function exportCsv(filename, headers, rows) {
-  const csvContent = [headers.join(','), ...rows.map((r) => r.join(','))].join('\n')
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-  const url = window.URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  window.URL.revokeObjectURL(url)
 }
 
 export default function ReportsPage() {

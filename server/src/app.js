@@ -56,13 +56,31 @@ app.use(morgan('combined', { stream: morganStream }))
 // Static files for uploaded product images
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')))
 
-// Health check
-app.get('/api/health', (req, res) => {
+// Health & Readiness Checks
+app.get(['/health', '/api/health'], (req, res) => {
   res.status(200).json({
     success: true,
     data: { status: 'ok', timestamp: new Date().toISOString() },
     message: 'Server is running',
   })
+})
+
+app.get(['/health/ready', '/api/health/ready'], async (req, res) => {
+  try {
+    const prisma = require('./utils/prismaClient')
+    await prisma.$queryRaw`SELECT 1`
+    res.status(200).json({
+      success: true,
+      data: { status: 'ready', database: 'connected', timestamp: new Date().toISOString() },
+      message: 'Server and database ready',
+    })
+  } catch (err) {
+    res.status(503).json({
+      success: false,
+      data: { status: 'unhealthy', database: 'disconnected', error: err.message },
+      message: 'Database connection failed',
+    })
+  }
 })
 
 // API Routes
