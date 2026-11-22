@@ -138,5 +138,19 @@ flowchart TD
 2. `Category.xlsx` $\rightarrow$ `Product.xlsx`
 3. `Customer.xlsx` $\rightarrow$ `Sale.xlsx` $\rightarrow$ `SaleItem.xlsx`
 4. `Supplier.xlsx` $\rightarrow$ `Purchase.xlsx` $\rightarrow$ `PurchaseItem.xlsx`
+
+---
+
+## 5. Dual ID Format Support (UUID & Integer IDs)
+
+In accordance with user requirements, the primary key `id` columns and foreign key references natively support both standard UUIDs and legacy numeric Integer IDs:
+
+| Input ID Format | Example | Handling & Transformation | Database Storage |
+| :--- | :--- | :--- | :--- |
+| **UUID v4** | `550e8400-e29b-41d4-a716-446655440000` | Validated via RFC 4122 regex; explicit value preserved | Stored as `TEXT` primary key |
+| **Numeric Integer ID** | `1`, `1001`, `99999` | Validated via `^\d+$`; stringified (`"1001"`); explicit value preserved | Stored as `TEXT` primary key |
+| **Foreign Key Reference** | `category_id: 1001` | Cast to string; verified against `Category.id = "1001"` | Relational integrity preserved |
+| **Omitted or Blank Cell** | `(omitted)` or `""` | Authentic UUID v4 is automatically generated | Stored as new `TEXT` primary key |
+
 5. `ExpenseCategory.xlsx` $\rightarrow$ `Expense.xlsx`
 6. `StockAdjustment.xlsx` $\rightarrow$ `StockAdjustmentItem.xlsx`
