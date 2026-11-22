@@ -751,7 +751,6 @@ export function CartItem({
 
   const usualPrice = Number(item.usual_price != null ? item.usual_price : item.price)
   const catalogOurPrice = Number(item.catalog_our_price != null ? item.catalog_our_price : (item.our_price != null ? item.our_price : item.price))
-  const ourPrice = Number(item.our_price != null ? item.our_price : item.price)
   const hasPredefinedDiscount = usualPrice > catalogOurPrice
   const isPredefinedApplied = item.apply_predefined_discount !== false
   const predefinedDiff = Math.max(0, usualPrice - catalogOurPrice)

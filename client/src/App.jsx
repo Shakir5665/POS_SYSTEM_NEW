@@ -16,6 +16,8 @@ import DashboardPage from './pages/DashboardPage'
 import ReportsPage from './pages/ReportsPage'
 import UsersPage from './pages/UsersPage'
 import SettingsPage from './pages/SettingsPage'
+import WarehousesPage from './pages/WarehousesPage'
+import MigrationPage from './pages/MigrationPage'
 
 function LoadingScreen() {
   return (
@@ -117,6 +119,14 @@ export default function App() {
         }
       />
       <Route
+        path="/warehouses"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <WarehousesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/customers"
         element={
           <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
@@ -195,6 +205,14 @@ export default function App() {
         element={
           <ProtectedRoute roles={['ADMIN']}>
             <SettingsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/migration"
+        element={
+          <ProtectedRoute roles={['ADMIN']}>
+            <MigrationPage />
           </ProtectedRoute>
         }
       />

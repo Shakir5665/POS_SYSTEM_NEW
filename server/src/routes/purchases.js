@@ -1,12 +1,25 @@
 const express = require('express')
 const { body, param, query } = require('express-validator')
 const purchaseController = require('../controllers/purchaseController')
+const purchaseReturnController = require('../controllers/purchaseReturnController')
 const { authenticate, authorize } = require('../middleware/auth')
 const validate = require('../middleware/validate')
 
 const router = express.Router()
 
 router.use(authenticate)
+
+const purchaseReturnValidation = [
+  body('purchase_id').isUUID().withMessage('Valid purchase ID is required'),
+  body('reason').isString().trim().notEmpty().withMessage('Return reason is required'),
+  body('settlement_status').optional().isIn(['PENDING', 'COMPLETED', 'CREDITED']).withMessage('Invalid settlement status'),
+  body('settlement_method').optional().isIn(['CASH', 'MOBILE_MONEY', 'CARD', 'CREDIT']).withMessage('Invalid settlement method'),
+  body('items').isArray({ min: 1 }).withMessage('At least one item is required'),
+  body('items.*.purchase_item_id').isUUID().withMessage('Valid purchase item ID required'),
+  body('items.*.quantity').isFloat({ gt: 0 }).withMessage('Returned quantity must be > 0'),
+  body('notes').optional({ nullable: true }).isString().trim(),
+  body('idempotency_key').optional({ nullable: true }).isString().trim(),
+]
 
 const purchaseValidation = [
   body('supplier_id').isUUID().withMessage('Valid supplier ID is required'),
@@ -29,6 +42,11 @@ const purchaseValidation = [
   body('notes').optional({ nullable: true }).trim(),
 ]
 
+// Purchase Returns endpoints (must be before /:id)
+router.get('/returns', authorize(['ADMIN', 'MANAGER']), purchaseReturnController.list)
+router.get('/returns/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID(), validate, purchaseReturnController.get)
+router.post('/returns', authorize(['ADMIN', 'MANAGER']), purchaseReturnValidation, validate, purchaseReturnController.create)
+
 router.get(
   '/',
   authorize(['ADMIN', 'MANAGER']),
@@ -37,6 +55,7 @@ router.get(
   purchaseController.list
 )
 
+router.get('/:id/eligibility', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid purchase ID'), validate, purchaseReturnController.getEligibility)
 router.get('/:id', authorize(['ADMIN', 'MANAGER']), param('id').isUUID().withMessage('Invalid purchase ID'), validate, purchaseController.get)
 
 router.post(

@@ -23,6 +23,9 @@ const PIE_COLORS = ['#2563EB', '#16A34A', '#D97706', '#DC2626', '#7C3AED', '#089
 
 const TABS = [
   { id: 'summary', label: 'Sales Summary' },
+  { id: 'purchases-summary', label: 'Purchases Summary' },
+  { id: 'sales-returns', label: 'Sales Returns Report' },
+  { id: 'purchase-returns', label: 'Purchase Returns Report' },
   { id: 'daily', label: 'Daily Sales' },
   { id: 'top-products', label: 'Top Products' },
   { id: 'category', label: 'Category' },
@@ -48,11 +51,19 @@ function Spinner() {
   )
 }
 
-function KpiCard({ label, value, tooltip }) {
+function KpiCard({ label, value, tooltip, subtitle, highlight = false, danger = false }) {
   return (
-    <div className="bg-white border border-gray-100 rounded-xl p-5 shadow-sm" title={tooltip}>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="text-2xl font-bold text-gray-900 mt-1">{value}</p>
+    <div
+      className={`border rounded-xl p-5 shadow-xs ${
+        danger ? 'bg-danger-50/50 border-danger-200' : highlight ? 'bg-primary-50/50 border-primary-200' : 'bg-white border-gray-100'
+      }`}
+      title={tooltip}
+    >
+      <p className="text-xs uppercase tracking-wider font-semibold text-gray-500">{label}</p>
+      <p className={`text-2xl font-bold mt-1 ${danger ? 'text-danger-700' : highlight ? 'text-primary-700' : 'text-gray-900'}`}>
+        {value}
+      </p>
+      {subtitle && <p className="text-2xs text-gray-400 mt-1">{subtitle}</p>}
     </div>
   )
 }
@@ -70,12 +81,17 @@ function exportCsv(filename, headers, rows) {
 
 export default function ReportsPage() {
   const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
+  const fmt = (v) => formatCurrency(v, currencySymbol)
+
   const [activeTab, setActiveTab] = useState('summary')
   const [startDate, setStartDate] = useState(formatDate(-29))
   const [endDate, setEndDate] = useState(formatDate(0))
   const [loading, setLoading] = useState(false)
 
   const [summaryData, setSummaryData] = useState(null)
+  const [purchasesSummaryData, setPurchasesSummaryData] = useState(null)
+  const [salesReturnsData, setSalesReturnsData] = useState(null)
+  const [purchaseReturnsData, setPurchaseReturnsData] = useState(null)
   const [dailyData, setDailyData] = useState([])
   const [topData, setTopData] = useState([])
   const [catData, setCatData] = useState([])
@@ -92,6 +108,15 @@ export default function ReportsPage() {
         if (tab === 'summary') {
           const res = await reportsService.salesSummary(params)
           setSummaryData(res.data?.data ?? res.data)
+        } else if (tab === 'purchases-summary') {
+          const res = await reportsService.purchasesSummary(params)
+          setPurchasesSummaryData(res.data?.data ?? res.data)
+        } else if (tab === 'sales-returns') {
+          const res = await reportsService.salesReturns(params)
+          setSalesReturnsData(res.data?.data ?? res.data)
+        } else if (tab === 'purchase-returns') {
+          const res = await reportsService.purchaseReturns(params)
+          setPurchaseReturnsData(res.data?.data ?? res.data)
         } else if (tab === 'daily') {
           const res = await reportsService.salesByDay(params)
           setDailyData(res.data?.data ?? res.data ?? [])
@@ -139,14 +164,70 @@ export default function ReportsPage() {
       'sales-summary.csv',
       ['Metric', 'Value'],
       [
-        ['Total Revenue', summaryData.total_revenue ?? 0],
+        ['Gross Sales', summaryData.gross_sales ?? summaryData.total_revenue ?? 0],
+        ['Sales Returns', summaryData.sales_returns ?? 0],
+        ['Net Sales Revenue', summaryData.net_sales ?? summaryData.total_revenue ?? 0],
         ['Transaction Count', summaryData.transaction_count ?? 0],
+        ['Returns Count', summaryData.sales_return_count ?? 0],
         ['Average Sale', summaryData.average_sale ?? 0],
         ['Total Discount', summaryData.total_discount ?? 0],
         ['Total Tax', summaryData.total_tax ?? 0],
       ]
     )
   }
+
+  function exportPurchasesSummary() {
+    if (!purchasesSummaryData) return
+    exportCsv(
+      'purchases-summary.csv',
+      ['Metric', 'Value'],
+      [
+        ['Gross Purchases', purchasesSummaryData.gross_purchases ?? 0],
+        ['Purchase Returns', purchasesSummaryData.purchase_returns ?? 0],
+        ['Net Purchases Cost', purchasesSummaryData.net_purchases ?? 0],
+        ['Orders Count', purchasesSummaryData.order_count ?? 0],
+        ['Returns Count', purchasesSummaryData.return_count ?? 0],
+        ['Average Order', purchasesSummaryData.average_order ?? 0],
+      ]
+    )
+  }
+
+  function exportSalesReturns() {
+    if (!salesReturnsData?.returns) return
+    exportCsv(
+      'sales-returns.csv',
+      ['Return #', 'Date', 'Original Sale', 'Customer', 'Refund Amount', 'Refund Method', 'Reason', 'Handled By'],
+      salesReturnsData.returns.map((r) => [
+        `"${r.return_number}"`,
+        `"${new Date(r.return_date || r.created_at).toLocaleDateString()}"`,
+        `"${r.sale?.transaction_id || ''}"`,
+        `"${r.customer?.name || 'Walk-in'}"`,
+        r.total_refund_amount ?? 0,
+        `"${r.refund_method || 'CASH'}"`,
+        `"${r.reason || ''}"`,
+        `"${r.user?.full_name || ''}"`,
+      ])
+    )
+  }
+
+  function exportPurchaseReturns() {
+    if (!purchaseReturnsData?.returns) return
+    exportCsv(
+      'purchase-returns.csv',
+      ['Return #', 'Date', 'Original PO', 'Supplier', 'Total Amount', 'Status', 'Reason', 'Handled By'],
+      purchaseReturnsData.returns.map((r) => [
+        `"${r.return_number}"`,
+        `"${new Date(r.return_date || r.created_at).toLocaleDateString()}"`,
+        `"${r.purchase?.purchase_number || ''}"`,
+        `"${r.supplier?.name || ''}"`,
+        r.total_amount ?? 0,
+        `"${r.settlement_status || 'PENDING'}"`,
+        `"${r.reason || ''}"`,
+        `"${r.user?.full_name || ''}"`,
+      ])
+    )
+  }
+
   function exportDaily() {
     exportCsv('daily-sales.csv', ['Date', 'Revenue'], dailyData.map((d) => [d.label, d.value ?? 0]))
   }
@@ -186,8 +267,10 @@ export default function ReportsPage() {
       <div className="space-y-6">
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
-          <p className="text-sm text-gray-500 mt-1">Business analytics and performance insights</p>
+          <h1 className="text-2xl font-bold text-gray-900">Reports & Business Analytics</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Financial performance, net revenue accounting, customer & supplier returns, and profitability
+          </p>
         </div>
 
         {/* Date range */}
@@ -213,7 +296,7 @@ export default function ReportsPage() {
             />
           </div>
           <Button onClick={handleApply} isLoading={loading}>
-            Apply
+            Apply Filters
           </Button>
         </div>
 
@@ -238,7 +321,7 @@ export default function ReportsPage() {
 
         {/* Tab content */}
         <div>
-          {/* Sales Summary */}
+          {/* 1. Sales Summary */}
           {activeTab === 'summary' && (
             <div className="space-y-4">
               <div className="flex justify-end">
@@ -251,38 +334,253 @@ export default function ReportsPage() {
               ) : !summaryData ? (
                 <p className="text-center text-gray-400 py-10">No data available</p>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-4">
-                  <KpiCard
-                    label="Total Revenue"
-                    value={formatCompactCurrency(summaryData.total_revenue ?? 0)}
-                    tooltip={formatCurrency(summaryData.total_revenue ?? 0)}
-                  />
-                  <KpiCard
-                    label="Transactions"
-                    value={summaryData.transaction_count != null && summaryData.transaction_count >= 1000 ? formatCompactNumber(summaryData.transaction_count) : (summaryData.transaction_count ?? 0)}
-                    tooltip={String(summaryData.transaction_count ?? 0)}
-                  />
-                  <KpiCard
-                    label="Average Sale"
-                    value={formatCompactCurrency(summaryData.average_sale ?? 0)}
-                    tooltip={formatCurrency(summaryData.average_sale ?? 0)}
-                  />
-                  <KpiCard
-                    label="Total Discount"
-                    value={formatCompactCurrency(summaryData.total_discount ?? 0)}
-                    tooltip={formatCurrency(summaryData.total_discount ?? 0)}
-                  />
-                  <KpiCard
-                    label="Total Tax"
-                    value={formatCompactCurrency(summaryData.total_tax ?? 0)}
-                    tooltip={formatCurrency(summaryData.total_tax ?? 0)}
-                  />
+                <div className="space-y-4">
+                  {/* Top Net Sales Breakdown */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <KpiCard
+                      label="Gross Sales"
+                      value={fmt(summaryData.gross_sales ?? summaryData.total_revenue ?? 0)}
+                      tooltip={fmt(summaryData.gross_sales ?? summaryData.total_revenue ?? 0)}
+                      subtitle="Total transaction billing volume"
+                    />
+                    <KpiCard
+                      label="Sales Returns (Refunds)"
+                      value={fmt(summaryData.sales_returns ?? 0)}
+                      tooltip={fmt(summaryData.sales_returns ?? 0)}
+                      subtitle={`${summaryData.sales_return_count ?? 0} returns processed`}
+                      danger
+                    />
+                    <KpiCard
+                      label="Net Sales Revenue"
+                      value={fmt(summaryData.net_sales ?? summaryData.total_revenue ?? 0)}
+                      tooltip={fmt(summaryData.net_sales ?? summaryData.total_revenue ?? 0)}
+                      subtitle="Gross Sales minus Customer Returns"
+                      highlight
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                    <KpiCard
+                      label="Transactions"
+                      value={
+                        summaryData.transaction_count != null && summaryData.transaction_count >= 1000
+                          ? formatCompactNumber(summaryData.transaction_count)
+                          : summaryData.transaction_count ?? 0
+                      }
+                      tooltip={String(summaryData.transaction_count ?? 0)}
+                    />
+                    <KpiCard
+                      label="Average Sale"
+                      value={formatCompactCurrency(summaryData.average_sale ?? 0)}
+                      tooltip={fmt(summaryData.average_sale ?? 0)}
+                    />
+                    <KpiCard
+                      label="Total Discount"
+                      value={formatCompactCurrency(summaryData.total_discount ?? 0)}
+                      tooltip={fmt(summaryData.total_discount ?? 0)}
+                    />
+                    <KpiCard
+                      label="Total Tax"
+                      value={formatCompactCurrency(summaryData.total_tax ?? 0)}
+                      tooltip={fmt(summaryData.total_tax ?? 0)}
+                    />
+                  </div>
                 </div>
               )}
             </div>
           )}
 
-          {/* Daily Sales */}
+          {/* 2. Purchases Summary */}
+          {activeTab === 'purchases-summary' && (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="secondary" size="sm" onClick={exportPurchasesSummary}>
+                  Export CSV
+                </Button>
+              </div>
+              {loading ? (
+                <Spinner />
+              ) : !purchasesSummaryData ? (
+                <p className="text-center text-gray-400 py-10">No purchases data available</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <KpiCard
+                      label="Gross Purchases"
+                      value={fmt(purchasesSummaryData.gross_purchases ?? 0)}
+                      tooltip={fmt(purchasesSummaryData.gross_purchases ?? 0)}
+                      subtitle="Total PO invoice volume"
+                    />
+                    <KpiCard
+                      label="Purchase Returns (Defects)"
+                      value={fmt(purchasesSummaryData.purchase_returns ?? 0)}
+                      tooltip={fmt(purchasesSummaryData.purchase_returns ?? 0)}
+                      subtitle={`${purchasesSummaryData.return_count ?? 0} supplier returns`}
+                      danger
+                    />
+                    <KpiCard
+                      label="Net Purchases Cost"
+                      value={fmt(purchasesSummaryData.net_purchases ?? 0)}
+                      tooltip={fmt(purchasesSummaryData.net_purchases ?? 0)}
+                      subtitle="Gross Purchases minus Supplier Returns"
+                      highlight
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <KpiCard
+                      label="Total Purchase Orders"
+                      value={purchasesSummaryData.order_count ?? 0}
+                      tooltip={String(purchasesSummaryData.order_count ?? 0)}
+                    />
+                    <KpiCard
+                      label="Average Purchase Order"
+                      value={fmt(purchasesSummaryData.average_order ?? 0)}
+                      tooltip={fmt(purchasesSummaryData.average_order ?? 0)}
+                    />
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 3. Sales Returns Report */}
+          {activeTab === 'sales-returns' && (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="secondary" size="sm" onClick={exportSalesReturns}>
+                  Export CSV
+                </Button>
+              </div>
+              {loading ? (
+                <Spinner />
+              ) : !salesReturnsData ? (
+                <p className="text-center text-gray-400 py-10">No sales returns data available</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <KpiCard
+                      label="Total Customer Refunds in Period"
+                      value={fmt(salesReturnsData.total_refunded ?? 0)}
+                      danger
+                    />
+                    <KpiCard
+                      label="Total Returns Count"
+                      value={salesReturnsData.count ?? 0}
+                    />
+                  </div>
+
+                  <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200 text-xs">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Return #</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Original Sale</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Customer</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Reason</th>
+                          <th className="px-4 py-3 text-right font-medium text-gray-600">Refund Amount</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {(salesReturnsData.returns || []).map((r) => (
+                          <tr key={r.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-mono font-semibold text-primary-600">{r.return_number}</td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {new Date(r.return_date || r.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-gray-700">{r.sale?.transaction_id || '—'}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{r.customer?.name || 'Walk-in'}</td>
+                            <td className="px-4 py-3 text-gray-600 italic">{r.reason || '—'}</td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-danger-700">
+                              {fmt(r.total_refund_amount)}
+                            </td>
+                          </tr>
+                        ))}
+                        {(!salesReturnsData.returns || salesReturnsData.returns.length === 0) && (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                              No customer sales returns recorded in this date range.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 4. Purchase Returns Report */}
+          {activeTab === 'purchase-returns' && (
+            <div className="space-y-4">
+              <div className="flex justify-end">
+                <Button variant="secondary" size="sm" onClick={exportPurchaseReturns}>
+                  Export CSV
+                </Button>
+              </div>
+              {loading ? (
+                <Spinner />
+              ) : !purchaseReturnsData ? (
+                <p className="text-center text-gray-400 py-10">No purchase returns data available</p>
+              ) : (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <KpiCard
+                      label="Total Supplier Returns in Period"
+                      value={fmt(purchaseReturnsData.total_returned ?? 0)}
+                      danger
+                    />
+                    <KpiCard
+                      label="Total Defect Dispatches Count"
+                      value={purchaseReturnsData.count ?? 0}
+                    />
+                  </div>
+
+                  <div className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
+                    <table className="min-w-full divide-y divide-gray-200 text-xs">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Return #</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Date</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Original PO</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Supplier</th>
+                          <th className="px-4 py-3 text-left font-medium text-gray-600">Reason</th>
+                          <th className="px-4 py-3 text-right font-medium text-gray-600">Return Value</th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-100">
+                        {(purchaseReturnsData.returns || []).map((r) => (
+                          <tr key={r.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3 font-mono font-semibold text-primary-600">{r.return_number}</td>
+                            <td className="px-4 py-3 text-gray-600">
+                              {new Date(r.return_date || r.created_at).toLocaleDateString()}
+                            </td>
+                            <td className="px-4 py-3 font-mono text-gray-700">{r.purchase?.purchase_number || '—'}</td>
+                            <td className="px-4 py-3 font-medium text-gray-900">{r.supplier?.name || '—'}</td>
+                            <td className="px-4 py-3 text-gray-600 italic">{r.reason || '—'}</td>
+                            <td className="px-4 py-3 text-right font-mono font-bold text-danger-700">
+                              {fmt(r.total_amount)}
+                            </td>
+                          </tr>
+                        ))}
+                        {(!purchaseReturnsData.returns || purchaseReturnsData.returns.length === 0) && (
+                          <tr>
+                            <td colSpan={6} className="px-4 py-8 text-center text-gray-400">
+                              No vendor purchase returns recorded in this date range.
+                            </td>
+                          </tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 5. Daily Sales */}
           {activeTab === 'daily' && (
             <div className="space-y-4">
               <div className="flex justify-end">
@@ -311,7 +609,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {/* Top Products */}
+          {/* 6. Top Products */}
           {activeTab === 'top-products' && (
             <div className="space-y-4">
               <div className="flex justify-end">
@@ -351,7 +649,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {/* Category */}
+          {/* 7. Category */}
           {activeTab === 'category' && (
             <div className="space-y-4">
               <div className="flex justify-end">
@@ -404,7 +702,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {/* Cashier Performance */}
+          {/* 8. Cashier Performance */}
           {activeTab === 'cashier' && (
             <div className="space-y-4">
               <div className="flex justify-end">
@@ -443,7 +741,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {/* Profit */}
+          {/* 9. Profit */}
           {activeTab === 'profit' && (
             <div className="space-y-4">
               <div className="flex justify-end">
@@ -501,7 +799,7 @@ export default function ReportsPage() {
             </div>
           )}
 
-          {/* Financial Statement Tab */}
+          {/* 10. Financial Statement Tab */}
           {activeTab === 'financial-statement' && (
             <div className="space-y-6">
               {loading ? (

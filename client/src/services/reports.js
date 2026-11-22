@@ -2,6 +2,9 @@ import api from './api'
 
 export const reportsService = {
   salesSummary: (params) => api.get('/reports/sales-summary', { params }),
+  purchasesSummary: (params) => api.get('/reports/purchases-summary', { params }),
+  salesReturns: (params) => api.get('/reports/sales-returns', { params }),
+  purchaseReturns: (params) => api.get('/reports/purchase-returns', { params }),
   salesByDay: (params) => api.get('/reports/sales-by-day', { params }),
   topProducts: (params) => api.get('/reports/top-products', { params }),
   categoryPerformance: (params) => api.get('/reports/category-performance', { params }),

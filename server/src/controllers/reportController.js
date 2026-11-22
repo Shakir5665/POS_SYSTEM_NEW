@@ -79,6 +79,36 @@ async function getFinancialStatement(req, res, next) {
   }
 }
 
+async function getPurchasesSummary(req, res, next) {
+  try {
+    const { start_date, end_date, warehouse_id, is_legacy_import } = req.query
+    const data = await reportService.getPurchasesSummary({ start_date, end_date, warehouse_id, is_legacy_import })
+    res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function getSalesReturnsReport(req, res, next) {
+  try {
+    const { start_date, end_date, warehouse_id, is_legacy_import } = req.query
+    const data = await reportService.getSalesReturnsReport({ start_date, end_date, warehouse_id, is_legacy_import })
+    res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function getPurchaseReturnsReport(req, res, next) {
+  try {
+    const { start_date, end_date, warehouse_id, is_legacy_import } = req.query
+    const data = await reportService.getPurchaseReturnsReport({ start_date, end_date, warehouse_id, is_legacy_import })
+    res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+}
+
 async function getDashboardSummary(req, res, next) {
   try {
     const { warehouse_id } = req.query
@@ -91,6 +121,9 @@ async function getDashboardSummary(req, res, next) {
 
 module.exports = {
   getSalesSummary,
+  getPurchasesSummary,
+  getSalesReturnsReport,
+  getPurchaseReturnsReport,
   getSalesByDay,
   getTopProducts,
   getCategoryPerformance,

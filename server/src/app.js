@@ -22,6 +22,7 @@ const supplierRoutes = require('./routes/suppliers')
 const purchaseRoutes = require('./routes/purchases')
 const financeRoutes = require('./routes/finance')
 const warehouseRoutes = require('./routes/warehouses')
+const migrationRoutes = require('./routes/migration')
 
 const app = express()
 
@@ -78,6 +79,7 @@ app.use('/api/suppliers', supplierRoutes)
 app.use('/api/purchases', purchaseRoutes)
 app.use('/api/finance', financeRoutes)
 app.use('/api/warehouses', warehouseRoutes)
+app.use('/api/migration', migrationRoutes)
 
 // Serve frontend SPA in production when client/dist exists
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist')

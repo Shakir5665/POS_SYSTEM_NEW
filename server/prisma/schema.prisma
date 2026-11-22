@@ -80,6 +80,8 @@ model User {
   expenses           Expense[]
   owner_transactions OwnerTransaction[]
   stock_adjustments  StockAdjustment[]
+  sales_returns      SalesReturn[]
+  purchase_returns   PurchaseReturn[]
 }
 
 model Category {
@@ -118,6 +120,8 @@ model Product {
   inventory_logs         InventoryLog[]
   purchase_items         PurchaseItem[]
   stock_adjustment_items StockAdjustmentItem[]
+  sales_return_items     SalesReturnItem[]
+  purchase_return_items  PurchaseReturnItem[]
 
   @@index([barcode])
   @@index([sku])
@@ -135,6 +139,7 @@ model Customer {
 
   sales             Sale[]
   customer_payments CustomerPayment[]
+  sales_returns     SalesReturn[]
 
   @@index([phone])
 }
@@ -171,6 +176,7 @@ model Sale {
   payments                     Payment[]
   paystack_payment             PaystackPayment?
   customer_payment_allocations CustomerPaymentAllocation[]
+  sales_returns                SalesReturn[]
 
   @@index([transaction_id])
   @@index([created_at])
@@ -204,8 +210,9 @@ model SaleItem {
   created_at                  DateTime @default(now())
   updated_at                  DateTime @updatedAt
 
-  sale    Sale    @relation(fields: [sale_id], references: [id], onDelete: Cascade)
-  product Product @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  sale               Sale              @relation(fields: [sale_id], references: [id], onDelete: Cascade)
+  product            Product           @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  sales_return_items SalesReturnItem[]
 }
 
 model Payment {
@@ -263,12 +270,16 @@ model InventoryLog {
   previous_quantity Decimal             @db.Decimal(14, 3)
   new_quantity      Decimal             @db.Decimal(14, 3)
   user_id           String
+  warehouse_id      String?
   notes             String?
   created_at        DateTime            @default(now())
   updated_at        DateTime            @updatedAt
 
-  product Product @relation(fields: [product_id], references: [id], onDelete: Restrict)
-  user    User    @relation(fields: [user_id], references: [id])
+  product   Product    @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  user      User       @relation(fields: [user_id], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouse_id], references: [id])
+
+  @@index([warehouse_id])
 }
 
 model AuthLog {
@@ -326,6 +337,7 @@ model Supplier {
 
   purchases         Purchase[]
   supplier_payments SupplierPayment[]
+  purchase_returns  PurchaseReturn[]
 
   @@index([name])
   @@index([phone])
@@ -353,9 +365,10 @@ model Purchase {
 
   supplier    Supplier                    @relation(fields: [supplier_id], references: [id], onDelete: Restrict)
   user        User                        @relation(fields: [user_id], references: [id])
-  warehouse   Warehouse?                  @relation(fields: [warehouse_id], references: [id])
-  items       PurchaseItem[]
-  allocations SupplierPaymentAllocation[]
+  warehouse        Warehouse?                  @relation(fields: [warehouse_id], references: [id])
+  items            PurchaseItem[]
+  allocations      SupplierPaymentAllocation[]
+  purchase_returns PurchaseReturn[]
 
   @@index([purchase_number])
   @@index([supplier_id])
@@ -377,8 +390,9 @@ model PurchaseItem {
   total_cost    Decimal  @db.Decimal(10, 2)
   created_at    DateTime @default(now())
 
-  purchase Purchase @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
-  product  Product  @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  purchase               Purchase             @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
+  product                Product              @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  purchase_return_items  PurchaseReturnItem[]
 
   @@index([purchase_id])
   @@index([product_id])
@@ -568,6 +582,9 @@ model Warehouse {
   sales             Sale[]
   purchases         Purchase[]
   stock_adjustments StockAdjustment[]
+  inventory_logs    InventoryLog[]
+  sales_returns     SalesReturn[]
+  purchase_returns  PurchaseReturn[]
 
   @@index([is_default])
 }
@@ -606,5 +623,113 @@ model StockAdjustmentItem {
   product    Product?        @relation(fields: [product_id], references: [id], onDelete: Restrict)
 
   @@index([adjustment_id])
+  @@index([product_id])
+}
+
+model SalesReturn {
+  id               String        @id @default(uuid())
+  return_number    String        @unique
+  sale_id          String
+  customer_id      String?
+  user_id          String
+  warehouse_id     String?
+  return_date      DateTime      @default(now())
+  reason           String
+  refund_status    String        @default("COMPLETED") // COMPLETED, PENDING, FAILED
+  refund_method    PaymentMethod @default(CASH)
+  refund_amount    Decimal       @db.Decimal(10, 2)
+  notes            String?
+  idempotency_key  String?       @unique
+  is_legacy_import Boolean       @default(false)
+  created_at       DateTime      @default(now())
+  updated_at       DateTime      @updatedAt
+
+  sale      Sale              @relation(fields: [sale_id], references: [id], onDelete: Restrict)
+  customer  Customer?         @relation(fields: [customer_id], references: [id], onDelete: SetNull)
+  user      User              @relation(fields: [user_id], references: [id])
+  warehouse Warehouse?        @relation(fields: [warehouse_id], references: [id])
+  items     SalesReturnItem[]
+
+  @@index([sale_id])
+  @@index([customer_id])
+  @@index([return_date])
+  @@index([warehouse_id])
+}
+
+model SalesReturnItem {
+  id              String   @id @default(uuid())
+  sales_return_id String
+  sale_item_id    String
+  product_id      String
+  product_name    String   @default("")
+  product_sku     String   @default("")
+  unit            String   @default("pcs")
+  quantity        Decimal  @db.Decimal(10, 3)
+  base_quantity   Decimal  @default(1) @db.Decimal(14, 3)
+  unit_price      Decimal  @db.Decimal(10, 2)
+  refund_subtotal Decimal  @db.Decimal(10, 2)
+  restock         Boolean  @default(true)
+  disposition     String   @default("RESTOCKED") // RESTOCKED, DAMAGED, DISCARDED
+  created_at      DateTime @default(now())
+
+  sales_return SalesReturn @relation(fields: [sales_return_id], references: [id], onDelete: Cascade)
+  sale_item    SaleItem    @relation(fields: [sale_item_id], references: [id], onDelete: Restrict)
+  product      Product     @relation(fields: [product_id], references: [id], onDelete: Restrict)
+
+  @@index([sales_return_id])
+  @@index([sale_item_id])
+  @@index([product_id])
+}
+
+model PurchaseReturn {
+  id                String        @id @default(uuid())
+  return_number     String        @unique
+  purchase_id       String
+  supplier_id       String
+  user_id           String
+  warehouse_id      String?
+  return_date       DateTime      @default(now())
+  reason            String
+  settlement_status String        @default("PENDING") // PENDING, COMPLETED, CREDITED
+  settlement_method PaymentMethod @default(CASH)
+  total_amount      Decimal       @db.Decimal(10, 2)
+  notes             String?
+  idempotency_key   String?       @unique
+  is_legacy_import  Boolean       @default(false)
+  created_at        DateTime      @default(now())
+  updated_at        DateTime      @updatedAt
+
+  purchase  Purchase             @relation(fields: [purchase_id], references: [id], onDelete: Restrict)
+  supplier  Supplier             @relation(fields: [supplier_id], references: [id], onDelete: Restrict)
+  user      User                 @relation(fields: [user_id], references: [id])
+  warehouse Warehouse?           @relation(fields: [warehouse_id], references: [id])
+  items     PurchaseReturnItem[]
+
+  @@index([purchase_id])
+  @@index([supplier_id])
+  @@index([return_date])
+  @@index([warehouse_id])
+}
+
+model PurchaseReturnItem {
+  id                 String   @id @default(uuid())
+  purchase_return_id String
+  purchase_item_id   String
+  product_id         String
+  product_name       String   @default("")
+  product_sku        String   @default("")
+  unit               String   @default("pcs")
+  quantity           Decimal  @db.Decimal(10, 3)
+  base_quantity      Decimal  @default(1) @db.Decimal(14, 3)
+  unit_cost          Decimal  @db.Decimal(10, 2)
+  total_cost         Decimal  @db.Decimal(10, 2)
+  created_at         DateTime @default(now())
+
+  purchase_return PurchaseReturn @relation(fields: [purchase_return_id], references: [id], onDelete: Cascade)
+  purchase_item   PurchaseItem   @relation(fields: [purchase_item_id], references: [id], onDelete: Restrict)
+  product         Product        @relation(fields: [product_id], references: [id], onDelete: Restrict)
+
+  @@index([purchase_return_id])
+  @@index([purchase_item_id])
   @@index([product_id])
 }

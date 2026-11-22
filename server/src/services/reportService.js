@@ -32,20 +32,204 @@ async function getSalesSummary({ start_date, end_date, warehouse_id, is_legacy_i
     where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
   }
 
-  const result = await prisma.sale.aggregate({
-    where,
-    _sum: { total_amount: true, amount_paid: true, balance_due: true, discount_amount: true, tax_amount: true },
-    _count: { id: true },
-    _avg: { total_amount: true },
-  })
+  const returnsWhere = {
+    return_date: range,
+    refund_status: 'COMPLETED',
+  }
+  if (warehouse_id) returnsWhere.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    returnsWhere.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const [result, returnsAgg] = await Promise.all([
+    prisma.sale.aggregate({
+      where,
+      _sum: { total_amount: true, amount_paid: true, balance_due: true, discount_amount: true, tax_amount: true },
+      _count: { id: true },
+      _avg: { total_amount: true },
+    }),
+    prisma.salesReturn.aggregate({
+      where: returnsWhere,
+      _sum: { refund_amount: true },
+      _count: { id: true },
+    }),
+  ])
+
+  const grossSales = parseFloat(result._sum.total_amount || 0)
+  const salesReturns = parseFloat(returnsAgg._sum.refund_amount || 0)
+  const netSales = parseFloat((grossSales - salesReturns).toFixed(2))
+
   return {
-    total_revenue: parseFloat(result._sum.total_amount || 0),
+    gross_sales: grossSales,
+    sales_returns: salesReturns,
+    sales_return_count: returnsAgg._count.id,
+    net_sales: netSales,
+    total_revenue: grossSales,
     total_collected: parseFloat(result._sum.amount_paid || 0),
     total_credit: parseFloat(result._sum.balance_due || 0),
     transaction_count: result._count.id,
     average_sale: parseFloat(result._avg.total_amount || 0),
     total_discount: parseFloat(result._sum.discount_amount || 0),
     total_tax: parseFloat(result._sum.tax_amount || 0),
+  }
+}
+
+async function getPurchasesSummary({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
+  const range = dateRange(start_date, end_date)
+  const where = {
+    status: { not: 'CANCELLED' },
+    OR: [
+      { purchase_date: range },
+      { purchase_date: null, created_at: range },
+    ],
+  }
+  if (warehouse_id) where.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const returnsWhere = {
+    return_date: range,
+  }
+  if (warehouse_id) returnsWhere.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    returnsWhere.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const [result, returnsAgg] = await Promise.all([
+    prisma.purchase.aggregate({
+      where,
+      _sum: { total_amount: true, amount_paid: true, balance_due: true },
+      _count: { id: true },
+    }),
+    prisma.purchaseReturn.aggregate({
+      where: returnsWhere,
+      _sum: { total_amount: true },
+      _count: { id: true },
+    }),
+  ])
+
+  const grossPurchases = parseFloat(result._sum.total_amount || 0)
+  const purchaseReturns = parseFloat(returnsAgg._sum.total_amount || 0)
+  const netPurchases = parseFloat((grossPurchases - purchaseReturns).toFixed(2))
+
+  return {
+    gross_purchases: grossPurchases,
+    total_paid: parseFloat(result._sum.amount_paid || 0),
+    total_due: parseFloat(result._sum.balance_due || 0),
+    purchase_returns: purchaseReturns,
+    purchase_return_count: returnsAgg._count.id,
+    net_purchases: netPurchases,
+    purchase_count: result._count.id,
+  }
+}
+
+async function getSalesReturnsReport({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
+  const range = dateRange(start_date, end_date)
+  const where = {
+    return_date: range,
+    refund_status: 'COMPLETED',
+  }
+  if (warehouse_id) where.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const returns = await prisma.salesReturn.findMany({
+    where,
+    include: {
+      items: true,
+      warehouse: { select: { id: true, code: true, name: true } },
+    },
+    orderBy: { return_date: 'asc' },
+  })
+
+  let totalRefundAmount = 0
+  let totalItemsReturned = 0
+  const byReason = {}
+  const byRefundMethod = {}
+  const byDay = {}
+
+  for (const r of returns) {
+    const amt = parseFloat(r.refund_amount)
+    totalRefundAmount += amt
+    const reasonKey = r.reason || 'Unspecified'
+    byReason[reasonKey] = (byReason[reasonKey] || 0) + amt
+
+    const methodKey = r.refund_method || 'CASH'
+    byRefundMethod[methodKey] = (byRefundMethod[methodKey] || 0) + amt
+
+    const dateKey = r.return_date.toISOString().split('T')[0]
+    byDay[dateKey] = (byDay[dateKey] || 0) + amt
+
+    for (const item of r.items) {
+      totalItemsReturned += parseFloat(item.quantity)
+    }
+  }
+
+  return {
+    total_refund_amount: parseFloat(totalRefundAmount.toFixed(2)),
+    total_returns_count: returns.length,
+    total_items_returned: parseFloat(totalItemsReturned.toFixed(3)),
+    by_reason: Object.entries(byReason).map(([reason, amount]) => ({ reason, amount: parseFloat(amount.toFixed(2)) })),
+    by_refund_method: Object.entries(byRefundMethod).map(([method, amount]) => ({ method, amount: parseFloat(amount.toFixed(2)) })),
+    by_day: Object.entries(byDay).map(([label, value]) => ({ label, value: parseFloat(value.toFixed(2)) })),
+  }
+}
+
+async function getPurchaseReturnsReport({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
+  await ensureWarehouseExists(warehouse_id)
+  const range = dateRange(start_date, end_date)
+  const where = {
+    return_date: range,
+  }
+  if (warehouse_id) where.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const returns = await prisma.purchaseReturn.findMany({
+    where,
+    include: {
+      items: true,
+      warehouse: { select: { id: true, code: true, name: true } },
+      supplier: { select: { id: true, name: true } },
+    },
+    orderBy: { return_date: 'asc' },
+  })
+
+  let totalReturnAmount = 0
+  let totalItemsReturned = 0
+  const byReason = {}
+  const bySettlementStatus = {}
+  const byDay = {}
+
+  for (const r of returns) {
+    const amt = parseFloat(r.total_amount)
+    totalReturnAmount += amt
+    const reasonKey = r.reason || 'Unspecified'
+    byReason[reasonKey] = (byReason[reasonKey] || 0) + amt
+
+    const statusKey = r.settlement_status || 'PENDING'
+    bySettlementStatus[statusKey] = (bySettlementStatus[statusKey] || 0) + amt
+
+    const dateKey = r.return_date.toISOString().split('T')[0]
+    byDay[dateKey] = (byDay[dateKey] || 0) + amt
+
+    for (const item of r.items) {
+      totalItemsReturned += parseFloat(item.quantity)
+    }
+  }
+
+  return {
+    total_return_amount: parseFloat(totalReturnAmount.toFixed(2)),
+    total_returns_count: returns.length,
+    total_items_returned: parseFloat(totalItemsReturned.toFixed(3)),
+    by_reason: Object.entries(byReason).map(([reason, amount]) => ({ reason, amount: parseFloat(amount.toFixed(2)) })),
+    by_settlement_status: Object.entries(bySettlementStatus).map(([status, amount]) => ({ status, amount: parseFloat(amount.toFixed(2)) })),
+    by_day: Object.entries(byDay).map(([label, value]) => ({ label, value: parseFloat(value.toFixed(2)) })),
   }
 }
 
@@ -303,7 +487,24 @@ async function getFinancialStatement({ start_date, end_date, warehouse_id, is_le
   const supplierDebtWhere = { status: { not: 'CANCELLED' }, balance_due: { gt: 0 } }
   if (warehouse_id) supplierDebtWhere.warehouse_id = warehouse_id
 
-  const [salesAgg, itemsAgg, expensesAgg, customerDebtAgg, supplierDebtAgg, expensesByCategory] = await Promise.all([
+  const salesReturnsWhere = {
+    return_date: range,
+    refund_status: 'COMPLETED',
+  }
+  if (warehouse_id) salesReturnsWhere.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    salesReturnsWhere.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const purchaseReturnsWhere = {
+    return_date: range,
+  }
+  if (warehouse_id) purchaseReturnsWhere.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    purchaseReturnsWhere.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
+
+  const [salesAgg, itemsAgg, expensesAgg, customerDebtAgg, supplierDebtAgg, expensesByCategory, salesReturnsAgg, purchaseReturnsAgg] = await Promise.all([
     prisma.sale.aggregate({
       where: salesWhere,
       _sum: { total_amount: true, amount_paid: true, balance_due: true },
@@ -342,13 +543,27 @@ async function getFinancialStatement({ start_date, end_date, warehouse_id, is_le
       GROUP BY c.name
       ORDER BY total DESC
     `,
+    prisma.salesReturn.aggregate({
+      where: salesReturnsWhere,
+      _sum: { refund_amount: true },
+      _count: { id: true },
+    }),
+    prisma.purchaseReturn.aggregate({
+      where: purchaseReturnsWhere,
+      _sum: { total_amount: true },
+      _count: { id: true },
+    }),
   ])
 
   const gross_sales = parseFloat(salesAgg._sum.total_amount || 0)
+  const sales_returns = parseFloat(salesReturnsAgg._sum.refund_amount || 0)
+  const net_sales = parseFloat((gross_sales - sales_returns).toFixed(2))
+  const purchase_returns = parseFloat(purchaseReturnsAgg._sum.total_amount || 0)
   const cash_collected = parseFloat(salesAgg._sum.amount_paid || 0)
   const credit_sales = parseFloat(salesAgg._sum.balance_due || 0)
   const cogs = parseFloat(itemsAgg[0]?.cogs || 0)
   const gross_profit = parseFloat((gross_sales - cogs).toFixed(2))
+  const net_gross_profit = parseFloat((net_sales - cogs).toFixed(2))
   const operating_expenses = parseFloat(expensesAgg._sum.amount || 0)
   const net_profit = parseFloat((gross_profit - operating_expenses).toFixed(2))
   const net_profit_margin = gross_sales > 0 ? parseFloat(((net_profit / gross_sales) * 100).toFixed(2)) : 0
@@ -356,11 +571,15 @@ async function getFinancialStatement({ start_date, end_date, warehouse_id, is_le
 
   return {
     gross_sales,
+    sales_returns,
+    net_sales,
+    purchase_returns,
     cash_collected,
     credit_sales,
     cogs,
     gross_profit,
     gross_profit_margin,
+    net_gross_profit,
     operating_expenses,
     net_profit,
     net_profit_margin,
@@ -439,6 +658,9 @@ async function getDashboardSummary({ warehouse_id } = {}) {
 
 module.exports = {
   getSalesSummary,
+  getPurchasesSummary,
+  getSalesReturnsReport,
+  getPurchaseReturnsReport,
   getSalesByDay,
   getTopProducts,
   getCategoryPerformance,
