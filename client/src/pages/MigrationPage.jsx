@@ -105,8 +105,17 @@ export default function MigrationPage() {
       return
     }
 
+    const MAX_FILE_SIZE = 100 * 1024 * 1024 // 100MB
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`File size exceeds the 100MB limit (${(file.size / (1024 * 1024)).toFixed(1)} MB).`)
+      return
+    }
+
     setSelectedFile(file)
-    setFileSizeStr((file.size / 1024).toFixed(1) + ' KB')
+    const sizeDisplay = file.size >= 1024 * 1024
+      ? `${(file.size / (1024 * 1024)).toFixed(2)} MB`
+      : `${(file.size / 1024).toFixed(1)} KB`
+    setFileSizeStr(sizeDisplay)
     setInspectedFile(null)
     setValidationReport(null)
     setActiveJob(null)
@@ -480,7 +489,7 @@ export default function MigrationPage() {
                     <p className="text-sm font-medium text-gray-700">
                       Drag and drop your Excel workbook here, or <span className="text-primary-600 underline">browse</span>
                     </p>
-                    <p className="text-xs text-gray-400">Supports .xlsx up to 30MB</p>
+                    <p className="text-xs text-gray-400">Supports .xlsx up to 100MB</p>
                   </div>
                 </div>
               ) : (

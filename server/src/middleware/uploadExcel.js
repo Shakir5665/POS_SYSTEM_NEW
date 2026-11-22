@@ -34,7 +34,7 @@ const uploadExcel = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 30 * 1024 * 1024, // 30 MB limit
+    fileSize: 100 * 1024 * 1024, // 100 MB limit
   },
 });
 

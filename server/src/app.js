@@ -38,16 +38,26 @@ app.use(
 )
 
 // Request parsing. JSON bodies are small (product images are multipart, via
-// multer), so keep the limit low. Only the Paystack webhook needs the exact
-// raw body, to check its signature.
+// multer), so keep the default limit low. Migration routes support large JSON payloads
+// (up to 150mb) for validating and importing workbooks with large datasets.
 const PAYSTACK_WEBHOOK_PATH = '/api/payments/paystack/webhook'
-app.use(express.json({
+const defaultJsonParser = express.json({
   limit: '100kb',
   verify: (req, _res, buf) => {
     if (req.originalUrl.split('?')[0] === PAYSTACK_WEBHOOK_PATH) req.rawBody = buf.toString()
   },
-}))
-app.use(express.urlencoded({ extended: true }))
+})
+const migrationJsonParser = express.json({
+  limit: '150mb',
+})
+
+app.use((req, res, next) => {
+  if (req.originalUrl.startsWith('/api/migration')) {
+    return migrationJsonParser(req, res, next)
+  }
+  return defaultJsonParser(req, res, next)
+})
+app.use(express.urlencoded({ extended: true, limit: '150mb' }))
 app.use(cookieParser())
 
 // HTTP request logging

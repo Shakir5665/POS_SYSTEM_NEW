@@ -23,6 +23,26 @@ function errorHandler(err, req, res, next) {
     })
   }
 
+  // Multer upload errors (e.g. file over 100MB)
+  if (err.name === 'MulterError') {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(413).json({
+        success: false,
+        error: {
+          code: 'FILE_TOO_LARGE',
+          message: 'Excel file size exceeds the maximum limit of 100MB',
+        },
+      })
+    }
+    return res.status(400).json({
+      success: false,
+      error: {
+        code: 'UPLOAD_ERROR',
+        message: err.message,
+      },
+    })
+  }
+
   // Handle Prisma errors
   if (err.code === 'P2002') {
     return res.status(409).json({
