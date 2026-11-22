@@ -170,20 +170,25 @@ export default function SalesPage() {
       const res = await returnsService.getSaleEligibility(sale.id)
       const data = res.data?.data
       setEligibilityData(data)
-      const items = (data?.items || []).map((it) => ({
-        sale_item_id: it.sale_item_id,
-        product_id: it.product_id,
-        product_name: it.product_name,
-        sku: it.product_sku,
-        quantity_sold: it.quantity_sold,
-        returned_quantity: it.returned_quantity,
-        remaining_quantity: it.remaining_quantity,
-        unit_price: Number(it.unit_price || 0),
-        discount_amount: Number(it.discount_amount || 0),
-        effective_price: Number(it.unit_price || 0),
-        return_qty: 0,
-        restock: true,
-      }))
+      const items = (data?.items || []).map((it) => {
+        const sold = parseFloat(it.quantity_sold ?? it.sold_quantity ?? 0)
+        const returned = parseFloat(it.returned_quantity ?? it.already_returned ?? 0)
+        const remaining = parseFloat(it.remaining_quantity ?? it.remaining_eligible ?? (sold - returned))
+        return {
+          sale_item_id: it.sale_item_id,
+          product_id: it.product_id,
+          product_name: it.product_name,
+          sku: it.product_sku,
+          quantity_sold: sold,
+          returned_quantity: returned,
+          remaining_quantity: remaining,
+          unit_price: Number(it.unit_price || 0),
+          discount_amount: Number(it.discount_amount || 0),
+          effective_price: Number(it.net_unit_price ?? it.unit_price ?? 0),
+          return_qty: 0,
+          restock: true,
+        }
+      })
       setReturnItemsState(items)
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Failed to check return eligibility')
@@ -382,9 +387,12 @@ export default function SalesPage() {
       render: (v) => <span className="text-xs text-gray-700">{v?.name || 'Main Warehouse'}</span>,
     },
     {
-      key: 'total_refund_amount',
+      key: 'refund_amount',
       label: 'Refund Amount',
-      render: (v) => <span className="font-bold text-danger-600 font-mono">{fmt(v)}</span>,
+      render: (_, row) => {
+        const amt = row.refund_amount ?? row.total_refund_amount ?? 0
+        return <span className="font-bold text-danger-600 font-mono">{fmt(amt)}</span>
+      },
     },
     {
       key: 'refund_status',
@@ -788,7 +796,9 @@ export default function SalesPage() {
               </div>
               <div>
                 <span className="text-gray-500">Refund Amount:</span>
-                <p className="font-bold text-danger-700 font-mono text-sm">{fmt(selectedReturnDetails.total_refund_amount)}</p>
+                <p className="font-bold text-danger-700 font-mono text-sm">
+                  {fmt(selectedReturnDetails.refund_amount ?? selectedReturnDetails.total_refund_amount ?? 0)}
+                </p>
               </div>
             </div>
 

@@ -318,18 +318,24 @@ export default function PurchasesPage() {
       const res = await returnsService.getPurchaseEligibility(purchase.id)
       const data = res.data?.data
       setPurchaseEligibility(data)
-      const items = (data?.items || []).map((it) => ({
-        purchase_item_id: it.purchase_item_id,
-        product_id: it.product_id,
-        product_name: it.product_name,
-        sku: it.product_sku,
-        quantity_received: it.quantity_received,
-        returned_quantity: it.returned_quantity,
-        remaining_quantity: it.remaining_quantity,
-        available_stock: it.available_stock,
-        unit_cost: Number(it.unit_cost || 0),
-        return_qty: 0,
-      }))
+      const items = (data?.items || []).map((it) => {
+        const received = parseFloat(it.quantity_received ?? it.purchased_quantity ?? 0)
+        const returned = parseFloat(it.returned_quantity ?? it.already_returned ?? 0)
+        const remaining = parseFloat(it.remaining_quantity ?? it.remaining_eligible ?? (received - returned))
+        const stock = parseFloat(it.available_stock ?? it.current_stock ?? 0)
+        return {
+          purchase_item_id: it.purchase_item_id,
+          product_id: it.product_id,
+          product_name: it.product_name,
+          sku: it.product_sku,
+          quantity_received: received,
+          returned_quantity: returned,
+          remaining_quantity: remaining,
+          available_stock: stock,
+          unit_cost: Number(it.net_unit_cost ?? it.unit_cost ?? 0),
+          return_qty: 0,
+        }
+      })
       setReturnItemsState(items)
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Failed to check purchase return eligibility')
