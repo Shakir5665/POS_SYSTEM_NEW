@@ -19,6 +19,7 @@ vi.mock('../services/migration', () => ({
     getJobStatus: vi.fn(),
     downloadTemplate: vi.fn(),
     getJobErrors: vi.fn(),
+    clearDatabase: vi.fn(),
   },
 }))
 
@@ -175,5 +176,50 @@ describe('Universal Single-Table Excel Migration Frontend', () => {
 
     fireEvent.click(screen.getByText(/Migration Batches/i))
     expect(screen.getByText(/No migration batches recorded yet/i)).toBeInTheDocument()
+  })
+
+  it('handles Clear Database modal flow with confirmation text validation', async () => {
+    migrationService.clearDatabase.mockResolvedValueOnce({
+      data: {
+        success: true,
+        message: 'Database contents cleared successfully, preserving user accounts',
+      },
+    })
+
+    render(
+      <MemoryRouter>
+        <MigrationPage />
+      </MemoryRouter>
+    )
+
+    // Clear Database button should be visible in the header
+    const openBtn = screen.getByTestId('open-clear-database-modal-button')
+    expect(openBtn).toBeInTheDocument()
+    fireEvent.click(openBtn)
+
+    // Modal pops up
+    expect(screen.getByText('Clear Database Confirmation')).toBeInTheDocument()
+    expect(screen.getByText(/All user accounts in the/i)).toBeInTheDocument()
+    expect(screen.getByText(/Please type/i)).toBeInTheDocument()
+
+    // The confirm button in modal should be disabled initially
+    const confirmBtn = screen.getByTestId('confirm-clear-database-button')
+    expect(confirmBtn).toBeDisabled()
+
+    const input = screen.getByPlaceholderText('Clear Database')
+    // Type incorrect text
+    fireEvent.change(input, { target: { value: 'clear' } })
+    expect(confirmBtn).toBeDisabled()
+
+    // Type exact required text: "Clear Database"
+    fireEvent.change(input, { target: { value: 'Clear Database' } })
+    expect(confirmBtn).not.toBeDisabled()
+
+    // Submit confirmation
+    fireEvent.click(confirmBtn)
+
+    await waitFor(() => {
+      expect(migrationService.clearDatabase).toHaveBeenCalledWith('Clear Database')
+    })
   })
 })

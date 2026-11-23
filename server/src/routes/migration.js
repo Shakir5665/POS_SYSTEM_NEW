@@ -39,5 +39,6 @@ router.delete('/batches', migrationController.clearAllBatches);
 router.get('/issues', migrationController.listIssues);
 router.delete('/issues/:id', param('id').isUUID(), validate, migrationController.deleteIssue);
 router.delete('/issues', migrationController.clearAllIssues);
+router.post('/clear-database', migrationController.clearDatabase);
 
 module.exports = router;

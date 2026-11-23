@@ -39,6 +39,11 @@ export default function MigrationPage() {
   const [templateVariant, setTemplateVariant] = useState('full')
   const [schemaGuide, setSchemaGuide] = useState(null)
 
+  // Clear Database State
+  const [showClearDbModal, setShowClearDbModal] = useState(false)
+  const [clearDbInput, setClearDbInput] = useState('')
+  const [isClearingDb, setIsClearingDb] = useState(false)
+
   // Form IDs for accessibility
   const tableSelectId = useId()
   const matchingKeySelectId = useId()
@@ -360,6 +365,26 @@ export default function MigrationPage() {
     }
   }
 
+  const handleExecuteClearDatabase = async () => {
+    if (clearDbInput !== 'Clear Database') {
+      toast.error('Please type "Clear Database" exactly to confirm.')
+      return
+    }
+    setIsClearingDb(true)
+    try {
+      const res = await migrationService.clearDatabase('Clear Database')
+      toast.success(res.data?.message || 'Database cleared successfully (User accounts preserved)')
+      setShowClearDbModal(false)
+      setClearDbInput('')
+      handleClearFile()
+      fetchData()
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to clear database')
+    } finally {
+      setIsClearingDb(false)
+    }
+  }
+
 
 
   // Pagination for Preview Records
@@ -380,10 +405,31 @@ export default function MigrationPage() {
               Import or update database records using Excel files that match your database structure.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-semibold flex items-center gap-1.5">
               <span>●</span> Schema-Aware Importer Active
             </span>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                setClearDbInput('')
+                setShowClearDbModal(true)
+              }}
+              className="flex items-center gap-1.5"
+              title="Clear all database tables except users"
+              data-testid="open-clear-database-modal-button"
+            >
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                />
+              </svg>
+              Clear Database
+            </Button>
           </div>
         </div>
 
@@ -1376,6 +1422,75 @@ export default function MigrationPage() {
                 </Button>
                 <Button variant="primary" onClick={handleExecuteImport}>
                   Execute Import Plan
+                </Button>
+              </div>
+            </div>
+          </Modal>
+        )}
+
+        {/* Clear Database Confirmation Modal */}
+        {showClearDbModal && (
+          <Modal
+            isOpen={showClearDbModal}
+            onClose={() => {
+              if (!isClearingDb) {
+                setShowClearDbModal(false)
+                setClearDbInput('')
+              }
+            }}
+            title="Clear Database Confirmation"
+          >
+            <div className="space-y-4">
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-xs space-y-2 text-red-900">
+                <div className="flex items-center gap-2 font-bold text-red-800 text-sm">
+                  <span>⚠️</span>
+                  <span>Irreversible Database Action</span>
+                </div>
+                <p className="text-red-700 leading-relaxed">
+                  This action will permanently delete all data across <strong>all database tables</strong> (products, categories, sales, purchases, inventory logs, stock adjustments, customer/supplier ledgers, expenses, migration batches, etc.).
+                </p>
+                <div className="p-2.5 bg-emerald-50 border border-emerald-300 rounded text-emerald-800 font-semibold flex items-center gap-1.5">
+                  <span className="text-emerald-600 font-bold">✓</span>
+                  <span>All user accounts in the <strong>User</strong> table will be preserved.</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label htmlFor="clear-database-confirm-input" className="block text-sm font-medium text-gray-700">
+                  Please type <span className="font-mono font-bold text-red-600 select-all">&quot;Clear Database&quot;</span> to confirm:
+                </label>
+                <input
+                  id="clear-database-confirm-input"
+                  type="text"
+                  value={clearDbInput}
+                  onChange={(e) => setClearDbInput(e.target.value)}
+                  placeholder="Clear Database"
+                  disabled={isClearingDb}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 font-mono text-sm"
+                  autoComplete="off"
+                  autoFocus
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  variant="secondary"
+                  disabled={isClearingDb}
+                  onClick={() => {
+                    setShowClearDbModal(false)
+                    setClearDbInput('')
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="danger"
+                  disabled={clearDbInput !== 'Clear Database' || isClearingDb}
+                  isLoading={isClearingDb}
+                  onClick={handleExecuteClearDatabase}
+                  data-testid="confirm-clear-database-button"
+                >
+                  Clear Database
                 </Button>
               </div>
             </div>

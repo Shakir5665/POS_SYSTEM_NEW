@@ -219,6 +219,96 @@ async function getMigrationStatus(req, res, next) {
   }
 }
 
+/**
+ * Clear all database contents except the User table and Prisma migrations
+ * POST /api/migration/clear-database
+ */
+async function clearDatabase(req, res, next) {
+  try {
+    const { confirmation } = req.body || {};
+    if (confirmation !== 'Clear Database') {
+      return res.status(400).json({
+        success: false,
+        error: {
+          code: 'CONFIRMATION_REQUIRED',
+          message: 'Confirmation text "Clear Database" is required to execute this operation',
+        },
+      });
+    }
+
+    // Find all base tables in the public schema except User and _prisma_migrations
+    const tables = await prisma.$queryRaw`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+        AND table_type = 'BASE TABLE'
+        AND table_name NOT IN ('User', '_prisma_migrations')
+      ORDER BY table_name;
+    `;
+
+    let tableNames = tables.map((t) => t.table_name);
+
+    // Fallback list of known model table names if information_schema query yields nothing
+    if (tableNames.length === 0) {
+      tableNames = [
+        'Category',
+        'Product',
+        'Customer',
+        'Sale',
+        'SaleItem',
+        'Payment',
+        'CustomerPayment',
+        'CustomerPaymentAllocation',
+        'InventoryLog',
+        'AuthLog',
+        'Settings',
+        'PaystackPayment',
+        'Supplier',
+        'Purchase',
+        'PurchaseItem',
+        'SupplierPayment',
+        'SupplierPaymentAllocation',
+        'ExpenseCategory',
+        'Expense',
+        'BusinessAsset',
+        'OwnerTransaction',
+        'LegacyIdMap',
+        'MigrationBatch',
+        'MigrationIssue',
+        'Warehouse',
+        'StockAdjustment',
+        'StockAdjustmentItem',
+        'SalesReturn',
+        'SalesReturnItem',
+        'PurchaseReturn',
+        'PurchaseReturnItem',
+        'Brand',
+        'Variation',
+        'VariationValue',
+      ];
+    }
+
+    if (tableNames.length > 0) {
+      const truncateSql = `TRUNCATE TABLE ${tableNames.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE;`;
+      await prisma.$executeRawUnsafe(truncateSql);
+    }
+
+    const remainingUsers = await prisma.user.count();
+
+    res.json({
+      success: true,
+      message: 'Database contents cleared successfully, preserving user accounts',
+      data: {
+        truncated_tables_count: tableNames.length,
+        truncated_tables: tableNames,
+        preserved_users_count: remainingUsers,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listBatches,
   getBatch,
@@ -228,4 +318,5 @@ module.exports = {
   deleteIssue,
   clearAllIssues,
   getMigrationStatus,
+  clearDatabase,
 };

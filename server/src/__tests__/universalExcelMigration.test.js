@@ -76,6 +76,24 @@ describe('Universal Single-Table Excel Migration System', () => {
       .send({ username: cashierUser ? cashierUser.username : 'cashier', password: 'password123' });
     cashierToken = cashierLogin.body.data?.accessToken;
 
+    if (!cashierToken) {
+      const bcrypt = require('bcrypt');
+      const hash = await bcrypt.hash('password123', 10);
+      const createdCashier = await prisma.user.upsert({
+        where: { username: 'test_universal_cashier' },
+        update: {},
+        create: {
+          username: 'test_universal_cashier',
+          email: 'univ_cashier@example.com',
+          password_hash: hash,
+          full_name: 'Universal Cashier',
+          role: 'CASHIER',
+        },
+      });
+      const jwt = require('jsonwebtoken');
+      cashierToken = jwt.sign({ userId: createdCashier.id }, process.env.JWT_ACCESS_SECRET, { expiresIn: '1h' });
+    }
+
     // Seed reference data for FK tests
     const cat = await prisma.category.upsert({
       where: { name: 'Universal Migration Test Category' },
@@ -655,6 +673,69 @@ describe('Universal Single-Table Excel Migration System', () => {
       expect(Array.isArray(listRes.body.data)).toBe(true);
       const foundJob = listRes.body.data.find((j) => j.tableName === 'Customer');
       expect(foundJob).toBeDefined();
+    });
+  });
+
+  describe('9. Clear Database Safe Execution', () => {
+    it('requires authentication and ADMIN role', async () => {
+      // Unauthenticated
+      const unauth = await request(app)
+        .post('/api/migration/clear-database')
+        .send({ confirmation: 'Clear Database' });
+      expect(unauth.status).toBe(401);
+
+      // Non-admin (Cashier)
+      const nonAdmin = await request(app)
+        .post('/api/migration/clear-database')
+        .set('Authorization', `Bearer ${cashierToken}`)
+        .send({ confirmation: 'Clear Database' });
+      expect(nonAdmin.status).toBe(403);
+    });
+
+    it('requires exact confirmation text "Clear Database"', async () => {
+      const wrong = await request(app)
+        .post('/api/migration/clear-database')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ confirmation: 'clear database' });
+      expect(wrong.status).toBe(400);
+      expect(wrong.body.error.code).toBe('CONFIRMATION_REQUIRED');
+
+      const empty = await request(app)
+        .post('/api/migration/clear-database')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({});
+      expect(empty.status).toBe(400);
+    });
+
+    it('wipes non-user tables and preserves all User table accounts when confirmed', async () => {
+      // Create a test record in Category and Customer
+      const cat = await prisma.category.create({
+        data: { name: `ClearDbTestCat_${Date.now()}` },
+      });
+      const cust = await prisma.customer.create({
+        data: { name: `ClearDbCust_${Date.now()}` },
+      });
+
+      const userCountBefore = await prisma.user.count();
+      expect(userCountBefore).toBeGreaterThan(0);
+
+      const res = await request(app)
+        .post('/api/migration/clear-database')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({ confirmation: 'Clear Database' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+
+      // Verify Category and Customer are cleared
+      const catAfter = await prisma.category.findUnique({ where: { id: cat.id } });
+      const custAfter = await prisma.customer.findUnique({ where: { id: cust.id } });
+      expect(catAfter).toBeNull();
+      expect(custAfter).toBeNull();
+
+      // Verify User table is preserved
+      const userCountAfter = await prisma.user.count();
+      expect(userCountAfter).toBe(userCountBefore);
     });
   });
 });

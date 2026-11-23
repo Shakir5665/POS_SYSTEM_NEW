@@ -10,6 +10,7 @@ export const migrationService = {
   listIssues: (params) => api.get('/migration/issues', { params }),
   deleteIssue: (id) => api.delete(`/migration/issues/${id}`),
   clearAllIssues: () => api.delete('/migration/issues'),
+  clearDatabase: (confirmation) => api.post('/migration/clear-database', { confirmation }),
 
   // Universal Single-Table Excel Migration System Endpoints
   listApprovedTables: () => api.get('/migration/excel/tables'),
