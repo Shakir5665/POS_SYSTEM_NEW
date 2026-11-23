@@ -367,7 +367,7 @@ describe('SalesPage Enhancements', () => {
     salesService.payments.mockResolvedValue({ data: { data: mockSale.payments } })
   })
 
-  it('renders sales transactions table with 5 row action icons', async () => {
+  it('renders sales transactions table with 3-dots action menu', async () => {
     render(
       <MemoryRouter>
         <SalesPage />
@@ -378,14 +378,22 @@ describe('SalesPage Enhancements', () => {
       expect(screen.getByText('TRX-1001')).toBeInTheDocument()
     })
 
-    expect(screen.getByTitle('View Sale Details')).toBeInTheDocument()
-    expect(screen.getByTitle('View Payments & History')).toBeInTheDocument()
-    expect(screen.getByTitle('Download Invoice PDF (A4)')).toBeInTheDocument()
-    expect(screen.getByTitle('Edit Sale Items & Discounts')).toBeInTheDocument()
-    expect(screen.getByTitle('Cancel / Delete Sale')).toBeInTheDocument()
+    const actionsBtn = screen.getByTitle('Actions')
+    expect(actionsBtn).toBeInTheDocument()
+
+    // Click 3-dots button to open menu
+    fireEvent.click(actionsBtn)
+
+    expect(screen.getByText('View Sale Details')).toBeInTheDocument()
+    expect(screen.getByText('Print Receipt')).toBeInTheDocument()
+    expect(screen.getByText('Download Invoice (A4)')).toBeInTheDocument()
+    expect(screen.getByText('Download Invoice (A5)')).toBeInTheDocument()
+    expect(screen.getByText('Edit Sale')).toBeInTheDocument()
+    expect(screen.getByText('Process Return')).toBeInTheDocument()
+    expect(screen.getByText('Cancel / Delete Sale')).toBeInTheDocument()
   })
 
-  it('opens View Sale Details modal on eye click', async () => {
+  it('opens View Sale Details modal from 3-dots menu', async () => {
     render(
       <MemoryRouter>
         <SalesPage />
@@ -396,8 +404,8 @@ describe('SalesPage Enhancements', () => {
       expect(screen.getByText('TRX-1001')).toBeInTheDocument()
     })
 
-    const viewBtn = screen.getByTitle('View Sale Details')
-    fireEvent.click(viewBtn)
+    fireEvent.click(screen.getByTitle('Actions'))
+    fireEvent.click(screen.getByText('View Sale Details'))
 
     await waitFor(() => {
       expect(screen.getByText(/Sale Details: TRX-1001/i)).toBeInTheDocument()
@@ -407,47 +415,7 @@ describe('SalesPage Enhancements', () => {
     })
   })
 
-  it('opens View Payments modal on receipt icon click and allows voiding', async () => {
-    salesService.voidPayment.mockResolvedValue({ data: { data: { ...mockSale.payments[0], is_void: true } } })
-
-    render(
-      <MemoryRouter>
-        <SalesPage />
-      </MemoryRouter>
-    )
-
-    await waitFor(() => {
-      expect(screen.getByText('TRX-1001')).toBeInTheDocument()
-    })
-
-    const paymentsBtn = screen.getByTitle('View Payments & History')
-    fireEvent.click(paymentsBtn)
-
-    await waitFor(() => {
-      expect(screen.getByText(/Payment History: TRX-1001/i)).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /^Void$/i })).toBeInTheDocument()
-    })
-
-    const voidBtn = screen.getByRole('button', { name: /^Void$/i })
-    fireEvent.click(voidBtn)
-
-    expect(screen.getByText(/Confirm Voiding Payment/i)).toBeInTheDocument()
-    const reasonInput = screen.getByPlaceholderText(/e\.g\. Accidental duplicate charge/i)
-    fireEvent.change(reasonInput, { target: { value: 'Duplicate swipe' } })
-
-    const confirmVoidBtn = screen.getByRole('button', { name: /Confirm Void/i })
-    fireEvent.click(confirmVoidBtn)
-
-    await waitFor(() => {
-      expect(salesService.voidPayment).toHaveBeenCalledWith(
-        'sale-1',
-        'pm-1',
-        expect.objectContaining({ reason: 'Duplicate swipe' })
-      )
-    })
-  })
-
-  it('downloads invoice PDF when PDF button clicked', async () => {
+  it('downloads invoice PDF from 3-dots menu', async () => {
     salesService.downloadPdf.mockResolvedValue({ data: new Blob(['fake-pdf'], { type: 'application/pdf' }) })
 
     render(
@@ -460,15 +428,53 @@ describe('SalesPage Enhancements', () => {
       expect(screen.getByText('TRX-1001')).toBeInTheDocument()
     })
 
-    const pdfBtn = screen.getByTitle('Download Invoice PDF (A4)')
-    fireEvent.click(pdfBtn)
+    fireEvent.click(screen.getByTitle('Actions'))
+    fireEvent.click(screen.getByText('Download Invoice (A4)'))
 
     await waitFor(() => {
       expect(salesService.downloadPdf).toHaveBeenCalledWith('sale-1', 'a4')
     })
   })
 
-  it('opens Cancel Sale modal on trash click and submits cancellation reason', async () => {
+  it('opens Edit Sale modal from 3-dots menu and submits update', async () => {
+    salesService.update.mockResolvedValue({ data: { message: 'Sale updated' } })
+
+    render(
+      <MemoryRouter>
+        <SalesPage />
+      </MemoryRouter>
+    )
+
+    await waitFor(() => {
+      expect(screen.getByText('TRX-1001')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByTitle('Actions'))
+    fireEvent.click(screen.getByText('Edit Sale'))
+
+    await waitFor(() => {
+      expect(screen.getByText(/Edit Sale: TRX-1001/i)).toBeInTheDocument()
+    })
+
+    const saveBtn = screen.getByRole('button', { name: /Save Changes/i })
+    fireEvent.click(saveBtn)
+
+    await waitFor(() => {
+      expect(salesService.update).toHaveBeenCalledWith(
+        'sale-1',
+        expect.objectContaining({
+          items: expect.arrayContaining([
+            expect.objectContaining({
+              product_id: 'prod-1',
+              sale_item_id: 'si-1',
+            }),
+          ]),
+        })
+      )
+    })
+  })
+
+  it('opens Cancel Sale modal from 3-dots menu and submits cancellation reason', async () => {
     salesService.delete.mockResolvedValue({ data: { message: 'Sale cancelled' } })
 
     render(
@@ -481,8 +487,8 @@ describe('SalesPage Enhancements', () => {
       expect(screen.getByText('TRX-1001')).toBeInTheDocument()
     })
 
-    const cancelBtn = screen.getByTitle('Cancel / Delete Sale')
-    fireEvent.click(cancelBtn)
+    fireEvent.click(screen.getByTitle('Actions'))
+    fireEvent.click(screen.getByText('Cancel / Delete Sale'))
 
     await waitFor(() => {
       expect(screen.getByText(/Cancel Sale: TRX-1001/i)).toBeInTheDocument()

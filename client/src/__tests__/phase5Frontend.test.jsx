@@ -295,10 +295,12 @@ describe('Phase 5 Frontend Comprehensive Verification', () => {
         expect(screen.getByText('Legacy Import')).toBeInTheDocument()
       })
 
-      // Click Return on live sale
-      const returnButtons = screen.getAllByRole('button', { name: /^Return$/i })
-      expect(returnButtons.length).toBe(1) // Only on live sale, not legacy
-      fireEvent.click(returnButtons[0])
+      // Click Action menu on live sale and choose Process Return
+      const actionBtn = screen.getByTestId('sale-actions-sale-1')
+      fireEvent.click(actionBtn)
+
+      const processReturnBtn = await screen.findByTestId('action-process-return')
+      fireEvent.click(processReturnBtn)
 
       await waitFor(() => {
         expect(screen.getByText(/Process Customer Return: TXN-1001/i)).toBeInTheDocument()
@@ -560,7 +562,7 @@ describe('Phase 5 Frontend Comprehensive Verification', () => {
 
       await waitFor(() => {
         expect(screen.getByText('ADJ-20261122-001')).toBeInTheDocument()
-        expect(screen.getByText(/New Adjustment/i)).toBeInTheDocument()
+        expect(screen.queryByText(/New Adjustment/i)).not.toBeInTheDocument()
       })
     })
   })

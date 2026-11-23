@@ -2,6 +2,8 @@ const prisma = require('../utils/prismaClient')
 const { NotFoundError, ConflictError, ValidationError } = require('../utils/errors')
 const { getBaseUnit, getDefaultPricingUnit, isValidCategory, isValidUnitForCategory } = require('../utils/uom')
 const { Decimal, toMoney } = require('../utils/money')
+const generateAdjustmentNumber = require('../utils/generateAdjustmentNumber')
+const { getDefaultWarehouse } = require('./warehouseService')
 const path = require('path')
 const fs = require('fs')
 
@@ -327,6 +329,10 @@ async function updateProduct(id, data, userId = null) {
   }
 
   if (quantityChanged && userId) {
+    const defaultWh = await getDefaultWarehouse().catch(() => null)
+    const adjNumber = await generateAdjustmentNumber()
+    const diff = newQuantityDecimal.minus(new Decimal(existing.quantity || 0))
+
     const [product] = await prisma.$transaction([
       prisma.product.update({
         where: { id },
@@ -341,11 +347,32 @@ async function updateProduct(id, data, userId = null) {
           product_id: id,
           change_type: 'ADJUSTMENT',
           unit: targetBase,
-          quantity_change: newQuantityDecimal.minus(new Decimal(existing.quantity || 0)),
+          quantity_change: diff,
           previous_quantity: new Decimal(existing.quantity || 0),
           new_quantity: newQuantityDecimal,
           user_id: userId,
+          warehouse_id: defaultWh?.id || null,
           notes: 'Corrected quantity on product edit',
+        },
+      }),
+      prisma.stockAdjustment.create({
+        data: {
+          adjustment_number: adjNumber,
+          adjustment_date: new Date(),
+          warehouse_id: defaultWh?.id || null,
+          user_id: userId,
+          reason: 'Corrected quantity on product edit',
+          notes: 'Automatic adjustment via product edit',
+          items: {
+            create: [
+              {
+                product_id: id,
+                quantity_change: diff,
+                unit: targetBase,
+                notes: 'Product edit adjustment',
+              },
+            ],
+          },
         },
       }),
     ])

@@ -950,8 +950,9 @@ async function updateSale(saleId, data, userId) {
 
     // Validate that existing items with returns are not reduced below returned quantities
     for (const reqItem of newItems) {
-      if (reqItem.id && existingItemMap.has(reqItem.id)) {
-        const existingItem = existingItemMap.get(reqItem.id)
+      const itemId = reqItem.id || reqItem.sale_item_id
+      if (itemId && existingItemMap.has(itemId)) {
+        const existingItem = existingItemMap.get(itemId)
         const returnedQty = returnedByItem[existingItem.id] || new Decimal(0)
         const requestedQty = new Decimal(reqItem.quantity || 0)
         if (requestedQty.lt(returnedQty)) {
@@ -967,13 +968,21 @@ async function updateSale(saleId, data, userId) {
     let newSubtotal = toMoney(0)
 
     for (const reqItem of newItems) {
-      let saleItemRecord = reqItem.id ? existingItemMap.get(reqItem.id) : null
+      const itemId = reqItem.id || reqItem.sale_item_id
+      let saleItemRecord = itemId ? existingItemMap.get(itemId) : null
       let product = null
 
       if (saleItemRecord) {
         product = await tx.product.findUnique({ where: { id: saleItemRecord.product_id } })
+        if (!product) {
+          throw new NotFoundError(`Product associated with sale item not found`)
+        }
       } else {
-        product = await tx.product.findUnique({ where: { id: reqItem.product_id } })
+        const prodId = reqItem.product_id || reqItem.productId
+        if (!prodId) {
+          throw new ValidationError('Product ID is required for each sale item')
+        }
+        product = await tx.product.findUnique({ where: { id: prodId } })
         if (!product || !product.is_active) {
           throw new NotFoundError(`Product not found or inactive`)
         }
@@ -1072,7 +1081,7 @@ async function updateSale(saleId, data, userId) {
     }
 
     // Check items that were completely removed
-    const newItemIds = new Set(newItems.filter((i) => i.id).map((i) => i.id))
+    const newItemIds = new Set(newItems.map((i) => i.id || i.sale_item_id).filter(Boolean))
     for (const [existingId, oldItem] of existingItemMap.entries()) {
       if (!newItemIds.has(existingId)) {
         const retQty = returnedByItem[existingId] || new Decimal(0)

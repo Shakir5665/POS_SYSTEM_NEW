@@ -65,7 +65,7 @@ describe('Product and Sales Management Enhancements', () => {
         price: 150,
         usual_price: 150,
         our_price: 150,
-        quantity: 50,
+        quantity: 500,
       },
       include: { brand: true, category: true },
     })
@@ -288,6 +288,11 @@ describe('Product and Sales Management Enhancements', () => {
     let enhancementSale
 
     beforeEach(async () => {
+      await prisma.product.update({
+        where: { id: testProduct.id },
+        data: { quantity: 100 },
+      })
+
       // Create a sale for testing
       const res = await request(app)
         .post('/api/sales')
@@ -376,6 +381,27 @@ describe('Product and Sales Management Enhancements', () => {
       expect(Number(saleAfter.total_amount)).toBe(600)
     })
 
+    it('PUT /api/sales/:id safely updates sale items when sent with sale_item_id key', async () => {
+      // Edit using sale_item_id (like frontend forms send)
+      const editRes = await request(app)
+        .put(`/api/sales/${enhancementSale.id}`)
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          items: [
+            {
+              sale_item_id: enhancementSale.items[0].id,
+              quantity: 3,
+            },
+          ],
+          notes: 'Customer changed mind to 3 units',
+        })
+
+      expect(editRes.status).toBe(200)
+      expect(editRes.body.success).toBe(true)
+      const saleAfter = await prisma.sale.findUnique({ where: { id: enhancementSale.id } })
+      expect(Number(saleAfter.total_amount)).toBe(450)
+    })
+
     it('DELETE /api/sales/:id safely cancels sale and restores warehouse stock', async () => {
       const prodBefore = await prisma.product.findUnique({ where: { id: testProduct.id } })
       const currentStock = Number(prodBefore.quantity)
@@ -427,6 +453,11 @@ describe('Product and Sales Management Enhancements', () => {
     let createdReturn
 
     beforeEach(async () => {
+      await prisma.product.update({
+        where: { id: testProduct.id },
+        data: { quantity: 100 },
+      })
+
       const sRes = await request(app)
         .post('/api/sales')
         .set('Authorization', `Bearer ${adminToken}`)

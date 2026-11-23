@@ -2,6 +2,8 @@ const prisma = require('../utils/prismaClient')
 const { NotFoundError, ValidationError } = require('../utils/errors')
 const { toBaseUnitQuantity, validateQuantity } = require('../utils/uom')
 const { Decimal } = require('../utils/money')
+const generateAdjustmentNumber = require('../utils/generateAdjustmentNumber')
+const { getDefaultWarehouse } = require('./warehouseService')
 
 async function listInventory({ page = 1, per_page = 20, search, status } = {}) {
   const skip = (page - 1) * per_page
@@ -112,12 +114,16 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes,
     ])
   }
 
-  const [updatedProduct, log] = await prisma.$transaction([
-    prisma.product.update({
+  const defaultWh = await getDefaultWarehouse().catch(() => null)
+  const adjNumber = await generateAdjustmentNumber()
+
+  const [updatedProduct, log] = await prisma.$transaction(async (tx) => {
+    const updated = await tx.product.update({
       where: { id: productId },
       data: { quantity: newQty },
-    }),
-    prisma.inventoryLog.create({
+    })
+
+    const createdLog = await tx.inventoryLog.create({
       data: {
         product_id: productId,
         change_type: changeType,
@@ -126,10 +132,34 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes,
         previous_quantity: currentQty,
         new_quantity: newQty,
         user_id: userId,
+        warehouse_id: defaultWh?.id || null,
         notes: notes || null,
       },
-    }),
-  ])
+    })
+
+    await tx.stockAdjustment.create({
+      data: {
+        adjustment_number: adjNumber,
+        adjustment_date: new Date(),
+        warehouse_id: defaultWh?.id || null,
+        user_id: userId,
+        reason: notes || (changeType === 'RESTOCK' ? 'Manual Restock' : 'Stock Adjustment'),
+        notes: notes || null,
+        items: {
+          create: [
+            {
+              product_id: productId,
+              quantity_change: changeInBase,
+              unit: product.base_unit || 'pcs',
+              notes: notes || null,
+            },
+          ],
+        },
+      },
+    })
+
+    return [updated, createdLog]
+  })
 
   return { product: updatedProduct, log }
 }
@@ -152,9 +182,13 @@ async function manualAdjust(productId, newQuantity, userId, notes, unit) {
   const currentQty = new Decimal(product.quantity)
   const change = targetQtyInBase.minus(currentQty)
 
-  const [updatedProduct, log] = await prisma.$transaction([
-    prisma.product.update({ where: { id: productId }, data: { quantity: targetQtyInBase } }),
-    prisma.inventoryLog.create({
+  const defaultWh = await getDefaultWarehouse().catch(() => null)
+  const adjNumber = await generateAdjustmentNumber()
+
+  const [updatedProduct, log] = await prisma.$transaction(async (tx) => {
+    const updated = await tx.product.update({ where: { id: productId }, data: { quantity: targetQtyInBase } })
+
+    const createdLog = await tx.inventoryLog.create({
       data: {
         product_id: productId,
         change_type: 'ADJUSTMENT',
@@ -163,10 +197,34 @@ async function manualAdjust(productId, newQuantity, userId, notes, unit) {
         previous_quantity: currentQty,
         new_quantity: targetQtyInBase,
         user_id: userId,
+        warehouse_id: defaultWh?.id || null,
         notes: notes || null,
       },
-    }),
-  ])
+    })
+
+    await tx.stockAdjustment.create({
+      data: {
+        adjustment_number: adjNumber,
+        adjustment_date: new Date(),
+        warehouse_id: defaultWh?.id || null,
+        user_id: userId,
+        reason: notes || 'Manual Stock Level Adjustment',
+        notes: notes || null,
+        items: {
+          create: [
+            {
+              product_id: productId,
+              quantity_change: change,
+              unit: product.base_unit || 'pcs',
+              notes: notes || null,
+            },
+          ],
+        },
+      },
+    })
+
+    return [updated, createdLog]
+  })
 
   return { product: updatedProduct, log }
 }

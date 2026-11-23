@@ -15,7 +15,7 @@ import { warehouseService } from '../services/warehouses'
 import { returnsService } from '../services/returns'
 import { useSettings } from '../hooks/useSettings'
 import { formatCurrency } from '../utils/formatCurrency'
-import { saleStatus, canRefund, PAYMENT_METHOD_LABELS } from '../utils/saleStatus'
+import { saleStatus, PAYMENT_METHOD_LABELS } from '../utils/saleStatus'
 
 export default function SalesPage() {
   const settings = useSettings()
@@ -41,6 +41,9 @@ export default function SalesPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
+  // 3-dots action menu active row ID
+  const [activeActionMenuId, setActiveActionMenuId] = useState(null)
+
   // Returns state
   const [returnsList, setReturnsList] = useState([])
   const [returnsMeta, setReturnsMeta] = useState({ page: 1, total_pages: 1 })
@@ -50,10 +53,6 @@ export default function SalesPage() {
 
   // Receipt Modal
   const [receiptSale, setReceiptSale] = useState(null)
-
-  // Refund Target Modal
-  const [refundTarget, setRefundTarget] = useState(null)
-  const [refunding, setRefunding] = useState(false)
 
   // Return creation modal state
   const [returnSaleTarget, setReturnSaleTarget] = useState(null)
@@ -65,29 +64,32 @@ export default function SalesPage() {
   const [isSubmittingReturn, setIsSubmittingReturn] = useState(false)
   const [showConfirmReturnModal, setShowConfirmReturnModal] = useState(false)
 
-  // 1. Sale Details Modal (Eye icon)
+  // 1. Sale Details Modal (Eye action)
   const [detailsSale, setDetailsSale] = useState(null)
   const [loadingDetails, setLoadingDetails] = useState(false)
 
-  // 2. Payments History Modal (Receipt icon)
-  const [paymentsSale, setPaymentsSale] = useState(null)
-  const [paymentsList, setPaymentsList] = useState([])
-  const [loadingPayments, setLoadingPayments] = useState(false)
-  const [voidTargetPayment, setVoidTargetPayment] = useState(null)
-  const [voidReason, setVoidReason] = useState('')
-  const [isVoiding, setIsVoiding] = useState(false)
-
-  // 3. Edit Sale Modal (Pencil icon)
+  // 2. Edit Sale Modal
   const [editSaleTarget, setEditSaleTarget] = useState(null)
   const [editItems, setEditItems] = useState([])
   const [editDiscount, setEditDiscount] = useState('0')
   const [editNotes, setEditNotes] = useState('')
   const [isUpdatingSale, setIsUpdatingSale] = useState(false)
 
-  // 4. Cancel/Delete Sale Modal (Trash icon)
+  // 3. Cancel/Delete Sale Modal
   const [deleteSaleTarget, setDeleteSaleTarget] = useState(null)
   const [cancelReason, setCancelReason] = useState('')
   const [isCancellingSale, setIsCancellingSale] = useState(false)
+
+  // Close 3-dots menu on click outside
+  useEffect(() => {
+    function handleClickOutside() {
+      setActiveActionMenuId(null)
+    }
+    if (activeActionMenuId) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [activeActionMenuId])
 
   // Load warehouses
   useEffect(() => {
@@ -181,7 +183,7 @@ export default function SalesPage() {
     }
   }
 
-  // 1. Open Sale Details Modal
+  // Open Sale Details Modal
   async function handleOpenSaleDetails(sale) {
     setLoadingDetails(true)
     try {
@@ -194,48 +196,7 @@ export default function SalesPage() {
     }
   }
 
-  // 2. Open Payments Modal
-  async function handleOpenPaymentsModal(sale) {
-    setPaymentsSale(sale)
-    setLoadingPayments(true)
-    try {
-      const res = await salesService.payments(sale.id)
-      setPaymentsList(res.data?.data || [])
-    } catch {
-      toast.error('Failed to load payment history')
-    } finally {
-      setLoadingPayments(false)
-    }
-  }
-
-  // Void payment
-  async function handleVoidPayment(e) {
-    e.preventDefault()
-    if (!voidTargetPayment || !paymentsSale) return
-    const reason = voidReason.trim()
-    if (!reason) {
-      toast.error('Void reason is required')
-      return
-    }
-
-    setIsVoiding(true)
-    try {
-      await salesService.voidPayment(paymentsSale.id, voidTargetPayment.id, { reason })
-      toast.success('Payment voided successfully')
-      setVoidTargetPayment(null)
-      setVoidReason('')
-      // Refresh payments list & sales table
-      const res = await salesService.payments(paymentsSale.id)
-      setPaymentsList(res.data?.data || [])
-      fetchSales()
-    } catch (err) {
-      toast.error(err?.response?.data?.error?.message || 'Failed to void payment')
-    } finally {
-      setIsVoiding(false)
-    }
-  }
-
-  // 3. Download Invoice PDF
+  // Download Invoice PDF
   async function handleDownloadInvoicePdf(sale, format = 'a4') {
     try {
       toast.loading(`Generating ${format.toUpperCase()} Invoice PDF...`, { id: 'sale-pdf' })
@@ -255,7 +216,7 @@ export default function SalesPage() {
     }
   }
 
-  // 4. Open Edit Sale Modal
+  // Open Edit Sale Modal
   async function handleOpenEditSale(sale) {
     if (sale.is_cancelled) {
       toast.error('Cancelled sales cannot be edited')
@@ -277,7 +238,9 @@ export default function SalesPage() {
           const retQty = parseFloat(it.returned_quantity || 0)
           const curQty = parseFloat(it.quantity || 0)
           return {
+            id: it.id,
             sale_item_id: it.id,
+            product_id: it.product_id,
             product_name: it.product?.name || 'Product',
             sku: it.product?.sku || '',
             unit_price: parseFloat(it.unit_price || 0),
@@ -332,7 +295,9 @@ export default function SalesPage() {
         discount_amount: editOrderDiscount,
         notes: editNotes.trim(),
         items: editItems.map((it) => ({
+          id: it.sale_item_id,
           sale_item_id: it.sale_item_id,
+          product_id: it.product_id,
           quantity: it.quantity,
           discount_amount: it.discount_amount,
         })),
@@ -347,7 +312,7 @@ export default function SalesPage() {
     }
   }
 
-  // 5. Open Delete/Cancel Sale Modal
+  // Open Delete/Cancel Sale Modal
   function handleOpenCancelSale(sale) {
     if (sale.is_cancelled) {
       toast.error('Sale is already cancelled')
@@ -488,25 +453,7 @@ export default function SalesPage() {
     }
   }
 
-  async function confirmRefund() {
-    setRefunding(true)
-    try {
-      const res = await salesService.refund(refundTarget.id)
-      if (res.status === 202) {
-        toast.success('Refund requested. It will complete when Paystack confirms it.')
-      } else {
-        toast.success(`Sale ${refundTarget.transaction_id} refunded`)
-      }
-      setRefundTarget(null)
-      fetchSales()
-    } catch (err) {
-      toast.error(err?.response?.data?.error?.message ?? 'Refund failed')
-    } finally {
-      setRefunding(false)
-    }
-  }
-
-  // Sales Columns with 5 standard row actions (Eye, Receipt, PDF, Pencil, Trash) + Return & Refund
+  // Sales Columns with 3-dots action menu
   const salesColumns = [
     {
       key: 'transaction_id',
@@ -567,96 +514,152 @@ export default function SalesPage() {
     {
       key: 'actions',
       label: 'Actions',
-      render: (_, row) => (
-        <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-          {/* Action 1: Eye - View Sale Details */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleOpenSaleDetails(row)}
-            title="View Sale Details"
-            className="p-1.5 text-gray-600 hover:text-gray-900"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            <span className="sr-only">Details</span>
-          </Button>
-
-          {/* Action 2: Receipt - View Payments */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleOpenPaymentsModal(row)}
-            title="View Payments & History"
-            className="p-1.5 text-gray-600 hover:text-gray-900"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
-            </svg>
-            <span className="sr-only">Payments</span>
-          </Button>
-
-          {/* Action 3: PDF - Download Invoice */}
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => handleDownloadInvoicePdf(row, 'a4')}
-            title="Download Invoice PDF (A4)"
-            className="p-1.5 text-gray-600 hover:text-gray-900"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            <span className="sr-only">PDF</span>
-          </Button>
-
-          {/* Action 4: Pencil - Edit Sale */}
-          {!row.is_cancelled && !row.is_legacy_import && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleOpenEditSale(row)}
-              title="Edit Sale Items & Discounts"
-              className="p-1.5 text-gray-600 hover:text-gray-900"
+      render: (_, row) => {
+        const isMenuOpen = activeActionMenuId === row.id
+        return (
+          <div className="relative inline-block text-left" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              data-testid={`sale-actions-${row.id}`}
+              aria-label={`Actions for ${row.transaction_id}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                setActiveActionMenuId(isMenuOpen ? null : row.id)
+              }}
+              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition focus:outline-none focus:ring-2 focus:ring-primary-500"
+              title="Actions"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z"
+                />
               </svg>
-              <span className="sr-only">Edit</span>
-            </Button>
-          )}
+              <span className="sr-only">Actions</span>
+            </button>
 
-          {/* Action 5: Trash - Delete / Cancel Sale */}
-          {!row.is_cancelled && (
-            <Button
-              size="sm"
-              variant="ghost"
-              onClick={() => handleOpenCancelSale(row)}
-              title="Cancel / Delete Sale"
-              className="p-1.5 text-danger-600 hover:text-danger-700 hover:bg-danger-50"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-              </svg>
-              <span className="sr-only">Delete</span>
-            </Button>
-          )}
+            {isMenuOpen && (
+              <div
+                className="absolute right-0 mt-1 w-52 bg-white rounded-xl shadow-lg border border-gray-200 py-1.5 z-40 focus:outline-none divide-y divide-gray-100"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveActionMenuId(null)
+                      handleOpenSaleDetails(row)
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+                  >
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    View Sale Details
+                  </button>
 
-          {/* Return & Refund operations */}
-          {!row.is_legacy_import && !row.is_cancelled && row.payment_status === 'COMPLETED' && (
-            <Button size="sm" variant="secondary" onClick={() => openReturnModal(row)} title="Process Return">
-              Return
-            </Button>
-          )}
-          {canRefund(row) && !row.is_legacy_import && !row.is_cancelled && (
-            <Button size="sm" variant="danger" onClick={() => setRefundTarget(row)} title="Gateway Refund">
-              Refund
-            </Button>
-          )}
-        </div>
-      ),
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveActionMenuId(null)
+                      openReceipt(row)
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+                  >
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
+                    </svg>
+                    Print Receipt
+                  </button>
+                </div>
+
+                <div className="py-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveActionMenuId(null)
+                      handleDownloadInvoicePdf(row, 'a4')
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+                  >
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download Invoice (A4)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveActionMenuId(null)
+                      handleDownloadInvoicePdf(row, 'a5')
+                    }}
+                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+                  >
+                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Download Invoice (A5)
+                  </button>
+                </div>
+
+                <div className="py-1">
+                  {!row.is_cancelled && !row.is_legacy_import && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveActionMenuId(null)
+                        handleOpenEditSale(row)
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+                    >
+                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Edit Sale
+                    </button>
+                  )}
+
+                  {!row.is_legacy_import && !row.is_cancelled && row.payment_status === 'COMPLETED' && (
+                    <button
+                      type="button"
+                      data-testid="action-process-return"
+                      onClick={() => {
+                        setActiveActionMenuId(null)
+                        openReturnModal(row)
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
+                    >
+                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H4m0 0l3-3m-3 3l3 3m5 4v1a4 4 0 004 4h8m0 0l-3-3m3 3l-3 3" />
+                      </svg>
+                      Process Return
+                    </button>
+                  )}
+
+                  {!row.is_cancelled && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveActionMenuId(null)
+                        handleOpenCancelSale(row)
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-danger-600 hover:bg-danger-50 flex items-center gap-2 transition"
+                    >
+                      <svg className="w-4 h-4 text-danger-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                      Cancel / Delete Sale
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      },
     },
   ]
 
@@ -724,8 +727,6 @@ export default function SalesPage() {
     },
   ]
 
-  const isCashRefund = refundTarget?.payment_method === 'CASH'
-
   return (
     <DashboardLayout>
       <div className="space-y-6">
@@ -733,7 +734,7 @@ export default function SalesPage() {
           <div>
             <h1 className="text-2xl font-bold text-gray-900">Sales & Customer Returns</h1>
             <p className="text-sm text-gray-500 mt-1">
-              Audit past transactions, issue line-item sales returns, download invoices, and manage payment allocations.
+              Audit past transactions, issue line-item sales returns, and download invoices.
             </p>
           </div>
         </div>
@@ -1081,169 +1082,7 @@ export default function SalesPage() {
         )}
       </Modal>
 
-      {/* 2. VIEW PAYMENTS & VOID MODAL */}
-      <Modal
-        isOpen={!!paymentsSale}
-        onClose={() => {
-          if (!isVoiding) {
-            setPaymentsSale(null)
-            setVoidTargetPayment(null)
-          }
-        }}
-        title={`Payment History: ${paymentsSale?.transaction_id || ''}`}
-        size="lg"
-      >
-        {loadingPayments ? (
-          <div className="py-12 text-center text-sm text-gray-500">Loading payment allocations…</div>
-        ) : paymentsSale && (
-          <div className="space-y-4 text-xs">
-            {/* Summary card */}
-            <div className="grid grid-cols-3 gap-2 bg-gray-50 p-3 rounded-lg border text-center">
-              <div>
-                <span className="text-gray-500">Total Invoice Amount</span>
-                <p className="text-base font-bold text-gray-900 font-mono">{fmt(paymentsSale.total_amount)}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Total Paid</span>
-                <p className="text-base font-bold text-success-700 font-mono">
-                  {fmt(paymentsSale.amount_paid ?? paymentsSale.total_amount)}
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-500">Balance Due</span>
-                <p className="text-base font-bold text-danger-700 font-mono">
-                  {fmt(paymentsSale.balance_due ?? 0)}
-                </p>
-              </div>
-            </div>
-
-            {/* Payment history list */}
-            <div>
-              <h4 className="font-semibold text-gray-800 text-xs mb-2">Recorded Payments</h4>
-              {paymentsList.length === 0 ? (
-                <div className="p-6 text-center text-gray-500 border rounded-lg">No payment entries found.</div>
-              ) : (
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200 text-xs">
-                    <thead className="bg-gray-50">
-                      <tr>
-                        <th className="px-3 py-2 text-left font-medium text-gray-600">Date & Time</th>
-                        <th className="px-2 py-2 text-left font-medium text-gray-600">Type</th>
-                        <th className="px-2 py-2 text-left font-medium text-gray-600">Method</th>
-                        <th className="px-2 py-2 text-left font-medium text-gray-600">Reference</th>
-                        <th className="px-3 py-2 text-right font-medium text-gray-600">Amount</th>
-                        <th className="px-2 py-2 text-center font-medium text-gray-600">Status</th>
-                        <th className="px-3 py-2 text-center font-medium text-gray-600">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
-                      {paymentsList.map((p) => (
-                        <tr key={p.id} className={p.is_void ? 'bg-danger-50/30' : ''}>
-                          <td className="px-3 py-2 text-gray-700 whitespace-nowrap">
-                            {new Date(p.created_at || p.payment_date).toLocaleString('en-GH')}
-                          </td>
-                          <td className="px-2 py-2">
-                            <span className="font-medium text-gray-800">
-                              {p.type === 'CUSTOMER_ALLOCATION' ? 'Credit Allocation' : 'Checkout Payment'}
-                            </span>
-                          </td>
-                          <td className="px-2 py-2 font-medium text-gray-700">
-                            {PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}
-                          </td>
-                          <td className="px-2 py-2 font-mono text-gray-500 text-2xs">{p.reference || '—'}</td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">
-                            {fmt(p.amount)}
-                          </td>
-                          <td className="px-2 py-2 text-center">
-                            {p.is_void ? (
-                              <Badge variant="danger">VOID</Badge>
-                            ) : (
-                              <Badge variant="success">COMPLETED</Badge>
-                            )}
-                          </td>
-                          <td className="px-3 py-2 text-center">
-                            {!p.is_void && (
-                              <Button
-                                size="sm"
-                                variant="danger"
-                                onClick={() => {
-                                  setVoidTargetPayment(p)
-                                  setVoidReason('')
-                                }}
-                                className="text-xs px-2 py-1"
-                              >
-                                Void
-                              </Button>
-                            )}
-                            {p.is_void && (
-                              <span className="text-3xs text-danger-700 italic block" title={p.void_reason}>
-                                {p.void_reason || 'Voided'}
-                              </span>
-                            )}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-
-            {/* Void confirmation form when a payment is selected */}
-            {voidTargetPayment && (
-              <form onSubmit={handleVoidPayment} className="p-3 bg-danger-50 border border-danger-200 rounded-lg space-y-3">
-                <div>
-                  <h5 className="font-bold text-danger-900 text-xs">
-                    Confirm Voiding Payment of {fmt(voidTargetPayment.amount)}
-                  </h5>
-                  <p className="text-2xs text-danger-700 mt-0.5">
-                    Voiding will subtract {fmt(voidTargetPayment.amount)} from Amount Paid and restore the Balance Due on this sale. Product inventory will not be modified.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-2xs font-semibold text-danger-900 mb-1">Reason for Void *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Accidental duplicate charge, customer check bounced..."
-                    value={voidReason}
-                    onChange={(e) => setVoidReason(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-danger-300 rounded focus:ring-1 focus:ring-danger-500"
-                  />
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setVoidTargetPayment(null)}
-                    disabled={isVoiding}
-                  >
-                    Cancel
-                  </Button>
-                  <Button
-                    type="submit"
-                    size="sm"
-                    variant="danger"
-                    isLoading={isVoiding}
-                    disabled={!voidReason.trim()}
-                  >
-                    Confirm Void
-                  </Button>
-                </div>
-              </form>
-            )}
-
-            <div className="flex justify-end pt-2">
-              <Button variant="secondary" onClick={() => setPaymentsSale(null)}>
-                Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* 3. EDIT SALE MODAL (Pencil icon) */}
+      {/* 2. EDIT SALE MODAL */}
       <Modal
         isOpen={!!editSaleTarget}
         onClose={() => {
@@ -1378,7 +1217,7 @@ export default function SalesPage() {
         )}
       </Modal>
 
-      {/* 4. CANCEL / DELETE SALE MODAL (Trash icon) */}
+      {/* 3. CANCEL / DELETE SALE MODAL */}
       <Modal
         isOpen={!!deleteSaleTarget}
         onClose={() => {
@@ -1741,31 +1580,6 @@ export default function SalesPage() {
             <div className="flex justify-end pt-2">
               <Button variant="secondary" onClick={() => setSelectedReturnDetails(null)}>
                 Close
-              </Button>
-            </div>
-          </div>
-        )}
-      </Modal>
-
-      {/* Sale Refund Modal (Whole Payment Gateway / Cash Refund) */}
-      <Modal isOpen={!!refundTarget} onClose={() => setRefundTarget(null)} title="Refund sale" size="sm">
-        {refundTarget && (
-          <div className="space-y-4">
-            <p className="text-sm text-gray-700">
-              Refund <span className="font-mono font-medium">{refundTarget.transaction_id}</span> for{' '}
-              <span className="font-semibold">{fmt(refundTarget.total_amount)}</span>?
-            </p>
-            <p className="text-sm text-gray-500">
-              {isCashRefund
-                ? 'Give the customer the amount in cash. Stock is restored and any loyalty points earned are reversed straight away.'
-                : 'Paystack will return the amount to the customer. The sale shows as "Refund pending" until Paystack confirms it, then stock and loyalty points are updated.'}
-            </p>
-            <div className="flex justify-end gap-2">
-              <Button variant="secondary" onClick={() => setRefundTarget(null)} disabled={refunding}>
-                Cancel
-              </Button>
-              <Button variant="danger" onClick={confirmRefund} isLoading={refunding}>
-                Refund {fmt(refundTarget.total_amount)}
               </Button>
             </div>
           </div>

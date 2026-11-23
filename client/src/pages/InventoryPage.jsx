@@ -481,15 +481,6 @@ export default function InventoryPage() {
                 Stock Adjustments
               </button>
             </div>
-
-            {viewMode === 'adjustments' && isAdminOrManager && (
-              <Button onClick={openNewAdjustmentModal}>
-                <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                </svg>
-                New Adjustment
-              </Button>
-            )}
           </div>
         </div>
 
@@ -667,7 +658,7 @@ export default function InventoryPage() {
               ) : adjustments.length === 0 ? (
                 <div className="p-12 text-center text-gray-500">
                   <p className="font-medium text-gray-700">No stock adjustments found</p>
-                  <p className="text-sm text-gray-400 mt-1">Try adjusting your filters or create a new adjustment</p>
+                  <p className="text-sm text-gray-400 mt-1">Adjust stock using the &quot;Adjust&quot; button on the Stock Balances tab</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
