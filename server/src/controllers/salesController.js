@@ -1,4 +1,5 @@
 const salesService = require('../services/salesService')
+const pdfService = require('../services/pdfService')
 
 function normalizeSale(sale) {
   return {
@@ -100,4 +101,72 @@ async function getReceipt(req, res, next) {
   }
 }
 
-module.exports = { createSale, listSales, getSale, processRefund, getReceipt }
+async function getPayments(req, res, next) {
+  try {
+    const data = await salesService.getSalePayments(req.params.id)
+    res.json({ success: true, data })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function voidPayment(req, res, next) {
+  try {
+    const data = await salesService.voidSalePayment(
+      req.params.id,
+      req.params.paymentId,
+      req.body,
+      req.user.id
+    )
+    res.json({ success: true, data: normalizeSale(data), message: 'Payment voided successfully' })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function updateSale(req, res, next) {
+  try {
+    const data = await salesService.updateSale(req.params.id, req.body, req.user.id)
+    res.json({ success: true, data: normalizeSale(data), message: 'Sale updated successfully' })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function deleteSale(req, res, next) {
+  try {
+    const data = await salesService.cancelSale(req.params.id, req.body, req.user.id)
+    res.json({ success: true, data: normalizeSale(data), message: 'Sale cancelled successfully. Stock restored.' })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function downloadInvoicePdf(req, res, next) {
+  try {
+    const format = req.query.format || 'a4'
+    const pdfBuffer = await pdfService.generateInvoicePdf(req.params.id, format)
+    const sale = await salesService.getSaleById(req.params.id)
+    const filename = `Invoice-${sale.transaction_id || req.params.id}.pdf`
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+    res.send(pdfBuffer)
+  } catch (err) {
+    next(err)
+  }
+}
+
+module.exports = {
+  createSale,
+  listSales,
+  getSale,
+  processRefund,
+  getReceipt,
+  getPayments,
+  voidPayment,
+  updateSale,
+  deleteSale,
+  downloadInvoicePdf,
+}

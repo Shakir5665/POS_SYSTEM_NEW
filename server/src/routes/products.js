@@ -36,6 +36,7 @@ const productValidation = [
   body('name').notEmpty().trim().withMessage('Name is required'),
   body('sku').notEmpty().trim().withMessage('SKU is required'),
   body('category_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Valid category ID is required'),
+  body('brand_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Valid brand ID is required'),
   body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME', 'LENGTH']).withMessage('Unit category must be COUNT, WEIGHT, VOLUME, or LENGTH'),
   body('base_unit').optional().isString().trim(),
   body('pricing_unit').optional().isString().trim(),
@@ -89,7 +90,16 @@ const categoryValidation = [
 router.use(authenticate)
 
 // Category routes — must be before /:id to avoid being shadowed
-router.get('/categories', productController.listCategories)
+router.get(
+  '/categories',
+  [
+    query('page').optional().isInt({ min: 1 }).withMessage('Page must be >= 1'),
+    query('per_page').optional().isInt({ min: 1, max: 100 }).withMessage('Per page must be 1-100'),
+    query('search').optional().isString().trim(),
+  ],
+  validate,
+  productController.listCategories
+)
 router.post('/categories', authorize(['ADMIN', 'MANAGER']), categoryValidation, validate, productController.createCategory)
 router.put('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid category ID'), categoryValidation, validate, productController.updateCategory)
 router.delete('/categories/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid category ID'), validate, productController.deleteCategory)
@@ -106,6 +116,9 @@ function listProductsValidation() {
   return [
     query('page').optional().isInt({ min: 1 }).withMessage('Page must be >= 1'),
     query('per_page').optional().isInt({ min: 1, max: 100 }).withMessage('Per page must be 1-100'),
+    query('search').optional().isString().trim(),
+    query('category_id').optional().isString().trim(),
+    query('brand_id').optional().isString().trim(),
   ]
 }
 
@@ -113,6 +126,7 @@ function updateProductValidation() {
   return [
     param('id').isString().trim().notEmpty().withMessage('Invalid product ID'),
     body('category_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Valid category ID is required'),
+    body('brand_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Valid brand ID is required'),
     body('unit_category').optional().isIn(['COUNT', 'WEIGHT', 'VOLUME', 'LENGTH']).withMessage('Unit category must be COUNT, WEIGHT, VOLUME, or LENGTH'),
     body('base_unit').optional().isString().trim(),
     body('pricing_unit').optional().isString().trim(),

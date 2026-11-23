@@ -158,20 +158,35 @@ beforeAll(async () => {
 
 afterAll(async () => {
   // Clean up in dependency order
-  await prisma.inventoryLog.deleteMany({ where: { user_id: { in: [cashierUser.id, managerUser.id] } } })
+  await prisma.inventoryLog.deleteMany({ where: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } })
+  await prisma.salesReturnItem.deleteMany({
+    where: { sales_return: { sale: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } } },
+  })
+  await prisma.salesReturn.deleteMany({
+    where: { sale: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } },
+  })
+  await prisma.customerPaymentAllocation.deleteMany({
+    where: { sale: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } },
+  })
   await prisma.payment.deleteMany({
-    where: { sale: { user_id: { in: [cashierUser.id, managerUser.id] } } },
+    where: { sale: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } },
   })
   await prisma.saleItem.deleteMany({
-    where: { sale: { user_id: { in: [cashierUser.id, managerUser.id] } } },
+    where: { sale: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } },
   })
-  await prisma.sale.deleteMany({ where: { user_id: { in: [cashierUser.id, managerUser.id] } } })
-  await prisma.customer.delete({ where: { id: testCustomer.id } })
-  await prisma.product.deleteMany({ where: { category_id: testCategory.id } })
+  await prisma.sale.deleteMany({ where: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } })
+  if (testCustomer?.id) {
+    await prisma.customer.deleteMany({ where: { id: testCustomer.id } })
+  }
+  if (testCategory?.id) {
+    await prisma.product.deleteMany({ where: { category_id: testCategory.id } })
+  }
   await prisma.product.deleteMany({ where: { sku: { in: ['SALES-TEST-LAST', 'SALES-TEST-SWEET'] } } })
-  await prisma.category.delete({ where: { id: testCategory.id } })
-  await prisma.authLog.deleteMany({ where: { user_id: { in: [cashierUser.id, managerUser.id] } } })
-  await prisma.user.deleteMany({ where: { id: { in: [cashierUser.id, managerUser.id] } } })
+  if (testCategory?.id) {
+    await prisma.category.deleteMany({ where: { id: testCategory.id } })
+  }
+  await prisma.authLog.deleteMany({ where: { user_id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } })
+  await prisma.user.deleteMany({ where: { id: { in: [cashierUser?.id, managerUser?.id].filter(Boolean) } } })
   await prisma.$disconnect()
 })
 

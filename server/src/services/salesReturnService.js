@@ -44,8 +44,10 @@ async function getSaleReturnEligibility(saleId) {
   // Calculate already returned quantities per sale_item_id
   const returnedByItem = {}
   for (const sr of sale.sales_returns) {
-    for (const item of sr.items) {
-      returnedByItem[item.sale_item_id] = (returnedByItem[item.sale_item_id] || new Decimal(0)).plus(item.quantity)
+    if (!sr.is_cancelled) {
+      for (const item of sr.items) {
+        returnedByItem[item.sale_item_id] = (returnedByItem[item.sale_item_id] || new Decimal(0)).plus(item.quantity)
+      }
     }
   }
 
@@ -166,8 +168,10 @@ async function createSalesReturn(data, user) {
   // Calculate already returned quantities per sale_item_id
   const returnedByItem = {}
   for (const sr of sale.sales_returns) {
-    for (const item of sr.items) {
-      returnedByItem[item.sale_item_id] = (returnedByItem[item.sale_item_id] || new Decimal(0)).plus(item.quantity)
+    if (!sr.is_cancelled) {
+      for (const item of sr.items) {
+        returnedByItem[item.sale_item_id] = (returnedByItem[item.sale_item_id] || new Decimal(0)).plus(item.quantity)
+      }
     }
   }
 
@@ -453,10 +457,93 @@ async function getSalesReturnById(id) {
   return sr
 }
 
+async function cancelSalesReturn(returnId, { reason }, user) {
+  assertReturnPermission(user)
+  if (!reason || !String(reason).trim()) {
+    throw new ValidationError('Cancellation reason is required', [
+      { field: 'reason', message: 'Cancellation reason is required' },
+    ])
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "SalesReturn" WHERE id = ${returnId} FOR UPDATE`
+
+    const sr = await tx.salesReturn.findUnique({
+      where: { id: returnId },
+      include: {
+        items: true,
+        sale: true,
+      },
+    })
+    if (!sr) throw new NotFoundError('Sales return not found')
+
+    if (sr.is_cancelled) {
+      throw new ValidationError('Sales return is already cancelled')
+    }
+
+    // For each item where restock === true, reverse the stock addition if possible
+    for (const item of sr.items) {
+      if (item.restock) {
+        const prod = await tx.product.findUnique({ where: { id: item.product_id } })
+        const currentStock = new Decimal(prod.quantity)
+        const reverseQty = new Decimal(item.base_quantity)
+
+        if (currentStock.lt(reverseQty)) {
+          throw new ValidationError(
+            `Cannot cancel return: insufficient stock to reverse restocked "${item.product_name}". Current stock: ${currentStock.toString()}, required: ${reverseQty.toString()}`
+          )
+        }
+
+        const newStock = currentStock.minus(reverseQty)
+        await tx.product.update({
+          where: { id: item.product_id },
+          data: { quantity: newStock },
+        })
+
+        await tx.inventoryLog.create({
+          data: {
+            product_id: item.product_id,
+            change_type: 'ADJUSTMENT',
+            unit: item.unit,
+            quantity_change: reverseQty.negated(),
+            previous_quantity: currentStock,
+            new_quantity: newStock,
+            user_id: user.id,
+            warehouse_id: sr.warehouse_id,
+            notes: `Cancellation of Sales Return #${sr.return_number}: ${reason.trim()}`,
+          },
+        })
+      }
+    }
+
+    // Mark SalesReturn as cancelled
+    const updated = await tx.salesReturn.update({
+      where: { id: returnId },
+      data: {
+        is_cancelled: true,
+        cancelled_at: new Date(),
+        cancelled_by: user.id,
+        cancellation_reason: reason.trim(),
+        refund_status: 'FAILED',
+      },
+      include: {
+        sale: true,
+        customer: true,
+        warehouse: true,
+        user: true,
+        items: true,
+      },
+    })
+
+    return updated
+  }, { maxWait: 10000, timeout: 30000 })
+}
+
 module.exports = {
   createSalesReturn,
   listSalesReturns,
   getSalesReturnById,
   getSaleReturnEligibility,
   assertReturnPermission,
+  cancelSalesReturn,
 }

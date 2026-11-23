@@ -101,6 +101,7 @@ model Product {
   sku                 String       @unique
   barcode             String?      @unique
   category_id         String?
+  brand_id            String?
   unit_category       UnitCategory @default(COUNT)
   base_unit           String       @default("pcs")
   pricing_unit        String       @default("pcs")
@@ -117,6 +118,7 @@ model Product {
   updated_at          DateTime     @updatedAt
 
   category               Category?             @relation(fields: [category_id], references: [id], onDelete: SetNull)
+  brand                  Brand?                @relation(fields: [brand_id], references: [id], onDelete: SetNull)
   sale_items             SaleItem[]
   inventory_logs         InventoryLog[]
   purchase_items         PurchaseItem[]
@@ -126,6 +128,7 @@ model Product {
 
   @@index([barcode])
   @@index([sku])
+  @@index([brand_id])
 }
 
 model Customer {
@@ -162,6 +165,10 @@ model Sale {
   notes                 String?
   sale_date             DateTime?
   is_legacy_import      Boolean       @default(false)
+  is_cancelled          Boolean       @default(false)
+  cancelled_at          DateTime?
+  cancelled_by          String?
+  cancellation_reason   String?
   // Points awarded by this sale; a refund reverses exactly this many
   loyalty_points_earned Int           @default(0)
   // Set while a Paystack refund is awaiting confirmation by webhook
@@ -226,6 +233,10 @@ model Payment {
   amount_paid  Decimal       @db.Decimal(10, 2)
   change_given Decimal       @default(0) @db.Decimal(10, 2)
   reference    String?       @unique
+  is_void      Boolean       @default(false)
+  void_reason  String?
+  voided_at    DateTime?
+  voided_by    String?
   created_at   DateTime      @default(now())
   updated_at   DateTime      @updatedAt
 
@@ -240,6 +251,10 @@ model CustomerPayment {
   payment_method PaymentMethod @default(CASH)
   reference      String?
   notes          String?
+  is_void        Boolean       @default(false)
+  void_reason    String?
+  voided_at      DateTime?
+  voided_by      String?
   created_at     DateTime      @default(now())
   updated_at     DateTime      @updatedAt
 
@@ -457,6 +472,10 @@ model Expense {
   reference        String?
   notes            String?
   is_legacy_import Boolean       @default(false)
+  is_cancelled     Boolean       @default(false)
+  cancelled_at     DateTime?
+  cancelled_by     String?
+  cancellation_reason String?
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
 
@@ -645,6 +664,10 @@ model SalesReturn {
   notes            String?
   idempotency_key  String?       @unique
   is_legacy_import Boolean       @default(false)
+  is_cancelled     Boolean       @default(false)
+  cancelled_at     DateTime?
+  cancelled_by     String?
+  cancellation_reason String?
   created_at       DateTime      @default(now())
   updated_at       DateTime      @updatedAt
 
@@ -736,4 +759,36 @@ model PurchaseReturnItem {
   @@index([purchase_return_id])
   @@index([purchase_item_id])
   @@index([product_id])
+}
+
+model Brand {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  created_at  DateTime @default(now())
+  updated_at  DateTime @updatedAt
+
+  products Product[]
+}
+
+model Variation {
+  id         String   @id @default(uuid())
+  name       String   @unique
+  created_at DateTime @default(now())
+  updated_at DateTime @updatedAt
+
+  values VariationValue[]
+}
+
+model VariationValue {
+  id           String   @id @default(uuid())
+  variation_id String
+  value        String
+  created_at   DateTime @default(now())
+  updated_at   DateTime @updatedAt
+
+  variation Variation @relation(fields: [variation_id], references: [id], onDelete: Cascade)
+
+  @@unique([variation_id, value])
+  @@index([variation_id])
 }

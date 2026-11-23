@@ -6,6 +6,12 @@ export const returnsService = {
   createSalesReturn: (data) => api.post('/sales/returns', data),
   listSalesReturns: (params) => api.get('/sales/returns', { params }),
   getSalesReturn: (id) => api.get(`/sales/returns/${id}`),
+  deleteSalesReturn: (id, data) => api.delete(`/sales/returns/${id}`, { data }),
+  downloadPdf: (id, format = 'a4') =>
+    api.get(`/sale-return-pdf-download/${id}`, {
+      params: { format },
+      responseType: 'blob',
+    }),
 
   // Purchase Returns
   getPurchaseEligibility: (purchaseId) => api.get(`/purchases/${purchaseId}/eligibility`),

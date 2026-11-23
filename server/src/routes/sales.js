@@ -54,13 +54,46 @@ const saleValidation = [
 // Sales Returns endpoints (must be before /:id)
 router.get('/returns', authorize(['ADMIN', 'MANAGER']), salesReturnController.list)
 router.get('/returns/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid return ID'), validate, salesReturnController.get)
+router.get('/returns/:id/pdf', authorize(['ADMIN', 'MANAGER', 'CASHIER']), param('id').isString().trim().notEmpty().withMessage('Invalid return ID'), validate, salesReturnController.downloadCreditNotePdf)
 router.post('/returns', authorize(['ADMIN', 'MANAGER']), salesReturnValidation, validate, salesReturnController.create)
+router.delete(
+  '/returns/:id',
+  authorize(['ADMIN']),
+  param('id').isString().trim().notEmpty().withMessage('Invalid return ID'),
+  validate,
+  salesReturnController.deleteReturn
+)
 
 router.post('/', saleValidation, validate, salesController.createSale)
 router.get('/', salesController.listSales)
 router.get('/:id/eligibility', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesReturnController.getEligibility)
 router.get('/:id', param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesController.getSale)
 router.get('/:id/receipt', param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesController.getReceipt)
+router.get('/:id/pdf', param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesController.downloadInvoicePdf)
+router.get('/:id/payments', param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'), validate, salesController.getPayments)
+router.post(
+  '/:id/payments/:paymentId/void',
+  authorize(['ADMIN']),
+  param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'),
+  param('paymentId').isString().trim().notEmpty().withMessage('Invalid payment ID'),
+  body('reason').notEmpty().trim().withMessage('Reversal reason is required'),
+  validate,
+  salesController.voidPayment
+)
+router.put(
+  '/:id',
+  authorize(['ADMIN', 'MANAGER']),
+  param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'),
+  validate,
+  salesController.updateSale
+)
+router.delete(
+  '/:id',
+  authorize(['ADMIN']),
+  param('id').isString().trim().notEmpty().withMessage('Invalid sale ID'),
+  validate,
+  salesController.deleteSale
+)
 router.post(
   '/:id/refund',
   authorize(['ADMIN', 'MANAGER']),

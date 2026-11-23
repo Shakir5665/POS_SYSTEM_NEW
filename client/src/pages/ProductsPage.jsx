@@ -106,6 +106,11 @@ export default function ProductsPage() {
       render: (val) => val?.name ? <Badge variant="default">{val.name}</Badge> : <span className="text-gray-400">—</span>,
     },
     {
+      key: 'brand',
+      label: 'Brand',
+      render: (val) => val?.name ? <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{val.name}</span> : <span className="text-gray-400">—</span>,
+    },
+    {
       key: 'usual_price',
       label: 'MRKT_Price',
       render: (val, row) => {

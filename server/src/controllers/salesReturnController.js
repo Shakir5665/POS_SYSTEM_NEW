@@ -1,4 +1,5 @@
 const salesReturnService = require('../services/salesReturnService')
+const pdfService = require('../services/pdfService')
 
 async function create(req, res, next) {
   try {
@@ -69,9 +70,40 @@ async function getEligibility(req, res, next) {
   }
 }
 
+async function deleteReturn(req, res, next) {
+  try {
+    const returnRecord = await salesReturnService.cancelSalesReturn(req.params.id, req.body, req.user)
+    res.json({
+      success: true,
+      data: returnRecord,
+      message: 'Sales return cancelled successfully. Restocked inventory reversed.',
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
+async function downloadCreditNotePdf(req, res, next) {
+  try {
+    const format = req.query.format || 'a4'
+    const pdfBuffer = await pdfService.generateCreditNotePdf(req.params.id, format)
+    const sr = await salesReturnService.getSalesReturnById(req.params.id)
+    const filename = `Credit-Note-${sr.return_number || req.params.id}.pdf`
+
+    res.setHeader('Content-Type', 'application/pdf')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    res.setHeader('Content-Length', pdfBuffer.length)
+    res.send(pdfBuffer)
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   create,
   list,
   get,
   getEligibility,
+  deleteReturn,
+  downloadCreditNotePdf,
 }

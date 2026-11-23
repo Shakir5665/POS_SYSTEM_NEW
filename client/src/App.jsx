@@ -5,12 +5,17 @@ import RegisterPage from './pages/RegisterPage'
 import POSPage from './pages/POSPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductFormPage from './pages/ProductFormPage'
+import ProductCategoriesPage from './pages/ProductCategoriesPage'
+import VariationsPage from './pages/VariationsPage'
+import BrandsPage from './pages/BrandsPage'
 import InventoryPage from './pages/InventoryPage'
 import CustomersPage from './pages/CustomersPage'
 import CustomerDetailPage from './pages/CustomerDetailPage'
 import SuppliersPage from './pages/SuppliersPage'
 import PurchasesPage from './pages/PurchasesPage'
 import SalesPage from './pages/SalesPage'
+import SalesReturnsPage from './pages/SalesReturnsPage'
+import CreateSaleReturnPage from './pages/CreateSaleReturnPage'
 import FinancePage from './pages/FinancePage'
 import DashboardPage from './pages/DashboardPage'
 import ReportsPage from './pages/ReportsPage'
@@ -85,7 +90,15 @@ export default function App() {
         }
       />
 
-      {/* Manager + above */}
+      {/* Products Module Routes (both /app/... and legacy paths) */}
+      <Route
+        path="/app/products"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <ProductsPage />
+          </ProtectedRoute>
+        }
+      />
       <Route
         path="/products"
         element={
@@ -95,7 +108,23 @@ export default function App() {
         }
       />
       <Route
+        path="/app/products/new"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <ProductFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/products/new"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <ProductFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/products/:id/edit"
         element={
           <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
             <ProductFormPage />
@@ -110,6 +139,106 @@ export default function App() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/app/product-categories"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <ProductCategoriesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/product-categories"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <ProductCategoriesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/variations"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <VariationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/variations"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <VariationsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/brands"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <BrandsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/brands"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <BrandsPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Sales Module Routes (both /app/... and legacy paths) */}
+      <Route
+        path="/app/sales"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <SalesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sales"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <SalesPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/sale-return"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <SalesReturnsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sale-return"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <SalesReturnsPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/sale-return/create"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <CreateSaleReturnPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/sale-return/create"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <CreateSaleReturnPage />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Other Manager + above routes */}
       <Route
         path="/inventory"
         element={
@@ -155,14 +284,6 @@ export default function App() {
         element={
           <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
             <PurchasesPage />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/sales"
-        element={
-          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
-            <SalesPage />
           </ProtectedRoute>
         }
       />

@@ -9,6 +9,9 @@ const fs = require('fs')
 
 const { logger, morganStream } = require('./middleware/logger')
 const errorHandler = require('./middleware/errorHandler')
+const { authenticate } = require('./middleware/auth')
+const salesController = require('./controllers/salesController')
+const salesReturnController = require('./controllers/salesReturnController')
 const authRoutes = require('./routes/auth')
 const productRoutes = require('./routes/products')
 const inventoryRoutes = require('./routes/inventory')
@@ -23,6 +26,8 @@ const purchaseRoutes = require('./routes/purchases')
 const financeRoutes = require('./routes/finance')
 const warehouseRoutes = require('./routes/warehouses')
 const migrationRoutes = require('./routes/migration')
+const brandRoutes = require('./routes/brands')
+const variationRoutes = require('./routes/variations')
 
 const app = express()
 
@@ -108,6 +113,12 @@ app.use('/api/purchases', purchaseRoutes)
 app.use('/api/finance', financeRoutes)
 app.use('/api/warehouses', warehouseRoutes)
 app.use('/api/migration', migrationRoutes)
+app.use('/api/brands', brandRoutes)
+app.use('/api/variations', variationRoutes)
+
+// Direct PDF download compatibility routes
+app.get('/api/sale-pdf-download/:id', authenticate, salesController.downloadInvoicePdf)
+app.get('/api/sale-return-pdf-download/:id', authenticate, salesReturnController.downloadCreditNotePdf)
 
 // Serve frontend SPA in production when client/dist exists
 const clientDist = path.join(__dirname, '..', '..', 'client', 'dist')

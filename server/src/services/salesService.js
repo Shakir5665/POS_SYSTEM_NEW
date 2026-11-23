@@ -661,6 +661,637 @@ async function getReceiptData(saleId) {
   }
 }
 
+async function getSalePayments(saleId) {
+  const sale = await prisma.sale.findUnique({
+    where: { id: saleId },
+    include: {
+      payments: {
+        orderBy: { created_at: 'asc' },
+      },
+      customer_payment_allocations: {
+        include: {
+          customer_payment: {
+            include: {
+              user: { select: { id: true, username: true, full_name: true } },
+            },
+          },
+        },
+        orderBy: { created_at: 'asc' },
+      },
+    },
+  })
+  if (!sale) throw new NotFoundError('Sale not found')
+
+  const payments = []
+
+  for (const p of sale.payments) {
+    payments.push({
+      id: p.id,
+      payment_type: 'CHECKOUT',
+      method: p.method,
+      amount: Number(p.amount_paid),
+      change_given: Number(p.change_given),
+      reference: p.reference,
+      date: p.created_at,
+      status: p.is_void ? 'VOIDED' : 'COMPLETED',
+      is_void: p.is_void,
+      void_reason: p.void_reason,
+      voided_at: p.voided_at,
+      voided_by: p.voided_by,
+    })
+  }
+
+  for (const alloc of sale.customer_payment_allocations) {
+    const cp = alloc.customer_payment
+    payments.push({
+      id: alloc.id,
+      customer_payment_id: cp.id,
+      payment_type: 'CUSTOMER_PAYMENT',
+      method: cp.payment_method,
+      amount: Number(alloc.amount),
+      change_given: 0,
+      reference: cp.reference,
+      date: alloc.created_at || cp.created_at,
+      status: cp.is_void ? 'VOIDED' : 'COMPLETED',
+      is_void: cp.is_void,
+      void_reason: cp.void_reason,
+      voided_at: cp.voided_at,
+      voided_by: cp.voided_by,
+      notes: cp.notes,
+      user: cp.user,
+    })
+  }
+
+  payments.sort((a, b) => new Date(a.date) - new Date(b.date))
+
+  return {
+    sale_id: sale.id,
+    transaction_id: sale.transaction_id,
+    total_amount: Number(sale.total_amount),
+    amount_paid: Number(sale.amount_paid),
+    balance_due: Number(sale.balance_due),
+    payment_status: sale.payment_status,
+    payments,
+  }
+}
+
+async function voidSalePayment(saleId, paymentId, { reason }, userId) {
+  if (!reason || !String(reason).trim()) {
+    throw new ValidationError('A void/reversal reason is required', [
+      { field: 'reason', message: 'Reversal reason is required' },
+    ])
+  }
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Lock parent sale
+    await tx.$queryRaw`SELECT id FROM "Sale" WHERE id = ${saleId} FOR UPDATE`
+
+    const sale = await tx.sale.findUnique({
+      where: { id: saleId },
+      include: {
+        payments: true,
+        customer_payment_allocations: {
+          include: { customer_payment: true },
+        },
+      },
+    })
+    if (!sale) throw new NotFoundError('Sale not found')
+
+    if (sale.is_cancelled) {
+      throw new ValidationError('Cannot void payments on a cancelled sale')
+    }
+
+    // Check direct Payment table first
+    const directPayment = sale.payments.find((p) => p.id === paymentId)
+
+    if (directPayment) {
+      if (directPayment.is_void) {
+        throw new ValidationError('Payment has already been voided')
+      }
+
+      // Protect confirmed Paystack settled payments from silent local void
+      if (
+        (directPayment.method === 'CARD' || directPayment.method === 'MOBILE_MONEY') &&
+        directPayment.reference
+      ) {
+        throw new ValidationError(
+          'Settled electronic Paystack payments cannot be voided directly. Please use the refund workflow.'
+        )
+      }
+
+      await tx.payment.update({
+        where: { id: directPayment.id },
+        data: {
+          is_void: true,
+          void_reason: reason.trim(),
+          voided_at: new Date(),
+          voided_by: userId,
+        },
+      })
+    } else {
+      // Check customer payment allocations
+      const allocation = sale.customer_payment_allocations.find(
+        (a) => a.id === paymentId || a.customer_payment_id === paymentId
+      )
+
+      if (!allocation) {
+        throw new NotFoundError('Payment record not found for this sale')
+      }
+
+      const cp = allocation.customer_payment
+      if (cp.is_void) {
+        throw new ValidationError('Customer payment has already been voided')
+      }
+
+      // Mark CustomerPayment as void
+      await tx.customerPayment.update({
+        where: { id: cp.id },
+        data: {
+          is_void: true,
+          void_reason: reason.trim(),
+          voided_at: new Date(),
+          voided_by: userId,
+        },
+      })
+
+      // If customer payment was allocated across multiple sales, recompute all affected sales
+      const allAllocations = await tx.customerPaymentAllocation.findMany({
+        where: { customer_payment_id: cp.id },
+      })
+
+      for (const otherAlloc of allAllocations) {
+        if (otherAlloc.sale_id !== saleId) {
+          const otherSale = await tx.sale.findUnique({
+            where: { id: otherAlloc.sale_id },
+            include: {
+              payments: { where: { is_void: false } },
+              customer_payment_allocations: {
+                where: { customer_payment_id: { not: cp.id } },
+                include: { customer_payment: true },
+              },
+            },
+          })
+          if (otherSale) {
+            let otherPaid = toMoney(0)
+            for (const p of otherSale.payments) {
+              const eff = toMoney(p.amount_paid).minus(toMoney(p.change_given))
+              otherPaid = otherPaid.plus(Decimal.max(0, eff))
+            }
+            for (const a of otherSale.customer_payment_allocations) {
+              if (!a.customer_payment.is_void) {
+                otherPaid = otherPaid.plus(toMoney(a.amount))
+              }
+            }
+            const otherBalance = Decimal.max(0, toMoney(otherSale.total_amount).minus(otherPaid))
+            const otherStatus = otherBalance.eq(0)
+              ? 'COMPLETED'
+              : (otherPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING')
+
+            await tx.sale.update({
+              where: { id: otherSale.id },
+              data: {
+                amount_paid: otherPaid,
+                balance_due: otherBalance,
+                payment_status: otherSale.payment_status === 'REFUNDED' ? 'REFUNDED' : otherStatus,
+              },
+            })
+          }
+        }
+      }
+    }
+
+    // 2. Recompute the active payments on this sale
+    const updatedSale = await tx.sale.findUnique({
+      where: { id: saleId },
+      include: {
+        payments: { where: { is_void: false } },
+        customer_payment_allocations: {
+          include: { customer_payment: true },
+        },
+      },
+    })
+
+    let activePaid = toMoney(0)
+    for (const p of updatedSale.payments) {
+      const eff = toMoney(p.amount_paid).minus(toMoney(p.change_given))
+      activePaid = activePaid.plus(Decimal.max(0, eff))
+    }
+    for (const a of updatedSale.customer_payment_allocations) {
+      if (!a.customer_payment.is_void) {
+        activePaid = activePaid.plus(toMoney(a.amount))
+      }
+    }
+
+    const newBalanceDue = Decimal.max(0, toMoney(updatedSale.total_amount).minus(activePaid))
+    const newPaymentStatus = updatedSale.payment_status === 'REFUNDED'
+      ? 'REFUNDED'
+      : (newBalanceDue.eq(0) ? 'COMPLETED' : (activePaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING'))
+
+    await tx.sale.update({
+      where: { id: saleId },
+      data: {
+        amount_paid: activePaid,
+        balance_due: newBalanceDue,
+        payment_status: newPaymentStatus,
+      },
+    })
+
+    return getSaleById(saleId)
+  }, { maxWait: 10000, timeout: 30000 })
+}
+
+async function updateSale(saleId, data, userId) {
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Sale" WHERE id = ${saleId} FOR UPDATE`
+
+    const sale = await tx.sale.findUnique({
+      where: { id: saleId },
+      include: {
+        sale_items: {
+          include: { product: true },
+        },
+        sales_returns: {
+          include: { items: true },
+        },
+        payments: true,
+        customer_payment_allocations: {
+          include: { customer_payment: true },
+        },
+      },
+    })
+    if (!sale) throw new NotFoundError('Sale not found')
+
+    if (sale.is_cancelled) {
+      throw new ValidationError('Cancelled sales cannot be edited')
+    }
+    if (sale.payment_status === 'REFUNDED') {
+      throw new ValidationError('Refunded sales cannot be edited')
+    }
+    if (sale.is_legacy_import) {
+      throw new ValidationError('Historical imported sales cannot be edited')
+    }
+
+    // Calculate returned quantities per sale_item
+    const returnedByItem = {}
+    for (const sr of sale.sales_returns) {
+      if (!sr.is_cancelled) {
+        for (const item of sr.items) {
+          returnedByItem[item.sale_item_id] = (returnedByItem[item.sale_item_id] || new Decimal(0)).plus(item.quantity)
+        }
+      }
+    }
+
+    const existingItemMap = new Map(sale.sale_items.map((i) => [i.id, i]))
+    const newItems = data.items || []
+
+    if (!Array.isArray(newItems) || newItems.length === 0) {
+      throw new ValidationError('Sale must contain at least one item')
+    }
+
+    // Validate that existing items with returns are not reduced below returned quantities
+    for (const reqItem of newItems) {
+      if (reqItem.id && existingItemMap.has(reqItem.id)) {
+        const existingItem = existingItemMap.get(reqItem.id)
+        const returnedQty = returnedByItem[existingItem.id] || new Decimal(0)
+        const requestedQty = new Decimal(reqItem.quantity || 0)
+        if (requestedQty.lt(returnedQty)) {
+          throw new ValidationError(
+            `Cannot reduce quantity of "${existingItem.product_name}" below already returned quantity (${returnedQty.toString()})`
+          )
+        }
+      }
+    }
+
+    // Process item inventory diffs
+    const updatedSaleItems = []
+    let newSubtotal = toMoney(0)
+
+    for (const reqItem of newItems) {
+      let saleItemRecord = reqItem.id ? existingItemMap.get(reqItem.id) : null
+      let product = null
+
+      if (saleItemRecord) {
+        product = await tx.product.findUnique({ where: { id: saleItemRecord.product_id } })
+      } else {
+        product = await tx.product.findUnique({ where: { id: reqItem.product_id } })
+        if (!product || !product.is_active) {
+          throw new NotFoundError(`Product not found or inactive`)
+        }
+      }
+
+      const sellingUnit = reqItem.unit || (saleItemRecord ? saleItemRecord.unit : product.pricing_unit || 'pcs')
+      const newQty = new Decimal(reqItem.quantity || 0)
+      if (newQty.lte(0)) {
+        throw new ValidationError('Item quantity must be greater than zero')
+      }
+
+      const newBaseQty = toBaseUnitQuantity(newQty, sellingUnit, product.unit_category, product.base_unit)
+      const oldBaseQty = saleItemRecord ? new Decimal(saleItemRecord.base_quantity) : new Decimal(0)
+      const netBaseDiff = newBaseQty.minus(oldBaseQty)
+
+      if (netBaseDiff.gt(0)) {
+        // Quantity increased: check stock and decrement
+        const currentProd = await tx.product.findUnique({ where: { id: product.id } })
+        if (new Decimal(currentProd.quantity).lt(netBaseDiff)) {
+          throw new ValidationError(`Insufficient stock for "${product.name}". Available: ${currentProd.quantity}, required: ${netBaseDiff}`)
+        }
+
+        const { quantity: newStock } = await tx.product.update({
+          where: { id: product.id },
+          data: { quantity: { decrement: netBaseDiff } },
+          select: { quantity: true },
+        })
+
+        await tx.inventoryLog.create({
+          data: {
+            product_id: product.id,
+            change_type: 'ADJUSTMENT',
+            unit: product.base_unit,
+            quantity_change: netBaseDiff.negated(),
+            previous_quantity: newStock.plus(netBaseDiff),
+            new_quantity: newStock,
+            user_id: userId,
+            warehouse_id: sale.warehouse_id,
+            notes: `Sale ${sale.transaction_id} edit: quantity increased`,
+          },
+        })
+      } else if (netBaseDiff.lt(0)) {
+        // Quantity decreased: restore net difference to stock
+        const restoreQty = netBaseDiff.abs()
+        const { quantity: newStock } = await tx.product.update({
+          where: { id: product.id },
+          data: { quantity: { increment: restoreQty } },
+          select: { quantity: true },
+        })
+
+        await tx.inventoryLog.create({
+          data: {
+            product_id: product.id,
+            change_type: 'ADJUSTMENT',
+            unit: product.base_unit,
+            quantity_change: restoreQty,
+            previous_quantity: newStock.minus(restoreQty),
+            new_quantity: newStock,
+            user_id: userId,
+            warehouse_id: sale.warehouse_id,
+            notes: `Sale ${sale.transaction_id} edit: quantity decreased`,
+          },
+        })
+      }
+
+      // Preserve snapshot unit price or apply item price
+      const unitPrice = saleItemRecord ? toMoney(saleItemRecord.unit_price) : toMoney(product.our_price || product.price)
+      const itemDisc = toMoney(reqItem.discount || (saleItemRecord ? saleItemRecord.discount : 0))
+      const lineGross = calculateLineGross(newQty, sellingUnit, product.pricing_unit, unitPrice, product.unit_category)
+      const lineTotal = lineGross.minus(itemDisc)
+      newSubtotal = newSubtotal.plus(lineTotal)
+
+      updatedSaleItems.push({
+        id: saleItemRecord ? saleItemRecord.id : undefined,
+        product_id: product.id,
+        product_name: product.name,
+        product_sku: product.sku,
+        unit: sellingUnit,
+        quantity: newQty,
+        base_quantity: newBaseQty,
+        base_unit: product.base_unit,
+        pricing_unit: product.pricing_unit,
+        unit_price: unitPrice,
+        unit_cost_snapshot: saleItemRecord ? saleItemRecord.unit_cost_snapshot : toMoney(product.cost_price || 0),
+        cost_price_snapshot: saleItemRecord ? saleItemRecord.cost_price_snapshot : (product.cost_price ? toMoney(product.cost_price) : null),
+        usual_price_snapshot: saleItemRecord ? saleItemRecord.usual_price_snapshot : toMoney(product.usual_price || product.price),
+        our_price_snapshot: saleItemRecord ? saleItemRecord.our_price_snapshot : toMoney(product.our_price || product.price),
+        wholesale_price_snapshot: saleItemRecord ? saleItemRecord.wholesale_price_snapshot : toMoney(product.wholesale_price || 0),
+        is_wholesale: saleItemRecord ? saleItemRecord.is_wholesale : false,
+        predefined_discount_applied: saleItemRecord ? saleItemRecord.predefined_discount_applied : false,
+        predefined_discount_amount: saleItemRecord ? saleItemRecord.predefined_discount_amount : toMoney(0),
+        line_cost: calculateLineCost(newQty, sellingUnit, product.pricing_unit, toMoney(product.cost_price || 0), product.unit_category),
+        discount: itemDisc,
+        total: lineTotal,
+      })
+    }
+
+    // Check items that were completely removed
+    const newItemIds = new Set(newItems.filter((i) => i.id).map((i) => i.id))
+    for (const [existingId, oldItem] of existingItemMap.entries()) {
+      if (!newItemIds.has(existingId)) {
+        const retQty = returnedByItem[existingId] || new Decimal(0)
+        if (retQty.gt(0)) {
+          throw new ValidationError(`Cannot remove item "${oldItem.product_name}" because returns have been processed against it`)
+        }
+
+        // Restore entire item stock
+        const restoreQty = new Decimal(oldItem.base_quantity)
+        const { quantity: newStock } = await tx.product.update({
+          where: { id: oldItem.product_id },
+          data: { quantity: { increment: restoreQty } },
+          select: { quantity: true },
+        })
+
+        await tx.inventoryLog.create({
+          data: {
+            product_id: oldItem.product_id,
+            change_type: 'ADJUSTMENT',
+            unit: oldItem.base_unit,
+            quantity_change: restoreQty,
+            previous_quantity: newStock.minus(restoreQty),
+            new_quantity: newStock,
+            user_id: userId,
+            warehouse_id: sale.warehouse_id,
+            notes: `Sale ${sale.transaction_id} edit: item removed`,
+          },
+        })
+
+        await tx.saleItem.delete({ where: { id: existingId } })
+      }
+    }
+
+    const discountAmt = data.discount_amount !== undefined ? toMoney(data.discount_amount) : toMoney(sale.discount_amount)
+    const taxRate = toMoney(await getSettingValue('tax_rate', 0))
+    const taxableAmount = Decimal.max(0, newSubtotal.minus(discountAmt))
+    const taxAmount = roundMoney(taxableAmount.mul(taxRate).div(100))
+    const newTotal = taxableAmount.plus(taxAmount)
+
+    // Check Paystack constraint: card/mobile money settled payment total cannot change
+    const hasPaystack = sale.payments.some((p) => (p.method === 'CARD' || p.method === 'MOBILE_MONEY') && p.reference && !p.is_void)
+    if (hasPaystack && !newTotal.equals(toMoney(sale.total_amount))) {
+      throw new ValidationError('Cannot modify total amount of a sale with confirmed electronic Paystack payments')
+    }
+
+    // Upsert items
+    for (const item of updatedSaleItems) {
+      if (item.id) {
+        await tx.saleItem.update({
+          where: { id: item.id },
+          data: {
+            quantity: item.quantity,
+            base_quantity: item.base_quantity,
+            discount: item.discount,
+            total: item.total,
+          },
+        })
+      } else {
+        await tx.saleItem.create({
+          data: {
+            sale_id: sale.id,
+            ...item,
+          },
+        })
+      }
+    }
+
+    // Recalculate balances
+    const amountPaid = toMoney(sale.amount_paid)
+    const newBalanceDue = Decimal.max(0, newTotal.minus(amountPaid))
+    const newPaymentStatus = newBalanceDue.eq(0) ? 'COMPLETED' : (amountPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING')
+
+    // Recalculate loyalty points if customer linked
+    let newPoints = sale.loyalty_points_earned
+    if (sale.customer_id) {
+      const loyaltyRate = toMoney(await getSettingValue('loyalty_points_rate', 10))
+      if (loyaltyRate.gt(0)) {
+        newPoints = newTotal.div(loyaltyRate).floor().toNumber()
+        const pointsDiff = newPoints - sale.loyalty_points_earned
+        if (pointsDiff > 0) {
+          await tx.customer.update({
+            where: { id: sale.customer_id },
+            data: { loyalty_points: { increment: pointsDiff } },
+          })
+        } else if (pointsDiff < 0) {
+          const deduct = Math.abs(pointsDiff)
+          const { count } = await tx.customer.updateMany({
+            where: { id: sale.customer_id, loyalty_points: { gte: deduct } },
+            data: { loyalty_points: { decrement: deduct } },
+          })
+          if (count === 0) {
+            await tx.customer.update({ where: { id: sale.customer_id }, data: { loyalty_points: 0 } })
+          }
+        }
+      }
+    }
+
+    await tx.sale.update({
+      where: { id: sale.id },
+      data: {
+        subtotal: newSubtotal,
+        discount_amount: discountAmt,
+        tax_amount: taxAmount,
+        total_amount: newTotal,
+        balance_due: newBalanceDue,
+        payment_status: newPaymentStatus,
+        loyalty_points_earned: newPoints,
+        notes: data.notes !== undefined ? data.notes : sale.notes,
+        customer_id: data.customer_id !== undefined ? data.customer_id || null : sale.customer_id,
+        warehouse_id: data.warehouse_id !== undefined ? data.warehouse_id || null : sale.warehouse_id,
+      },
+    })
+
+    return getSaleById(sale.id)
+  }, { maxWait: 10000, timeout: 30000 })
+}
+
+async function cancelSale(saleId, { reason }, userId) {
+  if (!reason || !String(reason).trim()) {
+    throw new ValidationError('Cancellation reason is required', [
+      { field: 'reason', message: 'Cancellation reason is required' },
+    ])
+  }
+
+  return prisma.$transaction(async (tx) => {
+    await tx.$queryRaw`SELECT id FROM "Sale" WHERE id = ${saleId} FOR UPDATE`
+
+    const sale = await tx.sale.findUnique({
+      where: { id: saleId },
+      include: {
+        sale_items: true,
+        sales_returns: {
+          include: { items: true },
+        },
+      },
+    })
+    if (!sale) throw new NotFoundError('Sale not found')
+
+    if (sale.is_cancelled) {
+      throw new ValidationError('Sale is already cancelled')
+    }
+    if (sale.is_legacy_import) {
+      throw new ValidationError('Historical imported sales cannot be cancelled')
+    }
+
+    const wasRefunded = sale.payment_status === 'REFUNDED'
+
+    // Calculate restocked quantities from sales returns
+    const alreadyRestockedByItem = {}
+    for (const sr of sale.sales_returns) {
+      if (!sr.is_cancelled) {
+        for (const item of sr.items) {
+          if (item.restock) {
+            alreadyRestockedByItem[item.sale_item_id] = (alreadyRestockedByItem[item.sale_item_id] || new Decimal(0)).plus(item.base_quantity)
+          }
+        }
+      }
+    }
+
+    // Only restore remaining stock that was not already restored by refund or return
+    if (!wasRefunded) {
+      for (const item of sale.sale_items) {
+        const itemBaseQty = item.base_quantity != null ? new Decimal(item.base_quantity) : new Decimal(item.quantity)
+        const alreadyRestocked = alreadyRestockedByItem[item.id] || new Decimal(0)
+        const eligibleRestore = Decimal.max(0, itemBaseQty.minus(alreadyRestocked))
+
+        if (eligibleRestore.gt(0)) {
+          const { quantity: newStock } = await tx.product.update({
+            where: { id: item.product_id },
+            data: { quantity: { increment: eligibleRestore } },
+            select: { quantity: true },
+          })
+
+          await tx.inventoryLog.create({
+            data: {
+              product_id: item.product_id,
+              change_type: 'RETURN',
+              unit: item.base_unit || 'pcs',
+              quantity_change: eligibleRestore,
+              previous_quantity: newStock.minus(eligibleRestore),
+              new_quantity: newStock,
+              user_id: userId,
+              warehouse_id: sale.warehouse_id,
+              notes: `Cancellation of Sale ${sale.transaction_id}: ${reason.trim()}`,
+            },
+          })
+        }
+      }
+    }
+
+    // Revert loyalty points earned
+    if (sale.customer_id && sale.loyalty_points_earned > 0) {
+      const pts = sale.loyalty_points_earned
+      const { count } = await tx.customer.updateMany({
+        where: { id: sale.customer_id, loyalty_points: { gte: pts } },
+        data: { loyalty_points: { decrement: pts } },
+      })
+      if (count === 0) {
+        await tx.customer.update({ where: { id: sale.customer_id }, data: { loyalty_points: 0 } })
+      }
+    }
+
+    // Mark sale cancelled
+    await tx.sale.update({
+      where: { id: saleId },
+      data: {
+        is_cancelled: true,
+        cancelled_at: new Date(),
+        cancelled_by: userId,
+        cancellation_reason: reason.trim(),
+        payment_status: 'REFUNDED',
+        balance_due: 0,
+      },
+    })
+
+    return getSaleById(saleId)
+  }, { maxWait: 10000, timeout: 30000 })
+}
+
 module.exports = {
   createSale,
   getSaleById,
@@ -669,4 +1300,8 @@ module.exports = {
   completePaystackRefund,
   failPaystackRefund,
   getReceiptData,
+  getSalePayments,
+  voidSalePayment,
+  updateSale,
+  cancelSale,
 }

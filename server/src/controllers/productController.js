@@ -5,10 +5,10 @@ async function listProducts(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1
     const per_page = parseInt(req.query.per_page) || 20
-    const { search, category_id } = req.query
+    const { search, category_id, brand_id } = req.query
     const include_inactive = req.query.include_inactive === 'true'
 
-    const result = await productService.listProducts({ page, per_page, search, category_id, include_inactive })
+    const result = await productService.listProducts({ page, per_page, search, category_id, brand_id, include_inactive })
 
     res.json({
       success: true,
@@ -80,8 +80,22 @@ async function deleteProduct(req, res, next) {
 
 async function listCategories(req, res, next) {
   try {
-    const categories = await productService.listCategories()
-    res.json({ success: true, data: categories })
+    const { page, per_page, search } = req.query
+    const result = await productService.listCategories({ page, per_page, search })
+    if (result && result.categories) {
+      res.json({
+        success: true,
+        data: result.categories,
+        meta: {
+          page: result.page,
+          per_page: result.per_page,
+          total: result.total,
+          total_pages: result.total_pages,
+        },
+      })
+    } else {
+      res.json({ success: true, data: result })
+    }
   } catch (err) {
     next(err)
   }

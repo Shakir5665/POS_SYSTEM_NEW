@@ -6,6 +6,7 @@ import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
 import { productsService } from '../services/products'
+import { brandsService } from '../services/brands'
 import { useSettings } from '../hooks/useSettings'
 import { UOM_CONFIG, getUnitsForCategory, getBaseUnit, getDefaultPricingUnit } from '../utils/uom'
 
@@ -16,6 +17,7 @@ export default function ProductFormPage() {
   const isEditing = Boolean(id)
 
   const [categories, setCategories] = useState([])
+  const [brands, setBrands] = useState([])
   const [isLoadingProduct, setIsLoadingProduct] = useState(isEditing)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState({})
@@ -37,6 +39,7 @@ export default function ProductFormPage() {
     sku: '',
     barcode: '',
     category_id: '',
+    brand_id: '',
     unit_category: 'COUNT',
     base_unit: 'pcs',
     pricing_unit: 'pcs',
@@ -68,6 +71,9 @@ export default function ProductFormPage() {
 
   useEffect(() => {
     loadCategories()
+    brandsService.list()
+      .then((res) => setBrands(res.data?.data || []))
+      .catch(() => {})
   }, [loadCategories])
 
   function openCategoryModal(mode, category = null) {
@@ -156,6 +162,7 @@ export default function ProductFormPage() {
           sku: p.sku || '',
           barcode: p.barcode || '',
           category_id: p.category_id || '',
+          brand_id: p.brand_id || '',
           unit_category: p.unit_category || 'COUNT',
           base_unit: p.base_unit || 'pcs',
           pricing_unit: p.pricing_unit || 'pcs',
@@ -339,6 +346,7 @@ export default function ProductFormPage() {
         payload.append('sku', form.sku.trim())
         if (form.barcode.trim()) payload.append('barcode', form.barcode.trim())
         payload.append('category_id', form.category_id)
+        if (form.brand_id) payload.append('brand_id', form.brand_id)
         payload.append('unit_category', form.unit_category)
         payload.append('base_unit', form.base_unit)
         payload.append('pricing_unit', form.pricing_unit)
@@ -357,6 +365,7 @@ export default function ProductFormPage() {
           sku: form.sku.trim(),
           barcode: form.barcode.trim() || null,
           category_id: form.category_id,
+          brand_id: form.brand_id || null,
           unit_category: form.unit_category,
           base_unit: form.base_unit,
           pricing_unit: form.pricing_unit,
@@ -514,6 +523,25 @@ export default function ProductFormPage() {
                 ))}
               </select>
               {errors.category_id && <p className="text-xs text-danger-600 mt-1">{errors.category_id}</p>}
+            </div>
+
+            {/* Brand */}
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-sm font-medium text-gray-700">Brand (Optional)</label>
+              </div>
+              <select
+                value={form.brand_id}
+                onChange={(e) => setField('brand_id', e.target.value)}
+                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
+              >
+                <option value="">No brand / Unbranded</option>
+                {brands.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 

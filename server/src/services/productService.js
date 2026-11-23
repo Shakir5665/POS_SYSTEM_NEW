@@ -5,13 +5,14 @@ const { Decimal, toMoney } = require('../utils/money')
 const path = require('path')
 const fs = require('fs')
 
-async function listProducts({ page = 1, per_page = 20, search, category_id, include_inactive = false } = {}) {
+async function listProducts({ page = 1, per_page = 20, search, category_id, brand_id, include_inactive = false } = {}) {
   const skip = (page - 1) * per_page
   const take = Math.min(per_page, 100)
 
   const where = {}
   if (!include_inactive) where.is_active = true
   if (category_id) where.category_id = category_id
+  if (brand_id) where.brand_id = brand_id
   if (search) {
     where.OR = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -25,7 +26,10 @@ async function listProducts({ page = 1, per_page = 20, search, category_id, incl
       where,
       skip,
       take,
-      include: { category: { select: { id: true, name: true } } },
+      include: {
+        category: { select: { id: true, name: true } },
+        brand: { select: { id: true, name: true } },
+      },
       orderBy: { name: 'asc' },
     }),
     prisma.product.count({ where }),
@@ -37,7 +41,10 @@ async function listProducts({ page = 1, per_page = 20, search, category_id, incl
 async function getProductById(id) {
   const product = await prisma.product.findUnique({
     where: { id },
-    include: { category: { select: { id: true, name: true } } },
+    include: {
+      category: { select: { id: true, name: true } },
+      brand: { select: { id: true, name: true } },
+    },
   })
   if (!product) throw new NotFoundError('Product not found')
   return product
@@ -48,7 +55,10 @@ async function getProductByBarcode(barcode) {
   if (!code) throw new NotFoundError('Product not found')
   const product = await prisma.product.findUnique({
     where: { barcode: code },
-    include: { category: { select: { id: true, name: true } } },
+    include: {
+      category: { select: { id: true, name: true } },
+      brand: { select: { id: true, name: true } },
+    },
   })
   if (!product) throw new NotFoundError('Product not found')
   if (!product.is_active) throw new NotFoundError('Product is inactive')
@@ -68,6 +78,12 @@ async function createProduct(data) {
   // Check category exists
   const category = await prisma.category.findUnique({ where: { id: data.category_id } })
   if (!category) throw new NotFoundError('Category not found')
+
+  // Check brand exists if provided
+  if (data.brand_id) {
+    const brand = await prisma.brand.findUnique({ where: { id: data.brand_id } })
+    if (!brand) throw new NotFoundError('Brand not found')
+  }
 
   const unit_category = data.unit_category || 'COUNT'
   const base_unit = data.base_unit || getBaseUnit(unit_category)
@@ -148,6 +164,7 @@ async function createProduct(data) {
       sku: data.sku,
       barcode: data.barcode || null,
       category_id: data.category_id || null,
+      brand_id: data.brand_id || null,
       unit_category,
       base_unit,
       pricing_unit,
@@ -160,7 +177,10 @@ async function createProduct(data) {
       low_stock_threshold: data.low_stock_threshold ?? 10,
       image_url: data.image_url || null,
     },
-    include: { category: { select: { id: true, name: true } } },
+    include: {
+      category: { select: { id: true, name: true } },
+      brand: { select: { id: true, name: true } },
+    },
   })
 
   return product
@@ -182,6 +202,10 @@ async function updateProduct(id, data, userId = null) {
   if (data.category_id) {
     const category = await prisma.category.findUnique({ where: { id: data.category_id } })
     if (!category) throw new NotFoundError('Category not found')
+  }
+  if (data.brand_id) {
+    const brand = await prisma.brand.findUnique({ where: { id: data.brand_id } })
+    if (!brand) throw new NotFoundError('Brand not found')
   }
 
   const targetCategory = data.unit_category !== undefined ? data.unit_category : existing.unit_category
@@ -278,6 +302,7 @@ async function updateProduct(id, data, userId = null) {
     ...(data.sku !== undefined && { sku: data.sku }),
     ...(data.barcode !== undefined && { barcode: data.barcode || null }),
     ...(data.category_id !== undefined && { category_id: data.category_id || null }),
+    ...(data.brand_id !== undefined && { brand_id: data.brand_id || null }),
     ...(data.unit_category !== undefined && { unit_category: data.unit_category }),
     ...(data.base_unit !== undefined && { base_unit: data.base_unit }),
     ...(data.pricing_unit !== undefined && { pricing_unit: data.pricing_unit }),
@@ -306,7 +331,10 @@ async function updateProduct(id, data, userId = null) {
       prisma.product.update({
         where: { id },
         data: updateData,
-        include: { category: { select: { id: true, name: true } } },
+        include: {
+          category: { select: { id: true, name: true } },
+          brand: { select: { id: true, name: true } },
+        },
       }),
       prisma.inventoryLog.create({
         data: {
@@ -327,7 +355,10 @@ async function updateProduct(id, data, userId = null) {
   const product = await prisma.product.update({
     where: { id },
     data: updateData,
-    include: { category: { select: { id: true, name: true } } },
+    include: {
+      category: { select: { id: true, name: true } },
+      brand: { select: { id: true, name: true } },
+    },
   })
 
   return product
@@ -342,8 +373,39 @@ async function softDeleteProduct(id) {
 
 // ---- Categories ----
 
-async function listCategories() {
+async function listCategories({ page, per_page, search } = {}) {
+  const where = {}
+  if (search && search.trim()) {
+    where.name = { contains: search.trim(), mode: 'insensitive' }
+  }
+
+  if (page !== undefined || per_page !== undefined) {
+    const pageNum = parseInt(page, 10) || 1
+    const take = Math.min(parseInt(per_page, 10) || 20, 100)
+    const skip = (pageNum - 1) * take
+
+    const [categories, total] = await Promise.all([
+      prisma.category.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { name: 'asc' },
+        include: { _count: { select: { products: true } } },
+      }),
+      prisma.category.count({ where }),
+    ])
+
+    return {
+      categories,
+      total,
+      page: pageNum,
+      per_page: take,
+      total_pages: Math.ceil(total / take),
+    }
+  }
+
   return prisma.category.findMany({
+    where,
     orderBy: { name: 'asc' },
     include: { _count: { select: { products: true } } },
   })
