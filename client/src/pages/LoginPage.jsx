@@ -55,7 +55,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthLayout>
+    <AuthLayout marketing>
       {/* Store Logo & Header */}
       <div className="text-center mb-7">
         <div className="inline-flex p-3 rounded-2xl bg-white/60 border border-white/80 shadow-2xs mb-3">
