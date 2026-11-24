@@ -1,41 +1,79 @@
-import { useState, useEffect } from 'react'
+import { useState} from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import toast from 'react-hot-toast'
 
-function NavItem({ to, icon, label, end = false }) {
+function NavItem({ to, icon, label, end = false, badge = null, onClick = null }) {
   return (
     <NavLink
       to={to}
       end={end}
+      onClick={onClick}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+        `group relative flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 ${
           isActive
-            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-2xs shadow-blue-500/20'
-            : 'text-slate-600 hover:bg-white/80 hover:text-slate-900 hover:shadow-2xs'
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 hover:shadow-2xs active:scale-[0.99]'
         }`
       }
     >
-      <span className="w-4 h-4 flex-shrink-0">{icon}</span>
-      <span className="truncate">{label}</span>
+      {({ isActive }) => (
+        <>
+          <div className="flex items-center gap-3 min-w-0">
+            <span
+              className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+                isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+              }`}
+            >
+              {icon}
+            </span>
+            <span className="truncate">{label}</span>
+          </div>
+          {badge && (
+            <span
+              className={`ml-2 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider transition-colors ${
+                isActive
+                  ? 'bg-white/20 text-white'
+                  : 'bg-blue-50 text-blue-700 border border-blue-200/80 group-hover:bg-blue-100'
+              }`}
+            >
+              {badge}
+            </span>
+          )}
+          {isActive && (
+            <span className="absolute right-1 w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
+          )}
+        </>
+      )}
     </NavLink>
   )
 }
 
-function SubNavItem({ to, label }) {
+function SubNavItem({ to, label, onClick = null }) {
   return (
     <NavLink
       to={to}
+      onClick={onClick}
       className={({ isActive }) =>
-        `flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
+        `group relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 ${
           isActive
-            ? 'bg-blue-600 text-white font-semibold shadow-2xs'
-            : 'text-slate-600 hover:bg-white/80 hover:text-slate-900'
+            ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-bold shadow-2xs shadow-blue-500/25'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-white/90 hover:shadow-2xs'
         }`
       }
     >
-      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 flex-shrink-0" />
-      <span className="truncate">{label}</span>
+      {({ isActive }) => (
+        <>
+          <span
+            className={`w-1.5 h-1.5 rounded-full transition-all duration-200 flex-shrink-0 ${
+              isActive
+                ? 'bg-white scale-125'
+                : 'bg-slate-300 group-hover:bg-blue-600 group-hover:scale-125'
+            }`}
+          />
+          <span className="truncate">{label}</span>
+        </>
+      )}
     </NavLink>
   )
 }
@@ -45,44 +83,58 @@ function ExpandableNavGroup({ icon, label, children, activePaths = [] }) {
   const isAnyChildActive = activePaths.some(
     (p) => location.pathname === p || location.pathname.startsWith(`${p}/`)
   )
-  const [open, setOpen] = useState(isAnyChildActive)
+  const [userToggled, setUserToggled] = useState(null)
+  const [prevActive, setPrevActive] = useState(isAnyChildActive)
 
-  useEffect(() => {
-    if (isAnyChildActive) {
-      setOpen(true)
-    }
-  }, [isAnyChildActive])
+  // Adjust state during render when active status changes from route navigation
+  if (prevActive !== isAnyChildActive) {
+    setPrevActive(isAnyChildActive)
+    setUserToggled(null)
+  }
+
+  const isOpen = userToggled !== null ? userToggled : isAnyChildActive
 
   return (
     <div className="space-y-1">
       <button
         type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-150 ${
+        onClick={() => setUserToggled(!isOpen)}
+        className={`w-full group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 select-none ${
           isAnyChildActive
-            ? 'text-primary-700 bg-blue-50/80 font-bold border border-blue-100/60'
-            : 'text-slate-600 hover:bg-white/80 hover:text-slate-900'
+            ? 'text-blue-700 bg-blue-50/90 font-bold border border-blue-200/70 shadow-2xs'
+            : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 hover:shadow-2xs'
         }`}
       >
-        <div className="flex items-center gap-3">
-          <span className="w-4 h-4 flex-shrink-0">{icon}</span>
-          <span>{label}</span>
+        <div className="flex items-center gap-3 min-w-0">
+          <span
+            className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
+              isAnyChildActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
+            }`}
+          >
+            {icon}
+          </span>
+          <span className="truncate">{label}</span>
         </div>
-        <svg
-          className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-200 ${
-            open ? 'rotate-90 text-primary-600' : ''
-          }`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          strokeWidth={2}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-        </svg>
+        <div className="flex items-center gap-1.5">
+          {isAnyChildActive && (
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
+          )}
+          <svg
+            className={`w-3.5 h-3.5 text-slate-400 transition-transform duration-250 ease-out group-hover:text-slate-700 ${
+              isOpen ? 'rotate-90 text-blue-600' : ''
+            }`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+            strokeWidth={2}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </div>
       </button>
 
-      {open && (
-        <div className="pl-6 pr-1 py-1 space-y-1 border-l-2 border-indigo-100 ml-4">
+      {isOpen && (
+        <div className="pl-4 pr-1 py-1 space-y-1 border-l-2 border-indigo-100 ml-4.5 animate-in fade-in slide-in-from-top-1 duration-150">
           {children}
         </div>
       )}
@@ -185,7 +237,7 @@ export function DashboardLayout({ children }) {
   const isManager = user?.role === 'MANAGER' || isAdmin
 
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex h-screen overflow-hidden bg-slate-50/70">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -196,88 +248,165 @@ export function DashboardLayout({ children }) {
 
       {/* Floating Glass Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/80 backdrop-blur-xl border-r border-slate-200/80 shadow-glass-sm flex flex-col transition-transform duration-200 lg:static lg:translate-x-0
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/85 backdrop-blur-2xl border-r border-slate-200/80 shadow-glass-md flex flex-col transition-transform duration-200 lg:static lg:translate-x-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
-        {/* Logo */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100/90 bg-white/40">
-          <img src="/logo.png" alt="NexTill Logo" className="h-9 w-auto max-w-[160px] object-contain" />
+        {/* Brand Header */}
+        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100/90 bg-white/50 backdrop-blur-sm">
+          <img src="/logo.png" alt="NexTill Logo" className="h-9 w-auto max-w-[160px] object-contain drop-shadow-xs" />
         </div>
 
         {/* Navigation list */}
-        <nav className="flex-1 overflow-y-auto px-3.5 py-4 space-y-1 scrollbar-hide">
-          <NavItem to="/pos" icon={icons.pos} label="Point of Sale" end />
+        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5 scrollbar-hide">
+          {/* 1. OPERATIONS (POS & Daily Workflow) */}
+          <div className="pb-1 px-3">
+            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Operations</p>
+          </div>
+          <NavItem
+            to="/pos"
+            icon={icons.pos}
+            label="Point of Sale"
+            
+            end
+            onClick={() => setSidebarOpen(false)}
+          />
 
           {isManager && (
             <>
-              <div className="pt-3 pb-1 px-3">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Management</p>
-              </div>
-              <ExpandableNavGroup
-                icon={icons.products}
-                label="Products"
-                activePaths={['/app/products', '/products', '/app/product-categories', '/app/variations', '/app/brands']}
-              >
-                <SubNavItem to="/app/products" label="Products List" />
-                <SubNavItem to="/app/product-categories" label="Product Categories" />
-                <SubNavItem to="/app/variations" label="Variations" />
-                <SubNavItem to="/app/brands" label="Brands" />
-              </ExpandableNavGroup>
-              <NavItem to="/inventory" icon={icons.inventory} label="Inventory" />
-              <NavItem to="/warehouses" icon={icons.warehouses} label="Warehouses" />
-              <NavItem to="/purchases" icon={icons.purchases} label="Purchases" />
-              <NavItem to="/suppliers" icon={icons.suppliers} label="Suppliers" />
-              <NavItem to="/customers" icon={icons.customers} label="Customers" />
+              <NavItem
+                to="/dashboard"
+                icon={icons.dashboard}
+                label="Dashboard"
+                onClick={() => setSidebarOpen(false)}
+              />
+
               <ExpandableNavGroup
                 icon={icons.sales}
                 label="Sales"
                 activePaths={['/app/sales', '/sales', '/app/sale-return']}
               >
-                <SubNavItem to="/app/sales" label="Sales" />
-                <SubNavItem to="/app/sale-return" label="Sales Return" />
+                <SubNavItem to="/app/sales" label="Sales Orders" onClick={() => setSidebarOpen(false)} />
+                <SubNavItem to="/app/sale-return" label="Sales Return" onClick={() => setSidebarOpen(false)} />
               </ExpandableNavGroup>
-              <NavItem to="/finance" icon={icons.finance} label="Finance" />
-            </>
-          )}
 
-          {isManager && (
-            <>
-              <div className="pt-3 pb-1 px-3">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Analytics</p>
+              <NavItem
+                to="/customers"
+                icon={icons.customers}
+                label="Customers"
+                onClick={() => setSidebarOpen(false)}
+              />
+
+              {/* 2. CATALOG & INVENTORY */}
+              <div className="pt-4 pb-1 px-3">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Inventory & Catalog</p>
               </div>
-              <NavItem to="/dashboard" icon={icons.dashboard} label="Dashboard" />
-              <NavItem to="/reports" icon={icons.reports} label="Reports" />
+
+              <ExpandableNavGroup
+                icon={icons.products}
+                label="Products"
+                activePaths={['/app/products', '/products', '/app/product-categories', '/app/variations', '/app/brands']}
+              >
+                <SubNavItem to="/app/products" label="Products List" onClick={() => setSidebarOpen(false)} />
+                <SubNavItem to="/app/product-categories" label="Product Categories" onClick={() => setSidebarOpen(false)} />
+                <SubNavItem to="/app/variations" label="Variations" onClick={() => setSidebarOpen(false)} />
+                <SubNavItem to="/app/brands" label="Brands" onClick={() => setSidebarOpen(false)} />
+              </ExpandableNavGroup>
+
+              <NavItem
+                to="/inventory"
+                icon={icons.inventory}
+                label="Inventory"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <NavItem
+                to="/warehouses"
+                icon={icons.warehouses}
+                label="Warehouses"
+                onClick={() => setSidebarOpen(false)}
+              />
+
+              {/* 3. PURCHASES & PROCUREMENT */}
+              <div className="pt-4 pb-1 px-3">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Procurement</p>
+              </div>
+              <NavItem
+                to="/purchases"
+                icon={icons.purchases}
+                label="Purchases"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <NavItem
+                to="/suppliers"
+                icon={icons.suppliers}
+                label="Suppliers"
+                onClick={() => setSidebarOpen(false)}
+              />
+
+              {/* 4. FINANCE & ANALYTICS */}
+              <div className="pt-4 pb-1 px-3">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Finance & Analytics</p>
+              </div>
+              <NavItem
+                to="/finance"
+                icon={icons.finance}
+                label="Finance"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <NavItem
+                to="/reports"
+                icon={icons.reports}
+                label="Reports"
+                onClick={() => setSidebarOpen(false)}
+              />
             </>
           )}
 
+          {/* 5. SYSTEM & ADMINISTRATION */}
           {isAdmin && (
             <>
-              <div className="pt-3 pb-1 px-3">
-                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Admin</p>
+              <div className="pt-4 pb-1 px-3">
+                <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Administration</p>
               </div>
-              <NavItem to="/users" icon={icons.users} label="Users" />
-              <NavItem to="/settings" icon={icons.settings} label="Settings" />
-              <NavItem to="/migration" icon={icons.migration} label="Legacy Migration" />
+              <NavItem
+                to="/users"
+                icon={icons.users}
+                label="Users & Access"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <NavItem
+                to="/settings"
+                icon={icons.settings}
+                label="Settings"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <NavItem
+                to="/migration"
+                icon={icons.migration}
+                label="Legacy Migration"
+                onClick={() => setSidebarOpen(false)}
+              />
             </>
           )}
         </nav>
 
-        {/* User info card at bottom */}
-        <div className="border-t border-slate-100/90 p-3 bg-white/40">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-white/80 border border-slate-200/80 shadow-2xs">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-bold flex-shrink-0 shadow-2xs">
+        {/* User profile card at bottom */}
+        <div className="border-t border-slate-100/90 p-3 bg-white/50 backdrop-blur-sm">
+          <div className="flex items-center gap-3 px-3 py-2.5 rounded-2xl bg-white/90 border border-slate-200/80 shadow-2xs">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white flex items-center justify-center text-xs font-extrabold flex-shrink-0 shadow-2xs">
               {user?.full_name?.[0]?.toUpperCase()}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-slate-900 truncate">{user?.full_name}</p>
-              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-semibold ${roleBadge[user?.role] || 'bg-slate-100 text-slate-700'}`}>
-                {user?.role}
-              </span>
+              <p className="text-xs font-bold text-slate-900 truncate leading-tight">{user?.full_name}</p>
+              <div className="mt-0.5">
+                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold uppercase tracking-wider ${roleBadge[user?.role] || 'bg-slate-100 text-slate-700'}`}>
+                  {user?.role}
+                </span>
+              </div>
             </div>
             <button
               onClick={handleLogout}
               title="Sign out"
-              className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-rose-600 transition"
+              className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

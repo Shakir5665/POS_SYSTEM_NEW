@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback} from 'react'
+import { createPortal } from 'react-dom'
 import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
@@ -44,9 +45,6 @@ export default function SalesPage() {
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
-  // 3-dots action menu active row ID
-  const [activeActionMenuId, setActiveActionMenuId] = useState(null)
-
   // Returns state
   const [returnsList, setReturnsList] = useState([])
   const [returnsMeta, setReturnsMeta] = useState({ page: 1, total_pages: 1 })
@@ -85,14 +83,27 @@ export default function SalesPage() {
   const [cancelReason, setCancelReason] = useState('')
   const [isCancellingSale, setIsCancellingSale] = useState(false)
 
-  // Close 3-dots menu on click outside
+  // Active 3-dots menu state and anchor positioning
+  const [activeActionMenuId, setActiveActionMenuId] = useState(null)
+  const [activeMenuSale, setActiveMenuSale] = useState(null)
+  const [menuPosition, setMenuPosition] = useState(null)
+
+  // Close 3-dots menu on click outside or scroll/resize
   useEffect(() => {
-    function handleClickOutside() {
+    function handleClose() {
       setActiveActionMenuId(null)
+      setActiveMenuSale(null)
+      setMenuPosition(null)
     }
     if (activeActionMenuId) {
-      document.addEventListener('click', handleClickOutside)
-      return () => document.removeEventListener('click', handleClickOutside)
+      document.addEventListener('click', handleClose)
+      window.addEventListener('resize', handleClose)
+      window.addEventListener('scroll', handleClose, true)
+      return () => {
+        document.removeEventListener('click', handleClose)
+        window.removeEventListener('resize', handleClose)
+        window.removeEventListener('scroll', handleClose, true)
+      }
     }
   }, [activeActionMenuId])
 
@@ -560,9 +571,33 @@ export default function SalesPage() {
               aria-label={`Actions for ${row.transaction_id}`}
               onClick={(e) => {
                 e.stopPropagation()
-                setActiveActionMenuId(isMenuOpen ? null : row.id)
+                if (isMenuOpen) {
+                  setActiveActionMenuId(null)
+                  setActiveMenuSale(null)
+                  setMenuPosition(null)
+                } else {
+                  const rect = e.currentTarget.getBoundingClientRect()
+                  const spaceBelow = window.innerHeight - rect.bottom
+                  const spaceAbove = rect.top
+                  const openUpwards = spaceBelow < 280 && spaceAbove > spaceBelow
+                  const menuWidth = 208 // w-52
+                  const left = Math.max(8, Math.min(rect.right - menuWidth, window.innerWidth - menuWidth - 8))
+                  const top = openUpwards ? rect.top - 6 : rect.bottom + 6
+
+                  setActiveActionMenuId(row.id)
+                  setActiveMenuSale(row)
+                  setMenuPosition({
+                    top,
+                    left,
+                    openUpwards,
+                  })
+                }
               }}
-              className="p-1.5 rounded-lg text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className={`p-1.5 rounded-xl transition-all focus:outline-none focus:ring-2 focus:ring-primary-500/20 ${
+                isMenuOpen
+                  ? 'bg-primary-50 text-primary-700 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100/80'
+              }`}
               title="Actions"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -575,111 +610,6 @@ export default function SalesPage() {
               </svg>
               <span className="sr-only">Actions</span>
             </button>
-
-            {isMenuOpen && (
-              <div
-                className="absolute right-0 mt-1.5 w-52 bg-white/95 backdrop-blur-md rounded-2xl shadow-glass-lg border border-white/90 py-1.5 z-40 focus:outline-none divide-y divide-slate-100/80 animate-in fade-in zoom-in-95 duration-100"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="py-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveActionMenuId(null)
-                      handleOpenSaleDetails(row)
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
-                  >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                    View Sale Details
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveActionMenuId(null)
-                      openReceipt(row)
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
-                  >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
-                    </svg>
-                    Print Receipt
-                  </button>
-                </div>
-
-                <div className="py-1">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveActionMenuId(null)
-                      handleDownloadInvoicePdf(row, 'a4')
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
-                  >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Download Invoice PDF
-                  </button>
-                </div>
-
-                <div className="py-1">
-                  {!row.is_cancelled && !row.is_legacy_import && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveActionMenuId(null)
-                        handleOpenEditSale(row)
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
-                    >
-                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                      </svg>
-                      Edit Sale
-                    </button>
-                  )}
-
-                  {!row.is_legacy_import && !row.is_cancelled && row.payment_status === 'COMPLETED' && (
-                    <button
-                      type="button"
-                      data-testid="action-process-return"
-                      onClick={() => {
-                        setActiveActionMenuId(null)
-                        openReturnModal(row)
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
-                    >
-                      <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H4m0 0l3-3m-3 3l3 3m5 4v1a4 4 0 004 4h8m0 0l-3-3m3 3l-3 3" />
-                      </svg>
-                      Process Return
-                    </button>
-                  )}
-
-                  {!row.is_cancelled && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setActiveActionMenuId(null)
-                        handleOpenCancelSale(row)
-                      }}
-                      className="w-full text-left px-4 py-2 text-xs text-danger-600 hover:bg-danger-50 flex items-center gap-2 transition"
-                    >
-                      <svg className="w-4 h-4 text-danger-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                      Cancel / Delete Sale
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         )
       },
@@ -877,6 +807,139 @@ export default function SalesPage() {
           </>
         )}
       </div>
+
+      {/* Floating 3-Dots Action Dropdown Portal (Overlaps table and card boundaries) */}
+      {activeActionMenuId && activeMenuSale && menuPosition && createPortal(
+        <div
+          data-testid="sales-action-menu-portal"
+          style={{
+            position: 'fixed',
+            top: menuPosition.openUpwards ? undefined : `${menuPosition.top}px`,
+            bottom: menuPosition.openUpwards ? `${window.innerHeight - menuPosition.top}px` : undefined,
+            left: `${menuPosition.left}px`,
+            zIndex: 9999,
+          }}
+          className="w-52 bg-white/95 backdrop-blur-xl rounded-2xl shadow-glass-xl border border-white/90 py-1.5 focus:outline-none divide-y divide-slate-100/90 animate-in fade-in zoom-in-95 duration-100 ring-1 ring-slate-900/5"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => {
+                const target = activeMenuSale
+                setActiveActionMenuId(null)
+                setActiveMenuSale(null)
+                setMenuPosition(null)
+                handleOpenSaleDetails(target)
+              }}
+              className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50/90 flex items-center gap-2.5 transition"
+            >
+              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              View Sale Details
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                const target = activeMenuSale
+                setActiveActionMenuId(null)
+                setActiveMenuSale(null)
+                setMenuPosition(null)
+                openReceipt(target)
+              }}
+              className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50/90 flex items-center gap-2.5 transition"
+            >
+              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2zM10 8.5a.5.5 0 11-1 0 .5.5 0 011 0zm5 5a.5.5 0 11-1 0 .5.5 0 011 0z" />
+              </svg>
+              Print Receipt
+            </button>
+          </div>
+
+          <div className="py-1">
+            <button
+              type="button"
+              onClick={() => {
+                const target = activeMenuSale
+                setActiveActionMenuId(null)
+                setActiveMenuSale(null)
+                setMenuPosition(null)
+                handleDownloadInvoicePdf(target, 'a4')
+              }}
+              className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50/90 flex items-center gap-2.5 transition"
+            >
+              <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              Download Invoice PDF
+            </button>
+          </div>
+
+          <div className="py-1">
+            {!activeMenuSale.is_cancelled && !activeMenuSale.is_legacy_import && (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = activeMenuSale
+                  setActiveActionMenuId(null)
+                  setActiveMenuSale(null)
+                  setMenuPosition(null)
+                  handleOpenEditSale(target)
+                }}
+                className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50/90 flex items-center gap-2.5 transition"
+              >
+                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Edit Sale
+              </button>
+            )}
+
+            {!activeMenuSale.is_legacy_import && !activeMenuSale.is_cancelled && activeMenuSale.payment_status === 'COMPLETED' && (
+              <button
+                type="button"
+                data-testid="action-process-return"
+                onClick={() => {
+                  const target = activeMenuSale
+                  setActiveActionMenuId(null)
+                  setActiveMenuSale(null)
+                  setMenuPosition(null)
+                  openReturnModal(target)
+                }}
+                className="w-full text-left px-4 py-2 text-xs font-semibold text-slate-700 hover:text-slate-900 hover:bg-slate-50/90 flex items-center gap-2.5 transition"
+              >
+                <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 15v-1a4 4 0 00-4-4H4m0 0l3-3m-3 3l3 3m5 4v1a4 4 0 004 4h8m0 0l-3-3m3 3l-3 3" />
+                </svg>
+                Process Return
+              </button>
+            )}
+
+            {!activeMenuSale.is_cancelled && (
+              <button
+                type="button"
+                onClick={() => {
+                  const target = activeMenuSale
+                  setActiveActionMenuId(null)
+                  setActiveMenuSale(null)
+                  setMenuPosition(null)
+                  handleOpenCancelSale(target)
+                }}
+                className="w-full text-left px-4 py-2 text-xs font-semibold text-danger-600 hover:bg-danger-50 flex items-center gap-2.5 transition"
+              >
+                <svg className="w-4 h-4 text-danger-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Cancel / Delete Sale
+              </button>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
 
       {/* 1. VIEW SALE DETAILS MODAL */}
       <Modal
