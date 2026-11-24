@@ -1,6 +1,8 @@
-import { useState} from 'react'
+import { useState } from 'react'
 import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
+import { useSettings } from '../hooks/useSettings'
+import { LogoutModal } from '../components/LogoutModal'
 import toast from 'react-hot-toast'
 
 function NavItem({ to, icon, label, end = false, badge = null, onClick = null, iconColor = 'text-blue-600 bg-blue-50 border-blue-200/60' }) {
@@ -228,13 +230,24 @@ const roleBadge = {
 
 export function DashboardLayout({ children }) {
   const { user, logout } = useAuth()
+  const { logo_url: logoUrl } = useSettings()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  async function handleLogout() {
-    await logout()
-    navigate('/login')
-    toast.success('Logged out successfully')
+  async function handleConfirmLogout() {
+    setIsLoggingOut(true)
+    try {
+      await logout()
+      setShowLogoutModal(false)
+      navigate('/login')
+      toast.success('Logged out successfully')
+    } catch {
+      toast.error('Failed to log out cleanly')
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
 
   const isAdmin = user?.role === 'ADMIN'
@@ -257,7 +270,11 @@ export function DashboardLayout({ children }) {
       >
         {/* Brand Header */}
         <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100/90 bg-white/50 backdrop-blur-sm">
-          <img src="/logo.png" alt="NexTill Logo" className="h-9 w-auto max-w-[160px] object-contain drop-shadow-xs" />
+          <img
+            src={logoUrl || '/logo.png'}
+            alt="Store Logo"
+            className="h-9 w-auto max-w-[160px] object-contain drop-shadow-xs"
+          />
         </div>
 
         {/* Navigation list */}
@@ -421,7 +438,7 @@ export function DashboardLayout({ children }) {
               </div>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutModal(true)}
               title="Sign out"
               className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition-colors"
             >
@@ -447,7 +464,7 @@ export function DashboardLayout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <img src="/logo.png" alt="NexTill" className="h-7 w-auto object-contain" />
+            <img src={logoUrl || '/logo.png'} alt="Store Logo" className="h-7 w-auto object-contain" />
           </div>
         </header>
 
@@ -456,6 +473,14 @@ export function DashboardLayout({ children }) {
           {children}
         </main>
       </div>
+
+      {/* Glassmorphic Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+        isLoading={isLoggingOut}
+      />
     </div>
   )
 }

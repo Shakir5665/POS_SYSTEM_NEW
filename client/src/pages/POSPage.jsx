@@ -13,6 +13,7 @@ import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
 import { Badge } from '../components/Badge'
 import { Receipt } from '../components/Receipt'
+import { LogoutModal } from '../components/LogoutModal'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner'
@@ -1276,12 +1277,23 @@ export function CartItem({
 // ─── Main POSPage ──────────────────────────────────────────────────────────────
 export default function POSPage() {
   const { user, logout } = useAuth()
+  const { logo_url: logoUrl } = useSettings()
   const navigate = useNavigate()
+  const [showLogoutModal, setShowLogoutModal] = useState(false)
+  const [isLoggingOut, setIsLoggingOut] = useState(false)
 
-  async function handleLogout() {
-    await logout()
-    navigate('/login')
-    toast.success('Logged out successfully')
+  async function handleConfirmLogout() {
+    setIsLoggingOut(true)
+    try {
+      await logout()
+      setShowLogoutModal(false)
+      navigate('/login')
+      toast.success('Logged out successfully')
+    } catch {
+      toast.error('Failed to log out cleanly')
+    } finally {
+      setIsLoggingOut(false)
+    }
   }
   const {
     items,
@@ -1766,15 +1778,15 @@ export default function POSPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="NexTill" className="h-9 w-auto object-contain hidden sm:block drop-shadow-xs" />
+            <img
+              src={logoUrl || '/logo.png'}
+              alt="Store Logo"
+              className="h-9 w-auto object-contain hidden sm:block drop-shadow-xs"
+            />
             <div>
-              <h1 className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">Point of Sale</h1>
-              <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
-                <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">S</kbd> or <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">F1</kbd> Search &nbsp;•&nbsp;
-                <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">F2</kbd> Pay &nbsp;•&nbsp;
-                <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">F4</kbd> Clear
-              </p>
+              <h1 className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">Point of Sale</h1>           
             </div>
+           
           </div>
           <div className="flex items-center gap-3">
             {['ADMIN', 'MANAGER'].includes(user?.role) && (
@@ -1789,13 +1801,10 @@ export default function POSPage() {
               </button>
             )}
 
-            <div className="text-right">
-              <p className="text-3xs font-bold uppercase tracking-wider text-primary-600 leading-tight">{user?.role === 'CASHIER' ? 'Cashier' : user?.role}</p>
-              <p className="text-sm font-bold text-slate-900 leading-tight mt-0.5">{user?.full_name}</p>
-            </div>
+            
 
             <button
-              onClick={handleLogout}
+              onClick={() => setShowLogoutModal(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/90 bg-white/80 backdrop-blur-md hover:border-danger-200 hover:bg-danger-50/60 text-slate-600 hover:text-danger-600 transition-all text-xs font-bold shadow-glass-sm hover:shadow-glass"
               title="Sign out of POS"
             >
@@ -1804,6 +1813,10 @@ export default function POSPage() {
               </svg>
               <span>Logout</span>
             </button>
+             <div className="text-right">
+              <p className="text-sm font-bold uppercase tracking-wider text-primary-600 leading-tight">{user?.role === 'CASHIER' ? 'Cashier' : user?.role}</p>
+              
+            </div>
           </div>
         </div>
 
@@ -2412,6 +2425,14 @@ export default function POSPage() {
           </Button>
         </div>
       </Modal>
+
+      {/* Glassmorphic Logout Confirmation Modal */}
+      <LogoutModal
+        isOpen={showLogoutModal}
+        onClose={() => setShowLogoutModal(false)}
+        onConfirm={handleConfirmLogout}
+        isLoading={isLoggingOut}
+      />
     </div>
   )
 }

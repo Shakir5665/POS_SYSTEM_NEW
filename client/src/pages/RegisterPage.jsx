@@ -2,10 +2,12 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../hooks/useAuth'
+import { useSettings } from '../hooks/useSettings'
 import { AuthLayout } from '../layouts/AuthLayout'
 
 export default function RegisterPage() {
   const { register } = useAuth()
+  const { logo_url: logoUrl } = useSettings()
   const navigate = useNavigate()
   const [form, setForm] = useState({
     full_name: '',
@@ -76,14 +78,14 @@ export default function RegisterPage() {
 
   return (
     <AuthLayout>
-      {/* NexTill Logo & Header */}
+      {/* Store Logo & Header */}
       <div className="text-center mb-6">
         <Link to="/login" className="inline-block transition hover:opacity-90">
           <div className="inline-flex p-3 rounded-2xl bg-white/60 border border-white/80 shadow-2xs mb-2">
             <img
-              src="/logo.png"
-              alt="NexTill Logo"
-              className="h-12 w-auto max-w-[180px] object-contain"
+              src={logoUrl || '/logo.png'}
+              alt="Store Logo"
+              className="h-12 w-auto max-w-[180px] object-contain drop-shadow-xs"
             />
           </div>
         </Link>

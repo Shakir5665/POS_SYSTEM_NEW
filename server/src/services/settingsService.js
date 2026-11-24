@@ -9,6 +9,7 @@ const DEFAULT_SETTINGS = {
   loyalty_points_rate: '10',
   currency_symbol: 'LKR',
   receipt_footer: 'Thank you for your business!',
+  logo_url: '',
 }
 
 let settingsCache = null
