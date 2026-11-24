@@ -18,6 +18,7 @@ export const returnsService = {
   createPurchaseReturn: (data) => api.post('/purchases/returns', data),
   listPurchaseReturns: (params) => api.get('/purchases/returns', { params }),
   getPurchaseReturn: (id) => api.get(`/purchases/returns/${id}`),
+  settlePurchaseReturn: (id, data) => api.patch(`/purchases/returns/${id}/settle`, data),
 }
 
 export default returnsService

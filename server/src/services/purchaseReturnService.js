@@ -471,10 +471,77 @@ async function getPurchaseReturnById(id) {
   return pr
 }
 
+/**
+ * Settle a pending purchase return (Mark as COMPLETED or CREDITED)
+ */
+async function settlePurchaseReturn(id, { settlement_status = 'COMPLETED', settlement_method = 'CASH', notes } = {}, user) {
+  assertPurchaseReturnPermission(user)
+
+  const allowedStatuses = ['COMPLETED', 'CREDITED']
+  if (!allowedStatuses.includes(settlement_status)) {
+    throw new ValidationError(`Invalid settlement status "${settlement_status}". Allowed: ${allowedStatuses.join(', ')}`, [
+      { field: 'settlement_status', message: 'Status must be COMPLETED or CREDITED' },
+    ])
+  }
+
+  const allowedMethods = ['CASH', 'MOBILE_MONEY', 'CARD', 'CREDIT']
+  if (settlement_method && !allowedMethods.includes(settlement_method)) {
+    throw new ValidationError(`Invalid settlement method "${settlement_method}"`, [
+      { field: 'settlement_method', message: 'Invalid payment method' },
+    ])
+  }
+
+  const existing = await prisma.purchaseReturn.findUnique({
+    where: { id },
+    include: {
+      purchase: { select: { id: true, purchase_number: true } },
+      supplier: { select: { id: true, name: true } },
+      warehouse: { select: { id: true, code: true, name: true } },
+      user: { select: { id: true, username: true, full_name: true } },
+      items: true,
+    },
+  })
+
+  if (!existing) {
+    throw new NotFoundError(`Purchase return with ID ${id} not found`)
+  }
+
+  if (existing.settlement_status === settlement_status) {
+    return existing
+  }
+
+  const updatedNotes = notes
+    ? (existing.notes ? `${existing.notes} | Settlement: ${notes.trim()}` : `Settlement: ${notes.trim()}`)
+    : existing.notes
+
+  const updated = await prisma.purchaseReturn.update({
+    where: { id },
+    data: {
+      settlement_status,
+      settlement_method: settlement_method || existing.settlement_method,
+      notes: updatedNotes,
+    },
+    include: {
+      purchase: { select: { id: true, purchase_number: true, total_amount: true } },
+      supplier: { select: { id: true, name: true, phone: true } },
+      warehouse: { select: { id: true, code: true, name: true } },
+      user: { select: { id: true, username: true, full_name: true } },
+      items: {
+        include: {
+          product: { select: { id: true, name: true, sku: true, base_unit: true } },
+        },
+      },
+    },
+  })
+
+  return updated
+}
+
 module.exports = {
   createPurchaseReturn,
   listPurchaseReturns,
   getPurchaseReturnById,
   getPurchaseReturnEligibility,
+  settlePurchaseReturn,
   assertPurchaseReturnPermission,
 }

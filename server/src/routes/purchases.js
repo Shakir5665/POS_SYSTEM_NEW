@@ -46,6 +46,18 @@ const purchaseValidation = [
 router.get('/returns', authorize(['ADMIN', 'MANAGER']), purchaseReturnController.list)
 router.get('/returns/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid return ID'), validate, purchaseReturnController.get)
 router.post('/returns', authorize(['ADMIN', 'MANAGER']), purchaseReturnValidation, validate, purchaseReturnController.create)
+router.patch(
+  '/returns/:id/settle',
+  authorize(['ADMIN', 'MANAGER']),
+  [
+    param('id').isString().trim().notEmpty().withMessage('Invalid return ID'),
+    body('settlement_status').optional().isIn(['COMPLETED', 'CREDITED']).withMessage('Status must be COMPLETED or CREDITED'),
+    body('settlement_method').optional().isIn(['CASH', 'MOBILE_MONEY', 'CARD', 'CREDIT']).withMessage('Invalid settlement method'),
+    body('notes').optional({ nullable: true }).isString().trim(),
+  ],
+  validate,
+  purchaseReturnController.settle
+)
 
 router.get(
   '/',

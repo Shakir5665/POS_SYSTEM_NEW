@@ -69,9 +69,23 @@ async function getEligibility(req, res, next) {
   }
 }
 
+async function settle(req, res, next) {
+  try {
+    const returnRecord = await purchaseReturnService.settlePurchaseReturn(req.params.id, req.body, req.user)
+    res.json({
+      success: true,
+      data: returnRecord,
+      message: 'Purchase return settlement updated successfully',
+    })
+  } catch (err) {
+    next(err)
+  }
+}
+
 module.exports = {
   create,
   list,
   get,
   getEligibility,
+  settle,
 }

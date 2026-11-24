@@ -37,6 +37,9 @@ export default function PurchasesPage() {
   const [returnsPage, setReturnsPage] = useState(1)
   const [returnsLoading, setReturnsLoading] = useState(false)
   const [selectedReturnDetails, setSelectedReturnDetails] = useState(null)
+  const [settlingReturn, setSettlingReturn] = useState(false)
+  const [settlementMethod, setSettlementMethod] = useState('CASH')
+  const [settlementNotes, setSettlementNotes] = useState('')
 
   // Creation modal state
   const [createModalOpen, setCreateModalOpen] = useState(false)
@@ -552,7 +555,14 @@ export default function PurchasesPage() {
     {
       key: 'settlement_status',
       label: 'Settlement',
-      render: (v) => <Badge variant={v === 'SETTLED' ? 'success' : 'warning'}>{v || 'PENDING'}</Badge>,
+      render: (v) => {
+        const isSettled = v === 'COMPLETED' || v === 'CREDITED' || v === 'SETTLED'
+        return (
+          <Badge variant={isSettled ? 'success' : 'warning'}>
+            {isSettled ? (v === 'CREDITED' ? 'CREDITED' : 'SETTLED') : (v || 'PENDING')}
+          </Badge>
+        )
+      },
     },
     {
       key: 'user',
@@ -1337,8 +1347,18 @@ export default function PurchasesPage() {
               <div>
                 <span className="text-gray-500">Settlement Status:</span>
                 <div className="mt-0.5">
-                  <Badge variant={selectedReturnDetails.settlement_status === 'SETTLED' ? 'success' : 'warning'}>
-                    {selectedReturnDetails.settlement_status || 'PENDING'}
+                  <Badge
+                    variant={
+                      selectedReturnDetails.settlement_status === 'COMPLETED' ||
+                      selectedReturnDetails.settlement_status === 'CREDITED' ||
+                      selectedReturnDetails.settlement_status === 'SETTLED'
+                        ? 'success'
+                        : 'warning'
+                    }
+                  >
+                    {selectedReturnDetails.settlement_status === 'COMPLETED' || selectedReturnDetails.settlement_status === 'SETTLED'
+                      ? 'SETTLED'
+                      : (selectedReturnDetails.settlement_status || 'PENDING')}
                   </Badge>
                 </div>
               </div>
@@ -1388,6 +1408,78 @@ export default function PurchasesPage() {
                 </table>
               </div>
             </div>
+
+            {/* Settlement Action Block if Pending */}
+            {selectedReturnDetails.settlement_status === 'PENDING' && (
+              <div className="bg-amber-50/70 border border-amber-200 rounded-lg p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h5 className="font-semibold text-gray-900 text-xs">Record Supplier Settlement</h5>
+                    <p className="text-gray-500 text-3xs">
+                      Mark when vendor reimburses {formatCurrency(selectedReturnDetails.total_amount)} via Cash or Credit Memo.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label className="block text-3xs font-medium text-gray-600 mb-0.5">Settlement Method</label>
+                    <select
+                      value={settlementMethod}
+                      onChange={(e) => setSettlementMethod(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-primary-500"
+                    >
+                      <option value="CASH">Cash Refund</option>
+                      <option value="CREDIT">Supplier Credit Note</option>
+                      <option value="CARD">Bank / Card Transfer</option>
+                      <option value="MOBILE_MONEY">Mobile Money</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-3xs font-medium text-gray-600 mb-0.5">Notes / Ref # (Optional)</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Receipt # or Credit Memo #"
+                      value={settlementNotes}
+                      onChange={(e) => setSettlementNotes(e.target.value)}
+                      className="w-full border border-gray-300 rounded px-2 py-1 text-xs bg-white focus:ring-1 focus:ring-primary-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end pt-1">
+                  <Button
+                    size="sm"
+                    variant="success"
+                    isLoading={settlingReturn}
+                    onClick={async () => {
+                      setSettlingReturn(true)
+                      try {
+                        const statusToSet = settlementMethod === 'CREDIT' ? 'CREDITED' : 'COMPLETED'
+                        const res = await returnsService.settlePurchaseReturn(selectedReturnDetails.id, {
+                          settlement_status: statusToSet,
+                          settlement_method: settlementMethod,
+                          notes: settlementNotes,
+                        })
+                        toast.success(`Purchase return ${selectedReturnDetails.return_number} marked as ${statusToSet === 'CREDITED' ? 'CREDITED' : 'SETTLED'}!`)
+                        setSelectedReturnDetails(res.data?.data || {
+                          ...selectedReturnDetails,
+                          settlement_status: statusToSet,
+                          settlement_method: settlementMethod,
+                        })
+                        fetchPurchaseReturns()
+                      } catch (err) {
+                        toast.error(err?.response?.data?.error?.message || err?.response?.data?.message || 'Failed to update settlement status')
+                      } finally {
+                        setSettlingReturn(false)
+                      }
+                    }}
+                  >
+                    Mark as Settled / Refund Received
+                  </Button>
+                </div>
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <Button variant="secondary" onClick={() => setSelectedReturnDetails(null)}>
