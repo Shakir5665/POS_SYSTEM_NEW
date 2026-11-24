@@ -3,7 +3,7 @@ import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
 import toast from 'react-hot-toast'
 
-function NavItem({ to, icon, label, end = false, badge = null, onClick = null }) {
+function NavItem({ to, icon, label, end = false, badge = null, onClick = null, iconColor = 'text-blue-600 bg-blue-50 border-blue-200/60' }) {
   return (
     <NavLink
       to={to}
@@ -13,7 +13,7 @@ function NavItem({ to, icon, label, end = false, badge = null, onClick = null })
         `group relative flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 ${
           isActive
             ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-primary-glow font-bold'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 hover:shadow-2xs active:scale-[0.99]'
+            : 'text-slate-700 hover:text-slate-950 hover:bg-white/90 hover:shadow-2xs active:scale-[0.99]'
         }`
       }
     >
@@ -21,11 +21,13 @@ function NavItem({ to, icon, label, end = false, badge = null, onClick = null })
         <>
           <div className="flex items-center gap-3 min-w-0">
             <span
-              className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-                isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'
+              className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 group-hover:scale-105 ${
+                isActive
+                  ? 'bg-white/20 text-white shadow-2xs'
+                  : `${iconColor} border shadow-2xs group-hover:brightness-105`
               }`}
             >
-              {icon}
+              <span className="w-4 h-4">{icon}</span>
             </span>
             <span className="truncate">{label}</span>
           </div>
@@ -41,7 +43,7 @@ function NavItem({ to, icon, label, end = false, badge = null, onClick = null })
             </span>
           )}
           {isActive && (
-            <span className="absolute right-1 w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
+            <span className="absolute right-2 w-1.5 h-1.5 rounded-full bg-white shadow-xs" />
           )}
         </>
       )}
@@ -78,7 +80,7 @@ function SubNavItem({ to, label, onClick = null }) {
   )
 }
 
-function ExpandableNavGroup({ icon, label, children, activePaths = [] }) {
+function ExpandableNavGroup({ icon, label, children, activePaths = [], iconColor = 'text-blue-600 bg-blue-50 border-blue-200/60' }) {
   const location = useLocation()
   const isAnyChildActive = activePaths.some(
     (p) => location.pathname === p || location.pathname.startsWith(`${p}/`)
@@ -102,16 +104,18 @@ function ExpandableNavGroup({ icon, label, children, activePaths = [] }) {
         className={`w-full group flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 select-none ${
           isAnyChildActive
             ? 'text-blue-700 bg-blue-50/90 font-bold border border-blue-200/70 shadow-2xs'
-            : 'text-slate-600 hover:text-slate-900 hover:bg-white/80 hover:shadow-2xs'
+            : 'text-slate-700 hover:text-slate-950 hover:bg-white/90 hover:shadow-2xs'
         }`}
       >
         <div className="flex items-center gap-3 min-w-0">
           <span
-            className={`w-4 h-4 flex-shrink-0 transition-transform duration-200 group-hover:scale-110 ${
-              isAnyChildActive ? 'text-blue-600' : 'text-slate-400 group-hover:text-blue-600'
+            className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 transition-all duration-200 group-hover:scale-105 ${
+              isAnyChildActive
+                ? 'bg-blue-600 text-white shadow-2xs'
+                : `${iconColor} border shadow-2xs group-hover:brightness-105`
             }`}
           >
-            {icon}
+            <span className="w-4 h-4">{icon}</span>
           </span>
           <span className="truncate">{label}</span>
         </div>
@@ -266,7 +270,7 @@ export function DashboardLayout({ children }) {
             to="/pos"
             icon={icons.pos}
             label="Point of Sale"
-            
+            iconColor="text-blue-600 bg-blue-50/90 border-blue-200/80"
             end
             onClick={() => setSidebarOpen(false)}
           />
@@ -277,12 +281,14 @@ export function DashboardLayout({ children }) {
                 to="/dashboard"
                 icon={icons.dashboard}
                 label="Dashboard"
+                iconColor="text-indigo-600 bg-indigo-50/90 border-indigo-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
 
               <ExpandableNavGroup
                 icon={icons.sales}
                 label="Sales"
+                iconColor="text-emerald-600 bg-emerald-50/90 border-emerald-200/80"
                 activePaths={['/app/sales', '/sales', '/app/sale-return']}
               >
                 <SubNavItem to="/app/sales" label="Sales Orders" onClick={() => setSidebarOpen(false)} />
@@ -293,6 +299,7 @@ export function DashboardLayout({ children }) {
                 to="/customers"
                 icon={icons.customers}
                 label="Customers"
+                iconColor="text-cyan-600 bg-cyan-50/90 border-cyan-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
 
@@ -304,6 +311,7 @@ export function DashboardLayout({ children }) {
               <ExpandableNavGroup
                 icon={icons.products}
                 label="Products"
+                iconColor="text-amber-600 bg-amber-50/90 border-amber-200/80"
                 activePaths={['/app/products', '/products', '/app/product-categories', '/app/variations', '/app/brands']}
               >
                 <SubNavItem to="/app/products" label="Products List" onClick={() => setSidebarOpen(false)} />
@@ -316,12 +324,14 @@ export function DashboardLayout({ children }) {
                 to="/inventory"
                 icon={icons.inventory}
                 label="Inventory"
+                iconColor="text-violet-600 bg-violet-50/90 border-violet-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
               <NavItem
                 to="/warehouses"
                 icon={icons.warehouses}
                 label="Warehouses"
+                iconColor="text-sky-600 bg-sky-50/90 border-sky-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
 
@@ -333,12 +343,14 @@ export function DashboardLayout({ children }) {
                 to="/purchases"
                 icon={icons.purchases}
                 label="Purchases"
+                iconColor="text-teal-600 bg-teal-50/90 border-teal-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
               <NavItem
                 to="/suppliers"
                 icon={icons.suppliers}
                 label="Suppliers"
+                iconColor="text-orange-600 bg-orange-50/90 border-orange-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
 
@@ -350,12 +362,14 @@ export function DashboardLayout({ children }) {
                 to="/finance"
                 icon={icons.finance}
                 label="Finance"
+                iconColor="text-emerald-600 bg-emerald-50/90 border-emerald-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
               <NavItem
                 to="/reports"
                 icon={icons.reports}
                 label="Reports"
+                iconColor="text-purple-600 bg-purple-50/90 border-purple-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
             </>
@@ -371,18 +385,21 @@ export function DashboardLayout({ children }) {
                 to="/users"
                 icon={icons.users}
                 label="Users & Access"
+                iconColor="text-rose-600 bg-rose-50/90 border-rose-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
               <NavItem
                 to="/settings"
                 icon={icons.settings}
                 label="Settings"
+                iconColor="text-slate-600 bg-slate-100/90 border-slate-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
               <NavItem
                 to="/migration"
                 icon={icons.migration}
                 label="Legacy Migration"
+                iconColor="text-fuchsia-600 bg-fuchsia-50/90 border-fuchsia-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
             </>
