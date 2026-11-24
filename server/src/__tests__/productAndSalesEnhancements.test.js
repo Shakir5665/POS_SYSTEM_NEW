@@ -426,22 +426,15 @@ describe('Product and Sales Management Enhancements', () => {
       expect(delAgain.status).toBe(422)
     })
 
-    it('GET /api/sale-pdf-download/:id downloads invoice PDF in A4 and A5 formats', async () => {
+    it('GET /api/sale-pdf-download/:id downloads invoice PDF format', async () => {
       const resA4 = await request(app)
-        .get(`/api/sale-pdf-download/${enhancementSale.id}?format=a4`)
+        .get(`/api/sale-pdf-download/${enhancementSale.id}`)
         .set('Authorization', `Bearer ${adminToken}`)
 
       expect(resA4.status).toBe(200)
       expect(resA4.headers['content-type']).toBe('application/pdf')
       expect(resA4.headers['content-disposition']).toContain('attachment')
       expect(resA4.body.length).toBeGreaterThan(500)
-
-      const resA5 = await request(app)
-        .get(`/api/sale-pdf-download/${enhancementSale.id}?format=a5`)
-        .set('Authorization', `Bearer ${adminToken}`)
-
-      expect(resA5.status).toBe(200)
-      expect(resA5.headers['content-type']).toBe('application/pdf')
     })
   })
 

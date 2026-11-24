@@ -41,7 +41,7 @@ async function getSalesSummary({ start_date, end_date, warehouse_id, is_legacy_i
     returnsWhere.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
   }
 
-  const [result, returnsAgg] = await Promise.all([
+  const [result, returnsAgg, itemDiscounts] = await Promise.all([
     prisma.sale.aggregate({
       where,
       _sum: { total_amount: true, amount_paid: true, balance_due: true, discount_amount: true, tax_amount: true },
@@ -53,11 +53,19 @@ async function getSalesSummary({ start_date, end_date, warehouse_id, is_legacy_i
       _sum: { refund_amount: true },
       _count: { id: true },
     }),
+    prisma.saleItem.aggregate({
+      where: { sale: where },
+      _sum: { discount: true, predefined_discount_amount: true },
+    }),
   ])
 
   const grossSales = parseFloat(result._sum.total_amount || 0)
   const salesReturns = parseFloat(returnsAgg._sum.refund_amount || 0)
   const netSales = parseFloat((grossSales - salesReturns).toFixed(2))
+  const cartDiscount = parseFloat(result._sum.discount_amount || 0)
+  const lineDiscount = parseFloat(itemDiscounts._sum.discount || 0)
+  const predefinedDiscount = parseFloat(itemDiscounts._sum.predefined_discount_amount || 0)
+  const totalDiscount = parseFloat((cartDiscount + lineDiscount + predefinedDiscount).toFixed(2))
 
   return {
     gross_sales: grossSales,
@@ -69,7 +77,9 @@ async function getSalesSummary({ start_date, end_date, warehouse_id, is_legacy_i
     total_credit: parseFloat(result._sum.balance_due || 0),
     transaction_count: result._count.id,
     average_sale: parseFloat(result._avg.total_amount || 0),
-    total_discount: parseFloat(result._sum.discount_amount || 0),
+    total_discount: totalDiscount,
+    cart_discount: cartDiscount,
+    product_discount: parseFloat((lineDiscount + predefinedDiscount).toFixed(2)),
     total_tax: parseFloat(result._sum.tax_amount || 0),
   }
 }
@@ -113,15 +123,20 @@ async function getPurchasesSummary({ start_date, end_date, warehouse_id, is_lega
   const grossPurchases = parseFloat(result._sum.total_amount || 0)
   const purchaseReturns = parseFloat(returnsAgg._sum.total_amount || 0)
   const netPurchases = parseFloat((grossPurchases - purchaseReturns).toFixed(2))
+  const orderCount = result._count.id
+  const returnCount = returnsAgg._count.id
 
   return {
     gross_purchases: grossPurchases,
     total_paid: parseFloat(result._sum.amount_paid || 0),
     total_due: parseFloat(result._sum.balance_due || 0),
     purchase_returns: purchaseReturns,
-    purchase_return_count: returnsAgg._count.id,
+    purchase_return_count: returnCount,
+    return_count: returnCount,
     net_purchases: netPurchases,
-    purchase_count: result._count.id,
+    purchase_count: orderCount,
+    order_count: orderCount,
+    average_order: orderCount > 0 ? parseFloat((grossPurchases / orderCount).toFixed(2)) : 0,
   }
 }
 
@@ -142,6 +157,8 @@ async function getSalesReturnsReport({ start_date, end_date, warehouse_id, is_le
     include: {
       items: true,
       warehouse: { select: { id: true, code: true, name: true } },
+      customer: { select: { id: true, name: true, phone: true } },
+      sale: { select: { id: true, transaction_id: true } },
     },
     orderBy: { return_date: 'asc' },
   })
@@ -161,21 +178,30 @@ async function getSalesReturnsReport({ start_date, end_date, warehouse_id, is_le
     const methodKey = r.refund_method || 'CASH'
     byRefundMethod[methodKey] = (byRefundMethod[methodKey] || 0) + amt
 
-    const dateKey = r.return_date.toISOString().split('T')[0]
+    const dateKey = r.return_date ? r.return_date.toISOString().split('T')[0] : (r.created_at ? r.created_at.toISOString().split('T')[0] : 'Unknown')
     byDay[dateKey] = (byDay[dateKey] || 0) + amt
 
-    for (const item of r.items) {
+    for (const item of (r.items || [])) {
       totalItemsReturned += parseFloat(item.quantity)
     }
   }
 
+  const finalTotalRefund = parseFloat(totalRefundAmount.toFixed(2))
+
   return {
-    total_refund_amount: parseFloat(totalRefundAmount.toFixed(2)),
+    total_refund_amount: finalTotalRefund,
+    total_refunded: finalTotalRefund,
     total_returns_count: returns.length,
+    count: returns.length,
     total_items_returned: parseFloat(totalItemsReturned.toFixed(3)),
     by_reason: Object.entries(byReason).map(([reason, amount]) => ({ reason, amount: parseFloat(amount.toFixed(2)) })),
     by_refund_method: Object.entries(byRefundMethod).map(([method, amount]) => ({ method, amount: parseFloat(amount.toFixed(2)) })),
     by_day: Object.entries(byDay).map(([label, value]) => ({ label, value: parseFloat(value.toFixed(2)) })),
+    returns: returns.map((r) => ({
+      ...r,
+      total_refund_amount: parseFloat(r.refund_amount || 0),
+      refund_amount: parseFloat(r.refund_amount || 0),
+    })),
   }
 }
 
@@ -196,6 +222,8 @@ async function getPurchaseReturnsReport({ start_date, end_date, warehouse_id, is
       items: true,
       warehouse: { select: { id: true, code: true, name: true } },
       supplier: { select: { id: true, name: true } },
+      purchase: { select: { id: true, purchase_number: true } },
+      user: { select: { id: true, full_name: true } },
     },
     orderBy: { return_date: 'asc' },
   })
@@ -215,21 +243,30 @@ async function getPurchaseReturnsReport({ start_date, end_date, warehouse_id, is
     const statusKey = r.settlement_status || 'PENDING'
     bySettlementStatus[statusKey] = (bySettlementStatus[statusKey] || 0) + amt
 
-    const dateKey = r.return_date.toISOString().split('T')[0]
+    const dateKey = r.return_date ? r.return_date.toISOString().split('T')[0] : (r.created_at ? r.created_at.toISOString().split('T')[0] : 'Unknown')
     byDay[dateKey] = (byDay[dateKey] || 0) + amt
 
-    for (const item of r.items) {
+    for (const item of (r.items || [])) {
       totalItemsReturned += parseFloat(item.quantity)
     }
   }
 
+  const finalTotalReturn = parseFloat(totalReturnAmount.toFixed(2))
+
   return {
-    total_return_amount: parseFloat(totalReturnAmount.toFixed(2)),
+    total_return_amount: finalTotalReturn,
+    total_returned: finalTotalReturn,
     total_returns_count: returns.length,
+    count: returns.length,
     total_items_returned: parseFloat(totalItemsReturned.toFixed(3)),
     by_reason: Object.entries(byReason).map(([reason, amount]) => ({ reason, amount: parseFloat(amount.toFixed(2)) })),
     by_settlement_status: Object.entries(bySettlementStatus).map(([status, amount]) => ({ status, amount: parseFloat(amount.toFixed(2)) })),
     by_day: Object.entries(byDay).map(([label, value]) => ({ label, value: parseFloat(value.toFixed(2)) })),
+    returns: returns.map((r) => ({
+      ...r,
+      total_amount: parseFloat(r.total_amount || 0),
+      return_value: parseFloat(r.total_amount || 0),
+    })),
   }
 }
 
@@ -360,7 +397,8 @@ async function getCashierPerformance({ start_date, end_date, warehouse_id, is_le
     JOIN "User" u ON u.id = s.user_id
     WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
       AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
-      AND s.payment_status = 'COMPLETED'
+      AND s.payment_status != 'REFUNDED'
+      AND s.is_cancelled = false
       ${warehouseFilter}
       ${legacyFilter}
     GROUP BY u.id, u.full_name, u.username
@@ -368,10 +406,14 @@ async function getCashierPerformance({ start_date, end_date, warehouse_id, is_le
   `
   return results.map((r) => ({
     id: r.id,
+    name: r.label,
     label: r.label,
     username: r.username,
+    total_revenue: parseFloat(r.value || 0),
     value: parseFloat(r.value || 0),
     transactions: r.transactions,
+    transaction_count: r.transactions,
+    count: r.transactions,
   }))
 }
 

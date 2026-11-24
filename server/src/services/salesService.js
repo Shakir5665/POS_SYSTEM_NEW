@@ -1149,31 +1149,100 @@ async function updateSale(saleId, data, userId) {
       }
     }
 
-    // Recalculate balances
-    const amountPaid = toMoney(sale.amount_paid)
-    const newBalanceDue = Decimal.max(0, newTotal.minus(amountPaid))
-    const newPaymentStatus = newBalanceDue.eq(0) ? 'COMPLETED' : (amountPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING')
+    // Recalculate balances and payment status
+    const finalCustomerId = data.customer_id !== undefined ? (data.customer_id || null) : sale.customer_id
+    const newPaymentMethod = data.payment_method || sale.payment_method || 'CASH'
+    const isExplicitPaymentUpdate = data.payment_method !== undefined || data.amount_paid !== undefined
+    let amountPaid = data.amount_paid !== undefined ? toMoney(data.amount_paid) : toMoney(sale.amount_paid)
+    let newBalanceDue = toMoney(0)
+    let changeGiven = toMoney(0)
+    let newPaymentStatus = 'COMPLETED'
+
+    if (newPaymentMethod === 'CREDIT') {
+      if (!finalCustomerId) {
+        throw new ValidationError('Credit sales require a registered customer', [
+          { field: 'customer_id', message: 'Credit sales require a registered customer' },
+        ])
+      }
+      if (amountPaid.lt(0)) {
+        throw new ValidationError('Amount paid cannot be negative')
+      }
+      if (amountPaid.gt(newTotal)) {
+        throw new ValidationError('Amount paid cannot exceed total amount for credit sale', [
+          { field: 'amount_paid', message: `Amount paid (${amountPaid.toFixed(2)}) cannot exceed sale total (${newTotal.toFixed(2)})` },
+        ])
+      }
+      newBalanceDue = newTotal.minus(amountPaid)
+      newPaymentStatus = newBalanceDue.eq(0) ? 'COMPLETED' : (amountPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING')
+      changeGiven = toMoney(0)
+    } else if (newPaymentMethod === 'CASH') {
+      if (isExplicitPaymentUpdate && amountPaid.lt(newTotal) && !finalCustomerId) {
+        throw new ValidationError('Partial payments or credit sales require a registered customer', [
+          { field: 'amount_paid', message: 'Amount paid is less than total. Partial payments or credit sales require a registered customer.' },
+        ])
+      }
+      if (!isExplicitPaymentUpdate && !finalCustomerId && sale.payment_status === 'COMPLETED') {
+        amountPaid = newTotal
+        newBalanceDue = toMoney(0)
+        newPaymentStatus = 'COMPLETED'
+        changeGiven = toMoney(0)
+      } else if (amountPaid.lt(newTotal)) {
+        newBalanceDue = newTotal.minus(amountPaid)
+        newPaymentStatus = amountPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING'
+        changeGiven = toMoney(0)
+      } else {
+        newBalanceDue = toMoney(0)
+        newPaymentStatus = 'COMPLETED'
+        changeGiven = amountPaid.minus(newTotal)
+      }
+    } else {
+      newBalanceDue = Decimal.max(0, newTotal.minus(amountPaid))
+      newPaymentStatus = newBalanceDue.eq(0) ? 'COMPLETED' : (amountPaid.gt(0) ? 'PARTIALLY_PAID' : 'PENDING')
+      changeGiven = toMoney(0)
+    }
+
+    // Update or create payment record
+    const activePayment = sale.payments.find((p) => !p.is_void)
+    if (activePayment) {
+      await tx.payment.update({
+        where: { id: activePayment.id },
+        data: {
+          method: newPaymentMethod,
+          amount_paid: amountPaid,
+          change_given: changeGiven,
+        },
+      })
+    } else if (amountPaid.gt(0) || newPaymentMethod === 'CREDIT') {
+      await tx.payment.create({
+        data: {
+          sale_id: sale.id,
+          method: newPaymentMethod,
+          amount_paid: amountPaid,
+          change_given: changeGiven,
+        },
+      })
+    }
 
     // Recalculate loyalty points if customer linked
     let newPoints = sale.loyalty_points_earned
-    if (sale.customer_id) {
+    if (finalCustomerId) {
       const loyaltyRate = toMoney(await getSettingValue('loyalty_points_rate', 10))
       if (loyaltyRate.gt(0)) {
         newPoints = newTotal.div(loyaltyRate).floor().toNumber()
         const pointsDiff = newPoints - sale.loyalty_points_earned
         if (pointsDiff > 0) {
           await tx.customer.update({
-            where: { id: sale.customer_id },
+            where: { id: finalCustomerId },
             data: { loyalty_points: { increment: pointsDiff } },
           })
         } else if (pointsDiff < 0) {
           const deduct = Math.abs(pointsDiff)
           const { count } = await tx.customer.updateMany({
-            where: { id: sale.customer_id, loyalty_points: { gte: deduct } },
+            where: { id: finalCustomerId, loyalty_points: { gte: deduct } },
             data: { loyalty_points: { decrement: deduct } },
           })
           if (count === 0) {
-            await tx.customer.update({ where: { id: sale.customer_id }, data: { loyalty_points: 0 } })
+            await tx.customer.update({ where: { id: finalCustomerId }, data: { loyalty_points: 0 } })
           }
         }
       }
@@ -1186,11 +1255,13 @@ async function updateSale(saleId, data, userId) {
         discount_amount: discountAmt,
         tax_amount: taxAmount,
         total_amount: newTotal,
+        amount_paid: amountPaid,
         balance_due: newBalanceDue,
+        payment_method: newPaymentMethod,
         payment_status: newPaymentStatus,
         loyalty_points_earned: newPoints,
         notes: data.notes !== undefined ? data.notes : sale.notes,
-        customer_id: data.customer_id !== undefined ? data.customer_id || null : sale.customer_id,
+        customer_id: finalCustomerId,
         warehouse_id: data.warehouse_id !== undefined ? data.warehouse_id || null : sale.warehouse_id,
       },
     })

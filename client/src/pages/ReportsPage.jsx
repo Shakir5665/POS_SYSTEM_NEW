@@ -175,8 +175,8 @@ export default function ReportsPage() {
         ['Gross Purchases', purchasesSummaryData.gross_purchases ?? 0],
         ['Purchase Returns', purchasesSummaryData.purchase_returns ?? 0],
         ['Net Purchases Cost', purchasesSummaryData.net_purchases ?? 0],
-        ['Orders Count', purchasesSummaryData.order_count ?? 0],
-        ['Returns Count', purchasesSummaryData.return_count ?? 0],
+        ['Orders Count', purchasesSummaryData.order_count ?? purchasesSummaryData.purchase_count ?? 0],
+        ['Returns Count', purchasesSummaryData.return_count ?? purchasesSummaryData.purchase_return_count ?? 0],
         ['Average Order', purchasesSummaryData.average_order ?? 0],
       ]
     )
@@ -235,7 +235,7 @@ export default function ReportsPage() {
     exportCsv(
       'cashier-performance.csv',
       ['Cashier', 'Transactions', 'Total Revenue'],
-      cashierData.map((c) => [`"${c.name ?? c.label}"`, c.transaction_count ?? c.count ?? 0, c.total_revenue ?? c.value ?? 0])
+      cashierData.map((c) => [`"${c.name ?? c.label}"`, c.transactions ?? c.transaction_count ?? c.count ?? 0, c.total_revenue ?? c.value ?? 0])
     )
   }
   function exportProfit() {
@@ -405,7 +405,7 @@ export default function ReportsPage() {
                       label="Purchase Returns (Defects)"
                       value={fmt(purchasesSummaryData.purchase_returns ?? 0)}
                       tooltip={fmt(purchasesSummaryData.purchase_returns ?? 0)}
-                      subtitle={`${purchasesSummaryData.return_count ?? 0} supplier returns`}
+                      subtitle={`${purchasesSummaryData.return_count ?? purchasesSummaryData.purchase_return_count ?? 0} supplier returns`}
                       danger
                     />
                     <KpiCard
@@ -420,8 +420,8 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <KpiCard
                       label="Total Purchase Orders"
-                      value={purchasesSummaryData.order_count ?? 0}
-                      tooltip={String(purchasesSummaryData.order_count ?? 0)}
+                      value={purchasesSummaryData.order_count ?? purchasesSummaryData.purchase_count ?? 0}
+                      tooltip={String(purchasesSummaryData.order_count ?? purchasesSummaryData.purchase_count ?? 0)}
                     />
                     <KpiCard
                       label="Average Purchase Order"
@@ -451,12 +451,12 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <KpiCard
                       label="Total Customer Refunds in Period"
-                      value={fmt(salesReturnsData.total_refunded ?? 0)}
+                      value={fmt(salesReturnsData.total_refunded ?? salesReturnsData.total_refund_amount ?? 0)}
                       danger
                     />
                     <KpiCard
                       label="Total Returns Count"
-                      value={salesReturnsData.count ?? 0}
+                      value={salesReturnsData.count ?? salesReturnsData.total_returns_count ?? 0}
                     />
                   </div>
 
@@ -483,7 +483,7 @@ export default function ReportsPage() {
                             <td className="px-4 py-3 font-medium text-gray-900">{r.customer?.name || 'Walk-in'}</td>
                             <td className="px-4 py-3 text-gray-600 italic">{r.reason || '—'}</td>
                             <td className="px-4 py-3 text-right font-mono font-bold text-danger-700">
-                              {fmt(r.total_refund_amount)}
+                              {fmt(r.total_refund_amount ?? r.refund_amount ?? 0)}
                             </td>
                           </tr>
                         ))}
@@ -519,12 +519,12 @@ export default function ReportsPage() {
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <KpiCard
                       label="Total Supplier Returns in Period"
-                      value={fmt(purchaseReturnsData.total_returned ?? 0)}
+                      value={fmt(purchaseReturnsData.total_returned ?? purchaseReturnsData.total_return_amount ?? 0)}
                       danger
                     />
                     <KpiCard
                       label="Total Defect Dispatches Count"
-                      value={purchaseReturnsData.count ?? 0}
+                      value={purchaseReturnsData.count ?? purchaseReturnsData.total_returns_count ?? 0}
                     />
                   </div>
 
@@ -551,7 +551,7 @@ export default function ReportsPage() {
                             <td className="px-4 py-3 font-medium text-gray-900">{r.supplier?.name || '—'}</td>
                             <td className="px-4 py-3 text-gray-600 italic">{r.reason || '—'}</td>
                             <td className="px-4 py-3 text-right font-mono font-bold text-danger-700">
-                              {fmt(r.total_amount)}
+                              {fmt(r.total_amount ?? r.return_value ?? 0)}
                             </td>
                           </tr>
                         ))}
@@ -720,7 +720,7 @@ export default function ReportsPage() {
                       {cashierData.map((c, i) => (
                         <tr key={i} className="hover:bg-gray-50">
                           <td className="px-4 py-3 text-sm font-medium text-gray-900">{c.name ?? c.label}</td>
-                          <td className="px-4 py-3 text-sm text-gray-700">{c.transaction_count ?? c.count ?? 0}</td>
+                          <td className="px-4 py-3 text-sm text-gray-700">{c.transactions ?? c.transaction_count ?? c.count ?? 0}</td>
                           <td className="px-4 py-3 text-sm font-semibold text-gray-900">{formatCurrency(c.total_revenue ?? c.value ?? 0)}</td>
                         </tr>
                       ))}

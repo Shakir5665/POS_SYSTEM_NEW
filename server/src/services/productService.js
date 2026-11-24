@@ -31,6 +31,7 @@ async function listProducts({ page = 1, per_page = 20, search, category_id, bran
       include: {
         category: { select: { id: true, name: true } },
         brand: { select: { id: true, name: true } },
+        variation: { select: { id: true, name: true, values: true } },
       },
       orderBy: { name: 'asc' },
     }),
@@ -46,6 +47,7 @@ async function getProductById(id) {
     include: {
       category: { select: { id: true, name: true } },
       brand: { select: { id: true, name: true } },
+      variation: { select: { id: true, name: true, values: true } },
     },
   })
   if (!product) throw new NotFoundError('Product not found')
@@ -60,6 +62,7 @@ async function getProductByBarcode(barcode) {
     include: {
       category: { select: { id: true, name: true } },
       brand: { select: { id: true, name: true } },
+      variation: { select: { id: true, name: true, values: true } },
     },
   })
   if (!product) throw new NotFoundError('Product not found')
@@ -167,6 +170,8 @@ async function createProduct(data) {
       barcode: data.barcode || null,
       category_id: data.category_id || null,
       brand_id: data.brand_id || null,
+      variation_id: data.variation_id || null,
+      variation_value: data.variation_value ? String(data.variation_value).trim() : null,
       unit_category,
       base_unit,
       pricing_unit,
@@ -182,6 +187,7 @@ async function createProduct(data) {
     include: {
       category: { select: { id: true, name: true } },
       brand: { select: { id: true, name: true } },
+      variation: { select: { id: true, name: true, values: true } },
     },
   })
 
@@ -305,6 +311,8 @@ async function updateProduct(id, data, userId = null) {
     ...(data.barcode !== undefined && { barcode: data.barcode || null }),
     ...(data.category_id !== undefined && { category_id: data.category_id || null }),
     ...(data.brand_id !== undefined && { brand_id: data.brand_id || null }),
+    ...(data.variation_id !== undefined && { variation_id: data.variation_id || null }),
+    ...(data.variation_value !== undefined && { variation_value: data.variation_value ? String(data.variation_value).trim() : null }),
     ...(data.unit_category !== undefined && { unit_category: data.unit_category }),
     ...(data.base_unit !== undefined && { base_unit: data.base_unit }),
     ...(data.pricing_unit !== undefined && { pricing_unit: data.pricing_unit }),
@@ -340,6 +348,7 @@ async function updateProduct(id, data, userId = null) {
         include: {
           category: { select: { id: true, name: true } },
           brand: { select: { id: true, name: true } },
+          variation: { select: { id: true, name: true, values: true } },
         },
       }),
       prisma.inventoryLog.create({
@@ -385,6 +394,7 @@ async function updateProduct(id, data, userId = null) {
     include: {
       category: { select: { id: true, name: true } },
       brand: { select: { id: true, name: true } },
+      variation: { select: { id: true, name: true, values: true } },
     },
   })
 

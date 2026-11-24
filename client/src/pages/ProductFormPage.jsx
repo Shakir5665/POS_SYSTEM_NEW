@@ -7,6 +7,7 @@ import { Input } from '../components/Input'
 import { Modal } from '../components/Modal'
 import { productsService } from '../services/products'
 import { brandsService } from '../services/brands'
+import { variationsService } from '../services/variations'
 import { useSettings } from '../hooks/useSettings'
 import { UOM_CONFIG, getUnitsForCategory, getBaseUnit, getDefaultPricingUnit } from '../utils/uom'
 
@@ -18,6 +19,7 @@ export default function ProductFormPage() {
 
   const [categories, setCategories] = useState([])
   const [brands, setBrands] = useState([])
+  const [variations, setVariations] = useState([])
   const [isLoadingProduct, setIsLoadingProduct] = useState(isEditing)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [errors, setErrors] = useState({})
@@ -40,6 +42,8 @@ export default function ProductFormPage() {
     barcode: '',
     category_id: '',
     brand_id: '',
+    variation_id: '',
+    variation_value: '',
     unit_category: 'COUNT',
     base_unit: 'pcs',
     pricing_unit: 'pcs',
@@ -73,6 +77,9 @@ export default function ProductFormPage() {
     loadCategories()
     brandsService.list()
       .then((res) => setBrands(res.data?.data || []))
+      .catch(() => {})
+    variationsService.list()
+      .then((res) => setVariations(res.data?.data || []))
       .catch(() => {})
   }, [loadCategories])
 
@@ -163,6 +170,8 @@ export default function ProductFormPage() {
           barcode: p.barcode || '',
           category_id: p.category_id || '',
           brand_id: p.brand_id || '',
+          variation_id: p.variation_id || '',
+          variation_value: p.variation_value || '',
           unit_category: p.unit_category || 'COUNT',
           base_unit: p.base_unit || 'pcs',
           pricing_unit: p.pricing_unit || 'pcs',
@@ -347,6 +356,8 @@ export default function ProductFormPage() {
         if (form.barcode.trim()) payload.append('barcode', form.barcode.trim())
         payload.append('category_id', form.category_id)
         if (form.brand_id) payload.append('brand_id', form.brand_id)
+        if (form.variation_id) payload.append('variation_id', form.variation_id)
+        if (form.variation_value.trim()) payload.append('variation_value', form.variation_value.trim())
         payload.append('unit_category', form.unit_category)
         payload.append('base_unit', form.base_unit)
         payload.append('pricing_unit', form.pricing_unit)
@@ -355,7 +366,7 @@ export default function ProductFormPage() {
         payload.append('wholesale_price', String(finalWholesalePrice))
         payload.append('price', String(finalOurPrice))
         if (finalCostPrice !== null) payload.append('cost_price', String(finalCostPrice))
-        payload.append('quantity', String(finalQuantity))
+        if (!isEditing) payload.append('quantity', String(finalQuantity))
         payload.append('low_stock_threshold', String(finalThreshold))
         payload.append('is_active', form.is_active ? 'true' : 'false')
         payload.append('image', imageFile)
@@ -366,6 +377,8 @@ export default function ProductFormPage() {
           barcode: form.barcode.trim() || null,
           category_id: form.category_id,
           brand_id: form.brand_id || null,
+          variation_id: form.variation_id || null,
+          variation_value: form.variation_value.trim() || null,
           unit_category: form.unit_category,
           base_unit: form.base_unit,
           pricing_unit: form.pricing_unit,
@@ -374,7 +387,7 @@ export default function ProductFormPage() {
           wholesale_price: finalWholesalePrice,
           price: finalOurPrice,
           cost_price: finalCostPrice,
-          quantity: finalQuantity,
+          ...(!isEditing && { quantity: finalQuantity }),
           low_stock_threshold: finalThreshold,
           is_active: form.is_active,
         }
@@ -542,6 +555,79 @@ export default function ProductFormPage() {
                   </option>
                 ))}
               </select>
+            </div>
+
+            {/* Variations (Optional) */}
+            <div className="sm:col-span-2 border-t border-gray-100 pt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-sm font-medium text-gray-700">Variation Type (Optional)</label>
+                    <a
+                      href="/app/variations"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+                    >
+                      + Manage Variations
+                    </a>
+                  </div>
+                  <select
+                    value={form.variation_id}
+                    onChange={(e) => {
+                      const selectedId = e.target.value
+                      setField('variation_id', selectedId)
+                      setField('variation_value', '')
+                    }}
+                    className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
+                  >
+                    <option value="">No variation / Standard product</option>
+                    {variations.map((v) => (
+                      <option key={v.id} value={v.id}>
+                        {v.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {form.variation_id && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Variation Value (Optional)
+                    </label>
+                    {(() => {
+                      const currentVar = variations.find((v) => v.id === form.variation_id)
+                      const varValues = currentVar?.values || []
+                      return (
+                        <div className="space-y-1.5">
+                          {varValues.length > 0 ? (
+                            <select
+                              value={form.variation_value}
+                              onChange={(e) => setField('variation_value', e.target.value)}
+                              className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition bg-white"
+                            >
+                              <option value="">Select a value or type below</option>
+                              {varValues.map((val) => {
+                                const valStr = typeof val === 'string' ? val : val.value
+                                return (
+                                  <option key={valStr} value={valStr}>
+                                    {valStr}
+                                  </option>
+                                )
+                              })}
+                            </select>
+                          ) : null}
+                          <Input
+                            placeholder="Or enter custom variation value (e.g. XL, Red, 500g)"
+                            value={form.variation_value}
+                            onChange={(e) => setField('variation_value', e.target.value)}
+                          />
+                        </div>
+                      )
+                    })()}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -751,15 +837,28 @@ export default function ProductFormPage() {
           <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-4 mt-4">
             <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Inventory</h2>
             <div className="grid grid-cols-2 gap-4">
-              <Input
-                label={`Current Quantity (${form.base_unit})`}
-                type="number"
-                step="any"
-                value={form.quantity}
-                onChange={(e) => setField('quantity', e.target.value)}
-                placeholder="0"
-                error={errors.quantity}
-              />
+              <div>
+                <Input
+                  label={`Current Quantity (${form.base_unit})${isEditing ? ' — Locked' : ''}`}
+                  type="number"
+                  step="any"
+                  value={form.quantity}
+                  onChange={(e) => setField('quantity', e.target.value)}
+                  placeholder="0"
+                  error={errors.quantity}
+                  disabled={isEditing}
+                  readOnly={isEditing}
+                  className={isEditing ? 'bg-gray-100 cursor-not-allowed text-gray-500 font-semibold' : ''}
+                />
+                {isEditing && (
+                  <p className="text-2xs text-amber-700 mt-1 flex items-center gap-1 font-medium">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    Quantity can only be set during initial product registration. Adjust stock via the Inventory page or Purchases.
+                  </p>
+                )}
+              </div>
               <Input
                 label={`Low Stock Threshold (${form.base_unit})`}
                 type="number"
@@ -770,11 +869,6 @@ export default function ProductFormPage() {
                 error={errors.low_stock_threshold}
               />
             </div>
-            {isEditing && (
-              <p className="text-xs text-gray-500">
-                You can directly edit the quantity here to correct mistakes, or use the Inventory page for regular stock adjustments.
-              </p>
-            )}
           </div>
 
           {/* Image upload */}

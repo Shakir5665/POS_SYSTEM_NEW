@@ -94,8 +94,23 @@ export default function ProductsPage() {
       label: 'Name',
       render: (val, row) => (
         <div>
-          <p className="font-medium text-gray-900">{val}</p>
-          <p className="text-xs text-gray-400">{row.sku}</p>
+          <p
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/products/${row.id}/edit`)
+            }}
+            className="font-semibold text-gray-900 hover:text-primary-600 hover:underline cursor-pointer transition"
+          >
+            {val}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-xs text-gray-400 font-mono">{row.sku}</span>
+            {row.variation && (
+              <span className="text-3xs bg-purple-50 text-purple-700 border border-purple-200 px-1 py-0.2 rounded font-medium">
+                {row.variation.name}{row.variation_value ? `: ${row.variation_value}` : ''}
+              </span>
+            )}
+          </div>
         </div>
       ),
     },
@@ -206,11 +221,14 @@ export default function ProductsPage() {
       key: 'id',
       label: 'Actions',
       render: (val, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           <Button
             size="sm"
             variant="secondary"
-            onClick={() => navigate(`/products/${val}/edit`)}
+            onClick={(e) => {
+              e.stopPropagation()
+              navigate(`/products/${val}/edit`)
+            }}
           >
             Edit
           </Button>
@@ -218,7 +236,10 @@ export default function ProductsPage() {
             <Button
               size="sm"
               variant="danger"
-              onClick={() => setDeleteTarget(row)}
+              onClick={(e) => {
+                e.stopPropagation()
+                setDeleteTarget(row)
+              }}
             >
               Delete
             </Button>
@@ -274,7 +295,13 @@ export default function ProductsPage() {
 
         {/* Table */}
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <Table columns={columns} data={products} isLoading={isLoading} emptyMessage="No products found. Try adjusting your search or filters." />
+          <Table
+            columns={columns}
+            data={products}
+            isLoading={isLoading}
+            onRowClick={(row) => navigate(`/products/${row.id}/edit`)}
+            emptyMessage="No products found. Try adjusting your search or filters."
+          />
         </div>
 
         {/* Pagination */}

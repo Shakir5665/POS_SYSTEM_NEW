@@ -102,6 +102,8 @@ model Product {
   barcode             String?      @unique
   category_id         String?
   brand_id            String?
+  variation_id        String?
+  variation_value     String?
   unit_category       UnitCategory @default(COUNT)
   base_unit           String       @default("pcs")
   pricing_unit        String       @default("pcs")
@@ -119,6 +121,7 @@ model Product {
 
   category               Category?             @relation(fields: [category_id], references: [id], onDelete: SetNull)
   brand                  Brand?                @relation(fields: [brand_id], references: [id], onDelete: SetNull)
+  variation              Variation?            @relation(fields: [variation_id], references: [id], onDelete: SetNull)
   sale_items             SaleItem[]
   inventory_logs         InventoryLog[]
   purchase_items         PurchaseItem[]
@@ -129,6 +132,7 @@ model Product {
   @@index([barcode])
   @@index([sku])
   @@index([brand_id])
+  @@index([variation_id])
 }
 
 model Customer {
@@ -777,7 +781,8 @@ model Variation {
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
 
-  values VariationValue[]
+  values   VariationValue[]
+  products Product[]
 }
 
 model VariationValue {

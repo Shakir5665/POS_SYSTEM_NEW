@@ -386,8 +386,7 @@ describe('SalesPage Enhancements', () => {
 
     expect(screen.getByText('View Sale Details')).toBeInTheDocument()
     expect(screen.getByText('Print Receipt')).toBeInTheDocument()
-    expect(screen.getByText('Download Invoice (A4)')).toBeInTheDocument()
-    expect(screen.getByText('Download Invoice (A5)')).toBeInTheDocument()
+    expect(screen.getByText('Download Invoice PDF')).toBeInTheDocument()
     expect(screen.getByText('Edit Sale')).toBeInTheDocument()
     expect(screen.getByText('Process Return')).toBeInTheDocument()
     expect(screen.getByText('Cancel / Delete Sale')).toBeInTheDocument()
@@ -410,7 +409,7 @@ describe('SalesPage Enhancements', () => {
     await waitFor(() => {
       expect(screen.getByText(/Sale Details: TRX-1001/i)).toBeInTheDocument()
       expect(screen.getByText('Classic T-Shirt')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: /A4 Invoice PDF/i })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: /Invoice PDF/i })).toBeInTheDocument()
       expect(screen.getByRole('button', { name: /Thermal Receipt/i })).toBeInTheDocument()
     })
   })
@@ -429,7 +428,7 @@ describe('SalesPage Enhancements', () => {
     })
 
     fireEvent.click(screen.getByTitle('Actions'))
-    fireEvent.click(screen.getByText('Download Invoice (A4)'))
+    fireEvent.click(screen.getByText('Download Invoice PDF'))
 
     await waitFor(() => {
       expect(salesService.downloadPdf).toHaveBeenCalledWith('sale-1', 'a4')

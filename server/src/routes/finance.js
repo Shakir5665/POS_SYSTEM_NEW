@@ -19,10 +19,10 @@ const expenseValidation = [
   body('category_id').isString().trim().notEmpty().withMessage('Valid category ID is required'),
   body('amount').isFloat({ gt: 0 }).withMessage('Amount must be greater than 0'),
   body('payment_method').optional().isIn(['CASH', 'MOBILE_MONEY', 'CARD']).withMessage('Payment method must be CASH, MOBILE_MONEY, or CARD'),
-  body('expense_date').optional().isISO8601().withMessage('Valid expense date is required'),
-  body('payee').optional({ nullable: true }).trim(),
-  body('reference').optional({ nullable: true }).trim(),
-  body('notes').optional({ nullable: true }).trim(),
+  body('expense_date').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Valid expense date is required'),
+  body('payee').optional({ nullable: true, checkFalsy: true }).trim(),
+  body('reference').optional({ nullable: true, checkFalsy: true }).trim(),
+  body('notes').optional({ nullable: true, checkFalsy: true }).trim(),
 ]
 
 // Asset validation
@@ -49,15 +49,15 @@ const ownerTxValidation = [
 ]
 
 // Routes
-router.get('/summary', authorize(['ADMIN', 'MANAGER']), financeController.getSummary)
+router.get('/summary', authorize(['ADMIN', 'MANAGER', 'CASHIER']), financeController.getSummary)
 
 // Expense categories
-router.get('/categories', authorize(['ADMIN', 'MANAGER']), financeController.listExpenseCategories)
-router.post('/categories', authorize(['ADMIN', 'MANAGER']), categoryValidation, validate, financeController.createExpenseCategory)
+router.get('/categories', authorize(['ADMIN', 'MANAGER', 'CASHIER']), financeController.listExpenseCategories)
+router.post('/categories', authorize(['ADMIN', 'MANAGER', 'CASHIER']), categoryValidation, validate, financeController.createExpenseCategory)
 
 // Operating expenses
-router.get('/expenses', authorize(['ADMIN', 'MANAGER']), financeController.listExpenses)
-router.post('/expenses', authorize(['ADMIN', 'MANAGER']), expenseValidation, validate, financeController.createExpense)
+router.get('/expenses', authorize(['ADMIN', 'MANAGER', 'CASHIER']), financeController.listExpenses)
+router.post('/expenses', authorize(['ADMIN', 'MANAGER', 'CASHIER']), expenseValidation, validate, financeController.createExpense)
 router.delete('/expenses/:id', authorize(['ADMIN', 'MANAGER']), param('id').isString().trim().notEmpty().withMessage('Invalid expense ID'), validate, financeController.deleteExpense)
 
 // Business assets

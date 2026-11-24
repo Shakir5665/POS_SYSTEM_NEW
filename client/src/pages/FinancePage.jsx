@@ -37,8 +37,12 @@ export default function FinancePage() {
     payee: '',
     reference: '',
     notes: '',
+    expense_date: new Date().toISOString().split('T')[0],
   })
   const [expenseSubmitting, setExpenseSubmitting] = useState(false)
+  const [showAddCategory, setShowAddCategory] = useState(false)
+  const [newCatName, setNewCatName] = useState('')
+  const [creatingCat, setCreatingCat] = useState(false)
 
   // ------------------ Assets State ------------------
   const [assets, setAssets] = useState([])
@@ -147,6 +151,43 @@ export default function FinancePage() {
     if (activeTab === 'equity') fetchEquity()
   }, [activeTab, fetchSummary, fetchExpenses, fetchAssets, fetchEquity])
 
+  function openExpenseModal() {
+    let catId = expenseForm.category_id
+    if (!catId && categories.length > 0) {
+      catId = categories[0].id
+    }
+    setExpenseForm((prev) => ({
+      ...prev,
+      category_id: catId,
+      expense_date: prev.expense_date || new Date().toISOString().split('T')[0],
+    }))
+    setExpenseModalOpen(true)
+  }
+
+  async function handleCreateCategory(e) {
+    e.preventDefault()
+    const name = newCatName.trim()
+    if (!name) return
+    setCreatingCat(true)
+    try {
+      const res = await financeService.createCategory({ name })
+      const newCat = res.data?.data
+      toast.success('Category created')
+      setNewCatName('')
+      setShowAddCategory(false)
+      const catRes = await financeService.categories()
+      const cats = catRes.data?.data || []
+      setCategories(cats)
+      if (newCat?.id) {
+        setExpenseForm((f) => ({ ...f, category_id: newCat.id }))
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message || 'Failed to create category')
+    } finally {
+      setCreatingCat(false)
+    }
+  }
+
   // Handle Add Expense
   async function handleAddExpense(e) {
     e.preventDefault()
@@ -156,12 +197,25 @@ export default function FinancePage() {
       return
     }
 
+    const catId = expenseForm.category_id || categories[0]?.id
+    if (!catId) {
+      toast.error('Please select an expense category')
+      return
+    }
+
     setExpenseSubmitting(true)
     try {
-      await financeService.createExpense({
-        ...expenseForm,
+      const payload = {
+        category_id: catId,
         amount: amt,
-      })
+        payment_method: expenseForm.payment_method || 'CASH',
+      }
+      if (expenseForm.expense_date) payload.expense_date = new Date(expenseForm.expense_date).toISOString()
+      if (expenseForm.payee?.trim()) payload.payee = expenseForm.payee.trim()
+      if (expenseForm.reference?.trim()) payload.reference = expenseForm.reference.trim()
+      if (expenseForm.notes?.trim()) payload.notes = expenseForm.notes.trim()
+
+      await financeService.createExpense(payload)
       toast.success('Operating expense recorded successfully')
       setExpenseModalOpen(false)
       setExpenseForm({
@@ -171,6 +225,7 @@ export default function FinancePage() {
         payee: '',
         reference: '',
         notes: '',
+        expense_date: new Date().toISOString().split('T')[0],
       })
       fetchExpenses()
       fetchSummary()
@@ -387,8 +442,8 @@ export default function FinancePage() {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            {activeTab === 'expenses' && (
-              <Button variant="primary" onClick={() => setExpenseModalOpen(true)}>
+            {(activeTab === 'overview' || activeTab === 'expenses') && (
+              <Button variant="primary" onClick={openExpenseModal}>
                 + Record Expense
               </Button>
             )}
@@ -627,13 +682,45 @@ export default function FinancePage() {
       >
         <form onSubmit={handleAddExpense} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Expense Category *</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium text-gray-700">Expense Category *</label>
+              <button
+                type="button"
+                onClick={() => setShowAddCategory(!showAddCategory)}
+                className="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              >
+                {showAddCategory ? 'Cancel' : '+ New Category'}
+              </button>
+            </div>
+
+            {showAddCategory ? (
+              <div className="flex gap-2 mb-2 p-2.5 bg-gray-50 border border-gray-200 rounded-lg">
+                <input
+                  type="text"
+                  placeholder="New category name (e.g. Repairs)"
+                  value={newCatName}
+                  onChange={(e) => setNewCatName(e.target.value)}
+                  className="flex-1 px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 bg-white"
+                />
+                <Button
+                  size="sm"
+                  type="button"
+                  variant="primary"
+                  onClick={handleCreateCategory}
+                  isLoading={creatingCat}
+                >
+                  Add
+                </Button>
+              </div>
+            ) : null}
+
             <select
               value={expenseForm.category_id}
               onChange={(e) => setExpenseForm((f) => ({ ...f, category_id: e.target.value }))}
               className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
               required
             >
+              {categories.length === 0 && <option value="">No categories available</option>}
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
@@ -642,15 +729,23 @@ export default function FinancePage() {
             </select>
           </div>
 
-          <Input
-            label="Amount *"
-            type="number"
-            step="0.01"
-            value={expenseForm.amount}
-            onChange={(e) => setExpenseForm((f) => ({ ...f, amount: e.target.value }))}
-            placeholder="0.00"
-            required
-          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <Input
+              label="Amount *"
+              type="number"
+              step="0.01"
+              value={expenseForm.amount}
+              onChange={(e) => setExpenseForm((f) => ({ ...f, amount: e.target.value }))}
+              placeholder="0.00"
+              required
+            />
+            <Input
+              label="Expense Date"
+              type="date"
+              value={expenseForm.expense_date || ''}
+              onChange={(e) => setExpenseForm((f) => ({ ...f, expense_date: e.target.value }))}
+            />
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input

@@ -50,7 +50,7 @@ async function generateInvoicePdf(saleId, format = 'a4') {
     getSettingValue('currency_symbol', 'LKR'),
   ])
 
-  const pageSize = String(format).toLowerCase() === 'a5' ? 'A5' : 'A4'
+  const pageSize = 'A4'
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({
@@ -230,7 +230,7 @@ async function generateCreditNotePdf(returnId, format = 'a4') {
     getSettingValue('currency_symbol', 'LKR'),
   ])
 
-  const pageSize = String(format).toLowerCase() === 'a5' ? 'A5' : 'A4'
+  const pageSize = 'A4'
 
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({

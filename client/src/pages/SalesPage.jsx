@@ -16,6 +16,7 @@ import { returnsService } from '../services/returns'
 import { useSettings } from '../hooks/useSettings'
 import { formatCurrency } from '../utils/formatCurrency'
 import { saleStatus, PAYMENT_METHOD_LABELS } from '../utils/saleStatus'
+import { getReceiptDataModel } from '../utils/receiptModel'
 
 export default function SalesPage() {
   const settings = useSettings()
@@ -73,6 +74,8 @@ export default function SalesPage() {
   const [editItems, setEditItems] = useState([])
   const [editDiscount, setEditDiscount] = useState('0')
   const [editNotes, setEditNotes] = useState('')
+  const [editPaymentMethod, setEditPaymentMethod] = useState('CASH')
+  const [editAmountPaid, setEditAmountPaid] = useState('')
   const [isUpdatingSale, setIsUpdatingSale] = useState(false)
 
   // 3. Cancel/Delete Sale Modal
@@ -199,13 +202,13 @@ export default function SalesPage() {
   // Download Invoice PDF
   async function handleDownloadInvoicePdf(sale, format = 'a4') {
     try {
-      toast.loading(`Generating ${format.toUpperCase()} Invoice PDF...`, { id: 'sale-pdf' })
+      toast.loading('Generating Invoice PDF...', { id: 'sale-pdf' })
       const res = await salesService.downloadPdf(sale.id, format)
       const blob = new Blob([res.data], { type: 'application/pdf' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `Invoice-${sale.transaction_id || sale.id}-${format.toUpperCase()}.pdf`
+      a.download = `Invoice-${sale.transaction_id || sale.id}.pdf`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -233,6 +236,8 @@ export default function SalesPage() {
       setEditSaleTarget(fullSale)
       setEditDiscount(String(fullSale.discount_amount || 0))
       setEditNotes(fullSale.notes || '')
+      setEditPaymentMethod(fullSale.payment_method || 'CASH')
+      setEditAmountPaid(String(fullSale.amount_paid != null ? fullSale.amount_paid : fullSale.total_amount))
       setEditItems(
         (fullSale.items || []).map((it) => {
           const retQty = parseFloat(it.returned_quantity || 0)
@@ -289,11 +294,40 @@ export default function SalesPage() {
       }
     }
 
+    const isRegistered = Boolean(editSaleTarget.customer?.id || editSaleTarget.customer_id)
+    const paidVal = parseFloat(editAmountPaid) || 0
+
+    if (editPaymentMethod === 'CREDIT') {
+      if (!isRegistered) {
+        toast.error('A registered customer is required for credit sales.')
+        return
+      }
+      if (paidVal < 0) {
+        toast.error('Deposit cannot be negative')
+        return
+      }
+      if (paidVal > editNewGrandTotal) {
+        toast.error(`Deposit cannot exceed total amount (${fmt(editNewGrandTotal)})`)
+        return
+      }
+    } else if (editPaymentMethod === 'CASH') {
+      if (!isRegistered && paidVal < editNewGrandTotal) {
+        toast.error(`Amount must be at least total (${fmt(editNewGrandTotal)}). Select a customer for partial or credit payments.`)
+        return
+      }
+      if (paidVal < 0) {
+        toast.error('Amount paid cannot be negative')
+        return
+      }
+    }
+
     setIsUpdatingSale(true)
     try {
       await salesService.update(editSaleTarget.id, {
         discount_amount: editOrderDiscount,
         notes: editNotes.trim(),
+        payment_method: editPaymentMethod,
+        amount_paid: paidVal,
         items: editItems.map((it) => ({
           id: it.sale_item_id,
           sale_item_id: it.sale_item_id,
@@ -588,20 +622,7 @@ export default function SalesPage() {
                     <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    Download Invoice (A4)
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveActionMenuId(null)
-                      handleDownloadInvoicePdf(row, 'a5')
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition"
-                  >
-                    <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                    </svg>
-                    Download Invoice (A5)
+                    Download Invoice PDF
                   </button>
                 </div>
 
@@ -864,222 +885,219 @@ export default function SalesPage() {
       >
         {loadingDetails ? (
           <div className="py-12 text-center text-sm text-gray-500">Loading invoice details…</div>
-        ) : detailsSale && (
-          <div className="space-y-5 text-xs max-h-[80vh] overflow-y-auto pr-1">
-            {/* Header info bar */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
-              <div>
-                <span className="text-gray-500">Transaction ID:</span>
-                <p className="font-mono font-bold text-gray-900">{detailsSale.transaction_id}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Sale Date:</span>
-                <p className="font-semibold text-gray-900">
-                  {new Date(detailsSale.sale_date || detailsSale.created_at).toLocaleString()}
-                </p>
-              </div>
-              <div>
-                <span className="text-gray-500">Customer:</span>
-                <p className="font-semibold text-gray-900">{detailsSale.customer?.name || 'Walk-in'}</p>
-                {detailsSale.customer?.phone && (
-                  <p className="text-3xs text-gray-500">{detailsSale.customer.phone}</p>
+        ) : detailsSale && (() => {
+          const receiptModel = getReceiptDataModel(detailsSale)
+          const computedItems = receiptModel.items || []
+          const receiptSummary = receiptModel.summary || {}
+          return (
+            <div className="space-y-5 text-xs max-h-[80vh] overflow-y-auto pr-1">
+              {/* Header info bar */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+                <div>
+                  <span className="text-gray-500">Transaction ID:</span>
+                  <p className="font-mono font-bold text-gray-900">{detailsSale.transaction_id}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Sale Date:</span>
+                  <p className="font-semibold text-gray-900">
+                    {new Date(detailsSale.sale_date || detailsSale.created_at).toLocaleString()}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Customer:</span>
+                  <p className="font-semibold text-gray-900">{detailsSale.customer?.name || 'Walk-in'}</p>
+                  {detailsSale.customer?.phone && (
+                    <p className="text-3xs text-gray-500">{detailsSale.customer.phone}</p>
+                  )}
+                </div>
+                <div>
+                  <span className="text-gray-500">Cashier:</span>
+                  <p className="font-semibold text-gray-900">{detailsSale.user?.full_name || 'Staff'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Warehouse:</span>
+                  <p className="font-semibold text-gray-900">{detailsSale.warehouse?.name || 'Main Warehouse'}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Payment Method:</span>
+                  <p className="font-semibold text-gray-900">{PAYMENT_METHOD_LABELS[detailsSale.payment_method] || detailsSale.payment_method}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Payment Status:</span>
+                  <div>
+                    {detailsSale.is_cancelled ? (
+                      <Badge variant="danger">CANCELLED</Badge>
+                    ) : (
+                      <Badge variant={saleStatus(detailsSale).variant}>{saleStatus(detailsSale).label}</Badge>
+                    )}
+                  </div>
+                </div>
+                {detailsSale.is_cancelled && (
+                  <div>
+                    <span className="text-gray-500">Cancellation Reason:</span>
+                    <p className="text-danger-700 italic">{detailsSale.cancellation_reason || 'Cancelled'}</p>
+                  </div>
                 )}
               </div>
+
+              {/* Order Items Table */}
               <div>
-                <span className="text-gray-500">Cashier:</span>
-                <p className="font-semibold text-gray-900">{detailsSale.user?.full_name || 'Staff'}</p>
+                <h3 className="font-semibold text-gray-800 text-sm mb-2">Order Items</h3>
+                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                  <table className="min-w-full divide-y divide-gray-200 text-xs">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-3 py-2 text-left font-medium text-gray-600">Product</th>
+                        <th className="px-2 py-2 text-center font-medium text-gray-600">Qty</th>
+                        <th className="px-2 py-2 text-right font-medium text-gray-600">Unit Price (සා.මිල)</th>
+                        <th className="px-2 py-2 text-right font-medium text-gray-600">Discount</th>
+                        <th className="px-2 py-2 text-right font-medium text-gray-600">Net Price (අපේ මිල)</th>
+                        <th className="px-3 py-2 text-right font-medium text-gray-600">Subtotal</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 bg-white">
+                      {computedItems.map((rItem, idx) => {
+                        const origItem = (detailsSale.items || [])[idx] || {}
+                        const ret = parseFloat(origItem.returned_quantity || 0)
+                        const lineDiscount = Math.max(0, Number(((rItem.marketPrice || (rItem.unitMarketPrice * rItem.qty)) - rItem.lineTotal).toFixed(2)))
+                        return (
+                          <tr key={origItem.id || idx}>
+                            <td className="px-3 py-2">
+                              <p className="font-semibold text-gray-900">{rItem.name}</p>
+                              <p className="text-2xs font-mono text-gray-400">{origItem.product?.sku || origItem.product_sku || ''}</p>
+                              {ret > 0 && (
+                                <span className="text-3xs text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-medium">
+                                  {ret} returned
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 text-center font-mono font-bold text-gray-800">{rItem.qty}{rItem.unitLabel}</td>
+                            <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(rItem.unitMarketPrice)}</td>
+                            <td className="px-2 py-2 text-right font-mono text-gray-600">
+                              {lineDiscount > 0 ? (
+                                <span className="text-success-700 font-medium">-{fmt(lineDiscount)}</span>
+                              ) : (
+                                <span className="text-gray-400 font-normal">0.00</span>
+                              )}
+                            </td>
+                            <td className="px-2 py-2 text-right font-mono font-bold text-gray-900">{fmt(rItem.unitOurPrice)}</td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">{fmt(rItem.lineTotal)}</td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div>
-                <span className="text-gray-500">Warehouse:</span>
-                <p className="font-semibold text-gray-900">{detailsSale.warehouse?.name || 'Main Warehouse'}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Payment Method:</span>
-                <p className="font-semibold text-gray-900">{PAYMENT_METHOD_LABELS[detailsSale.payment_method] || detailsSale.payment_method}</p>
-              </div>
-              <div>
-                <span className="text-gray-500">Payment Status:</span>
-                <div>
-                  {detailsSale.is_cancelled ? (
-                    <Badge variant="danger">CANCELLED</Badge>
+
+              {/* Financial Summary & Payment Breakdown */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Payment transactions snapshot */}
+                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
+                  <h4 className="font-semibold text-gray-800 text-xs mb-2">Payment Records</h4>
+                  {detailsSale.payments && detailsSale.payments.length > 0 ? (
+                    <div className="space-y-1.5">
+                      {detailsSale.payments.map((p) => (
+                        <div
+                          key={p.id}
+                          className={`p-2 rounded border text-2xs flex justify-between items-center ${
+                            p.is_void ? 'bg-danger-50/50 border-danger-200 text-danger-700' : 'bg-white border-gray-200 text-gray-800'
+                          }`}
+                        >
+                          <div>
+                            <p className="font-semibold">
+                              {PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}
+                              {p.reference && <span className="font-mono text-gray-500 font-normal ml-1">({p.reference})</span>}
+                            </p>
+                            <p className="text-gray-400">{new Date(p.created_at).toLocaleTimeString()}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-mono font-bold">{fmt(p.amount)}</p>
+                            {p.is_void ? (
+                              <Badge variant="danger">VOID</Badge>
+                            ) : (
+                              <span className="text-success-700 font-medium">COMPLETED</span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
                   ) : (
-                    <Badge variant={saleStatus(detailsSale).variant}>{saleStatus(detailsSale).label}</Badge>
+                    <p className="text-gray-400 italic">No direct payment records found.</p>
+                  )}
+                </div>
+
+                {/* Financial Totals */}
+                <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50">
+                  <div className="flex justify-between text-gray-600">
+                    <span>Subtotal (සා.මිල එකතුව):</span>
+                    <span className="font-mono">{fmt(receiptSummary.marketSubtotal ?? (detailsSale.subtotal_amount || detailsSale.total_amount))}</span>
+                  </div>
+                  {((receiptSummary.totalDiscounts ?? 0) > 0 || parseFloat(detailsSale.discount_amount || 0) > 0) && (
+                    <div className="flex justify-between text-success-700 font-medium">
+                      <span>Total Discounts (වට්ටම්):</span>
+                      <span className="font-mono">-{fmt(receiptSummary.totalDiscounts ?? detailsSale.discount_amount)}</span>
+                    </div>
+                  )}
+                  {parseFloat(detailsSale.tax_amount || 0) > 0 && (
+                    <div className="flex justify-between text-gray-600">
+                      <span>Tax:</span>
+                      <span className="font-mono">+{fmt(detailsSale.tax_amount)}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-gray-300 pt-1.5 flex justify-between font-bold text-gray-900 text-sm">
+                    <span>Grand Total (අපේ මිල එකතුව):</span>
+                    <span className="font-mono">{fmt(detailsSale.total_amount)}</span>
+                  </div>
+                  <div className="flex justify-between text-gray-700">
+                    <span>Amount Paid:</span>
+                    <span className="font-mono font-semibold text-success-800">{fmt(detailsSale.amount_paid ?? detailsSale.total_amount)}</span>
+                  </div>
+                  {parseFloat(detailsSale.balance_due || 0) > 0 && (
+                    <div className="flex justify-between text-danger-700 font-semibold">
+                      <span>Balance Due:</span>
+                      <span className="font-mono">{fmt(detailsSale.balance_due)}</span>
+                    </div>
+                  )}
+                  {parseFloat(detailsSale.change_amount || 0) > 0 && (
+                    <div className="flex justify-between text-gray-500">
+                      <span>Change Given:</span>
+                      <span className="font-mono">{fmt(detailsSale.change_amount)}</span>
+                    </div>
                   )}
                 </div>
               </div>
-              {detailsSale.is_cancelled && (
-                <div>
-                  <span className="text-gray-500">Cancellation Reason:</span>
-                  <p className="text-danger-700 italic">{detailsSale.cancellation_reason || 'Cancelled'}</p>
-                </div>
-              )}
-            </div>
 
-            {/* Order Items Table */}
-            <div>
-              <h3 className="font-semibold text-gray-800 text-sm mb-2">Order Items</h3>
-              <div className="border border-gray-200 rounded-lg overflow-hidden">
-                <table className="min-w-full divide-y divide-gray-200 text-xs">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Product</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-600">Qty</th>
-                      <th className="px-2 py-2 text-right font-medium text-gray-600">Unit Price</th>
-                      <th className="px-2 py-2 text-right font-medium text-gray-600">Discount</th>
-                      <th className="px-2 py-2 text-right font-medium text-gray-600">Net Price</th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-600">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {(detailsSale.items || []).map((it) => {
-                      const qty = parseFloat(it.quantity || 0)
-                      const unitP = parseFloat(it.unit_price || 0)
-                      const disc = parseFloat(it.discount_amount || 0)
-                      const netP = parseFloat(it.net_unit_price ?? (unitP - (qty > 0 ? disc / qty : 0)))
-                      const sub = parseFloat(it.subtotal || qty * netP)
-                      const ret = parseFloat(it.returned_quantity || 0)
-                      return (
-                        <tr key={it.id}>
-                          <td className="px-3 py-2">
-                            <p className="font-semibold text-gray-900">{it.product?.name || 'Product'}</p>
-                            <p className="text-2xs font-mono text-gray-400">{it.product?.sku}</p>
-                            {ret > 0 && (
-                              <span className="text-3xs text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-medium">
-                                {ret} returned
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-2 py-2 text-center font-mono font-bold text-gray-800">{qty}</td>
-                          <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(unitP)}</td>
-                          <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(disc)}</td>
-                          <td className="px-2 py-2 text-right font-mono text-gray-700">{fmt(netP)}</td>
-                          <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">{fmt(sub)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            {/* Financial Summary & Payment Breakdown */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Payment transactions snapshot */}
-              <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-                <h4 className="font-semibold text-gray-800 text-xs mb-2">Payment Records</h4>
-                {detailsSale.payments && detailsSale.payments.length > 0 ? (
-                  <div className="space-y-1.5">
-                    {detailsSale.payments.map((p) => (
-                      <div
-                        key={p.id}
-                        className={`p-2 rounded border text-2xs flex justify-between items-center ${
-                          p.is_void ? 'bg-danger-50/50 border-danger-200 text-danger-700' : 'bg-white border-gray-200 text-gray-800'
-                        }`}
-                      >
-                        <div>
-                          <p className="font-semibold">
-                            {PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}
-                            {p.reference && <span className="font-mono text-gray-500 font-normal ml-1">({p.reference})</span>}
-                          </p>
-                          <p className="text-gray-400">{new Date(p.created_at).toLocaleTimeString()}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-mono font-bold">{fmt(p.amount)}</p>
-                          {p.is_void ? (
-                            <Badge variant="danger">VOID</Badge>
-                          ) : (
-                            <span className="text-success-700 font-medium">COMPLETED</span>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-gray-400 italic">No direct payment records found.</p>
-                )}
-              </div>
-
-              {/* Financial Totals */}
-              <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50">
-                <div className="flex justify-between text-gray-600">
-                  <span>Subtotal:</span>
-                  <span className="font-mono">{fmt(detailsSale.subtotal_amount || detailsSale.total_amount)}</span>
+              {/* Modal Actions */}
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-200">
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => handleDownloadInvoicePdf(detailsSale, 'a4')}
+                    className="flex items-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Invoice PDF
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => openReceipt(detailsSale)}
+                    className="flex items-center gap-1.5"
+                  >
+                    Thermal Receipt
+                  </Button>
                 </div>
-                {parseFloat(detailsSale.discount_amount || 0) > 0 && (
-                  <div className="flex justify-between text-success-700">
-                    <span>Discount:</span>
-                    <span className="font-mono">-{fmt(detailsSale.discount_amount)}</span>
-                  </div>
-                )}
-                {parseFloat(detailsSale.tax_amount || 0) > 0 && (
-                  <div className="flex justify-between text-gray-600">
-                    <span>Tax:</span>
-                    <span className="font-mono">+{fmt(detailsSale.tax_amount)}</span>
-                  </div>
-                )}
-                <div className="border-t border-gray-300 pt-1.5 flex justify-between font-bold text-gray-900 text-sm">
-                  <span>Grand Total:</span>
-                  <span className="font-mono">{fmt(detailsSale.total_amount)}</span>
-                </div>
-                <div className="flex justify-between text-gray-700">
-                  <span>Amount Paid:</span>
-                  <span className="font-mono font-semibold text-success-800">{fmt(detailsSale.amount_paid ?? detailsSale.total_amount)}</span>
-                </div>
-                {parseFloat(detailsSale.balance_due || 0) > 0 && (
-                  <div className="flex justify-between text-danger-700 font-semibold">
-                    <span>Balance Due:</span>
-                    <span className="font-mono">{fmt(detailsSale.balance_due)}</span>
-                  </div>
-                )}
-                {parseFloat(detailsSale.change_amount || 0) > 0 && (
-                  <div className="flex justify-between text-gray-500">
-                    <span>Change Given:</span>
-                    <span className="font-mono">{fmt(detailsSale.change_amount)}</span>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Modal Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-200">
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => handleDownloadInvoicePdf(detailsSale, 'a4')}
-                  className="flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  A4 Invoice PDF
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => handleDownloadInvoicePdf(detailsSale, 'a5')}
-                  className="flex items-center gap-1.5"
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                  </svg>
-                  A5 Invoice PDF
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={() => openReceipt(detailsSale)}
-                  className="flex items-center gap-1.5"
-                >
-                  Thermal Receipt
+                <Button variant="secondary" onClick={() => setDetailsSale(null)}>
+                  Close
                 </Button>
               </div>
-              <Button variant="secondary" onClick={() => setDetailsSale(null)}>
-                Close
-              </Button>
             </div>
-          </div>
-        )}
+          )
+        })()}
       </Modal>
 
       {/* 2. EDIT SALE MODAL */}
@@ -1172,6 +1190,147 @@ export default function SalesPage() {
               </div>
             </div>
 
+            {/* Payment Method & Terms */}
+            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/70 space-y-3">
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-gray-800 text-xs">Payment Method & Terms</span>
+                {editSaleTarget.customer ? (
+                  <span className="inline-flex items-center gap-1 text-2xs font-medium text-success-800 bg-success-50 border border-success-200 px-2 py-0.5 rounded-full">
+                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
+                    Registered Customer: {editSaleTarget.customer.name}
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-2xs font-medium text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                    Walk-in Customer (Credit & Partial Payment disabled)
+                  </span>
+                )}
+              </div>
+
+              <div className="flex border-b border-gray-200">
+                <button
+                  type="button"
+                  onClick={() => setEditPaymentMethod('CASH')}
+                  className={`flex-1 py-2 text-xs font-semibold border-b-2 transition ${
+                    editPaymentMethod === 'CASH'
+                      ? 'border-primary-600 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Cash / Partial Payment
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (!editSaleTarget.customer) {
+                      toast.error('Customer credit sale requires a registered customer')
+                      return
+                    }
+                    setEditPaymentMethod('CREDIT')
+                  }}
+                  disabled={!editSaleTarget.customer}
+                  className={`flex-1 py-2 text-xs font-semibold border-b-2 transition ${
+                    !editSaleTarget.customer
+                      ? 'border-transparent text-gray-300 cursor-not-allowed'
+                      : editPaymentMethod === 'CREDIT'
+                      ? 'border-primary-600 text-primary-600'
+                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  Customer Credit Sale
+                </button>
+              </div>
+
+              {editPaymentMethod === 'CASH' && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-gray-700">
+                      Cash Received ({settings.currency_symbol || 'LKR'})
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setEditAmountPaid(String(editNewGrandTotal.toFixed(2)))}
+                      className="text-2xs text-primary-600 hover:text-primary-800 font-medium underline"
+                    >
+                      Exact Amount ({fmt(editNewGrandTotal)})
+                    </button>
+                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    value={editAmountPaid}
+                    onChange={(e) => setEditAmountPaid(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 font-mono font-bold"
+                    placeholder={editNewGrandTotal.toFixed(2)}
+                  />
+                  {(() => {
+                    const paid = parseFloat(editAmountPaid) || 0
+                    if (paid < editNewGrandTotal) {
+                      const bal = editNewGrandTotal - paid
+                      return (
+                        <p className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 font-medium">
+                          Partial Payment: Balance due of {fmt(bal)} will remain on the customer account.
+                        </p>
+                      )
+                    } else if (paid > editNewGrandTotal) {
+                      const change = paid - editNewGrandTotal
+                      return (
+                        <p className="text-2xs text-success-700 bg-success-50 border border-success-200 rounded p-1.5 font-medium">
+                          Change to give: {fmt(change)}
+                        </p>
+                      )
+                    }
+                    return null
+                  })()}
+                </div>
+              )}
+
+              {editPaymentMethod === 'CREDIT' && (
+                <div className="space-y-2 pt-1">
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-medium text-gray-700">
+                      Deposit Paid ({settings.currency_symbol || 'LKR'})
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setEditAmountPaid('0')}
+                        className="text-2xs text-primary-600 hover:text-primary-800 font-medium underline"
+                      >
+                        Zero Deposit (Full Credit)
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setEditAmountPaid(String(editNewGrandTotal.toFixed(2)))}
+                        className="text-2xs text-primary-600 hover:text-primary-800 font-medium underline"
+                      >
+                        Exact Total
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="number"
+                    step="any"
+                    min="0"
+                    max={editNewGrandTotal}
+                    value={editAmountPaid}
+                    onChange={(e) => setEditAmountPaid(e.target.value)}
+                    className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 font-mono font-bold"
+                    placeholder="0.00"
+                  />
+                  {(() => {
+                    const deposit = parseFloat(editAmountPaid) || 0
+                    const creditBal = Math.max(0, editNewGrandTotal - deposit)
+                    return (
+                      <p className="text-2xs text-primary-800 bg-primary-50 border border-primary-200 rounded p-1.5 font-medium">
+                        Credit Sale: Outstanding balance of {fmt(creditBal)} will be charged to {editSaleTarget.customer?.name}.
+                      </p>
+                    )
+                  })()}
+                </div>
+              )}
+            </div>
+
             {/* Live totals preview banner */}
             <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
               <div className="flex justify-between text-gray-600">
@@ -1194,6 +1353,27 @@ export default function SalesPage() {
                 <span>New Grand Total:</span>
                 <span className="font-mono text-primary-700">{fmt(editNewGrandTotal)}</span>
               </div>
+              <div className="flex justify-between text-gray-700">
+                <span>Payment Method:</span>
+                <span className="font-semibold">{editPaymentMethod === 'CREDIT' ? 'Customer Credit' : 'Cash / Partial'}</span>
+              </div>
+              <div className="flex justify-between text-gray-700">
+                <span>Amount Paid / Deposit:</span>
+                <span className="font-mono font-semibold text-success-800">{fmt(parseFloat(editAmountPaid) || 0)}</span>
+              </div>
+              {(() => {
+                const paid = parseFloat(editAmountPaid) || 0
+                const bal = Math.max(0, editNewGrandTotal - paid)
+                if (bal > 0) {
+                  return (
+                    <div className="flex justify-between text-danger-700 font-semibold">
+                      <span>Balance Due:</span>
+                      <span className="font-mono">{fmt(bal)}</span>
+                    </div>
+                  )
+                }
+                return null
+              })()}
             </div>
 
             <div className="flex justify-end gap-2 pt-2">
