@@ -182,7 +182,7 @@ export default function ProductsPage() {
         const diff = u - o
         return diff > 0 ? (
           <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg">
-            -{formatCurrency(diff)}
+            {formatCurrency(diff)}
           </span>
         ) : (
           <span className="text-slate-400">—</span>

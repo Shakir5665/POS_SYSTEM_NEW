@@ -149,7 +149,7 @@ export function ReceiptContent({ sale, settings = {}, isPrint = false, paperWidt
             <div className="flex justify-between items-center font-bold text-xs text-gray-900">
               <span>Total Discount (වට්ටම):</span>
               <span className="font-bold text-success-700 print:text-black">
-                -{fmt(summary.ourTotalDiscount)}
+                {fmt(summary.ourTotalDiscount)}
               </span>
             </div>
           </div>

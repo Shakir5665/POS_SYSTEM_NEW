@@ -308,7 +308,7 @@ export function DashboardLayout({ children }) {
                 iconColor="text-emerald-600 bg-emerald-50/90 border-emerald-200/80"
                 activePaths={['/app/sales', '/sales', '/app/sale-return']}
               >
-                <SubNavItem to="/app/sales" label="Sales Orders" onClick={() => setSidebarOpen(false)} />
+                <SubNavItem to="/app/sales" label="Sales" onClick={() => setSidebarOpen(false)} />
                 <SubNavItem to="/app/sale-return" label="Sales Return" onClick={() => setSidebarOpen(false)} />
               </ExpandableNavGroup>
 

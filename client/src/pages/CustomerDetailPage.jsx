@@ -177,40 +177,61 @@ export default function CustomerDetailPage() {
   const [activeTab, setActiveTab] = useState('sales')
   const [isRepaymentOpen, setIsRepaymentOpen] = useState(false)
 
-  const fetchCustomer = useCallback(async () => {
+  const reloadData = useCallback(async () => {
     try {
-      const res = await customersService.get(id)
-      setCustomer(res.data?.data ?? res.data)
+      const [custRes, salesRes, payRes] = await Promise.all([
+        customersService.get(id),
+        customersService.sales(id, { page: salesPage, per_page: 10 }),
+        customersService.payments(id, { page: paymentsPage, per_page: 10 }),
+      ])
+      setCustomer(custRes.data?.data ?? custRes.data)
+      setSales(salesRes.data?.data ?? salesRes.data ?? [])
+      setSalesMeta(salesRes.data?.meta ?? { page: 1, total_pages: 1 })
+      setPayments(payRes.data?.data ?? payRes.data ?? [])
+      setPaymentsMeta(payRes.data?.meta ?? { page: 1, total_pages: 1 })
     } catch {
       toast.error('Failed to load customer profile')
       navigate('/customers')
+    } finally {
+      setLoading(false)
     }
-  }, [id, navigate])
-
-  const fetchSales = useCallback(async () => {
-    try {
-      const res = await customersService.sales(id, { page: salesPage, per_page: 10 })
-      setSales(res.data?.data ?? res.data ?? [])
-      setSalesMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
-    } catch {
-      // non-fatal
-    }
-  }, [id, salesPage])
-
-  const fetchPayments = useCallback(async () => {
-    try {
-      const res = await customersService.payments(id, { page: paymentsPage, per_page: 10 })
-      setPayments(res.data?.data ?? res.data ?? [])
-      setPaymentsMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
-    } catch {
-      // non-fatal
-    }
-  }, [id, paymentsPage])
+  }, [id, salesPage, paymentsPage, navigate])
 
   useEffect(() => {
-    setLoading(true)
-    Promise.all([fetchCustomer(), fetchSales(), fetchPayments()]).finally(() => setLoading(false))
-  }, [fetchCustomer, fetchSales, fetchPayments])
+    let ignore = false
+
+    async function load() {
+      try {
+        const [custRes, salesRes, payRes] = await Promise.all([
+          customersService.get(id),
+          customersService.sales(id, { page: salesPage, per_page: 10 }),
+          customersService.payments(id, { page: paymentsPage, per_page: 10 }),
+        ])
+        if (!ignore) {
+          setCustomer(custRes.data?.data ?? custRes.data)
+          setSales(salesRes.data?.data ?? salesRes.data ?? [])
+          setSalesMeta(salesRes.data?.meta ?? { page: 1, total_pages: 1 })
+          setPayments(payRes.data?.data ?? payRes.data ?? [])
+          setPaymentsMeta(payRes.data?.meta ?? { page: 1, total_pages: 1 })
+        }
+      } catch {
+        if (!ignore) {
+          toast.error('Failed to load customer profile')
+          navigate('/customers')
+        }
+      } finally {
+        if (!ignore) {
+          setLoading(false)
+        }
+      }
+    }
+
+    load()
+
+    return () => {
+      ignore = true
+    }
+  }, [id, salesPage, paymentsPage, navigate])
 
   if (loading && !customer) {
     return (
@@ -307,7 +328,7 @@ export default function CustomerDetailPage() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-slate-900">{customer?.name}</h1>
-              <p className="text-xs font-medium text-slate-400 mt-0.5">Account ID: {customer?.id}</p>
+              
             </div>
             {debt > 0 && (
               <Button variant="primary" onClick={() => setIsRepaymentOpen(true)}>
@@ -422,9 +443,7 @@ export default function CustomerDetailPage() {
         onClose={() => setIsRepaymentOpen(false)}
         customer={customer}
         onSuccess={() => {
-          fetchCustomer()
-          fetchSales()
-          fetchPayments()
+          reloadData()
         }}
       />
     </DashboardLayout>

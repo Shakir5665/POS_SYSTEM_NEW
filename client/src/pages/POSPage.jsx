@@ -14,6 +14,7 @@ import { Modal } from '../components/Modal'
 import { Badge } from '../components/Badge'
 import { Receipt } from '../components/Receipt'
 import { LogoutModal } from '../components/LogoutModal'
+import { broadcastRealtimeEvent } from '../utils/realtime'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
 import { useBarcodeScanner } from '../hooks/useBarcodeScanner'
@@ -1748,6 +1749,7 @@ export default function POSPage() {
       setShowReceiptModal(true)
       clearCart()
       toast.success('Sale completed successfully!')
+      broadcastRealtimeEvent('sale:created', sale)
       try {
         const productsRes = await productsService.list({ per_page: 100, is_active: true })
         setAllProducts(productsRes.data?.data || [])

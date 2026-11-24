@@ -16,6 +16,7 @@ import { GlassCard } from '../components/GlassCard'
 import { salesService } from '../services/sales'
 import { warehouseService } from '../services/warehouses'
 import { returnsService } from '../services/returns'
+import { broadcastRealtimeEvent } from '../utils/realtime'
 import { useSettings } from '../hooks/useSettings'
 import { formatCurrency } from '../utils/formatCurrency'
 import { saleStatus, PAYMENT_METHOD_LABELS } from '../utils/saleStatus'
@@ -350,6 +351,7 @@ export default function SalesPage() {
         })),
       })
       toast.success('Sale updated successfully')
+      broadcastRealtimeEvent('sale:updated', { id: editSaleTarget.id })
       setEditSaleTarget(null)
       fetchSales()
     } catch (err) {
@@ -382,6 +384,7 @@ export default function SalesPage() {
     try {
       await salesService.delete(deleteSaleTarget.id, { reason })
       toast.success(`Sale ${deleteSaleTarget.transaction_id} cancelled and stock restored`)
+      broadcastRealtimeEvent('sale:cancelled', { id: deleteSaleTarget.id })
       setDeleteSaleTarget(null)
       fetchSales()
     } catch (err) {
@@ -489,6 +492,7 @@ export default function SalesPage() {
 
       const returnNumber = res.data?.data?.return_number || 'SR'
       toast.success(`Sales return ${returnNumber} processed successfully!`)
+      broadcastRealtimeEvent('sale:refunded', { returnNumber, saleId: returnSaleTarget.id })
       setReturnSaleTarget(null)
       setShowConfirmReturnModal(false)
       fetchSales()
@@ -1015,7 +1019,7 @@ export default function SalesPage() {
                         <th className="px-3 py-2 text-left font-medium text-gray-600">Product</th>
                         <th className="px-2 py-2 text-center font-medium text-gray-600">Qty</th>
                         <th className="px-2 py-2 text-right font-medium text-gray-600">Unit Price (සා.මිල)</th>
-                        <th className="px-2 py-2 text-right font-medium text-gray-600">Discount</th>
+                        
                         <th className="px-2 py-2 text-right font-medium text-gray-600">Net Price (අපේ මිල)</th>
                         <th className="px-3 py-2 text-right font-medium text-gray-600">Subtotal</th>
                       </tr>
@@ -1024,7 +1028,6 @@ export default function SalesPage() {
                       {computedItems.map((rItem, idx) => {
                         const origItem = (detailsSale.items || [])[idx] || {}
                         const ret = parseFloat(origItem.returned_quantity || 0)
-                        const lineDiscount = Math.max(0, Number(((rItem.marketPrice || (rItem.unitMarketPrice * rItem.qty)) - rItem.lineTotal).toFixed(2)))
                         return (
                           <tr key={origItem.id || idx}>
                             <td className="px-3 py-2">
@@ -1038,13 +1041,7 @@ export default function SalesPage() {
                             </td>
                             <td className="px-2 py-2 text-center font-mono font-bold text-gray-800">{rItem.qty}{rItem.unitLabel}</td>
                             <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(rItem.unitMarketPrice)}</td>
-                            <td className="px-2 py-2 text-right font-mono text-gray-600">
-                              {lineDiscount > 0 ? (
-                                <span className="text-success-700 font-medium">-{fmt(lineDiscount)}</span>
-                              ) : (
-                                <span className="text-gray-400 font-normal">0.00</span>
-                              )}
-                            </td>
+                            
                             <td className="px-2 py-2 text-right font-mono font-bold text-gray-900">{fmt(rItem.unitOurPrice)}</td>
                             <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">{fmt(rItem.lineTotal)}</td>
                           </tr>
@@ -1095,13 +1092,13 @@ export default function SalesPage() {
                 {/* Financial Totals */}
                 <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50">
                   <div className="flex justify-between text-gray-600">
-                    <span>Subtotal (සා.මිල එකතුව):</span>
+                    <span>Subtotal:</span>
                     <span className="font-mono">{fmt(receiptSummary.marketSubtotal ?? (detailsSale.subtotal_amount || detailsSale.total_amount))}</span>
                   </div>
                   {((receiptSummary.totalDiscounts ?? 0) > 0 || parseFloat(detailsSale.discount_amount || 0) > 0) && (
                     <div className="flex justify-between text-success-700 font-medium">
                       <span>Total Discounts (වට්ටම්):</span>
-                      <span className="font-mono">-{fmt(receiptSummary.totalDiscounts ?? detailsSale.discount_amount)}</span>
+                      <span className="font-mono">{fmt(receiptSummary.totalDiscounts ?? detailsSale.discount_amount)}</span>
                     </div>
                   )}
                   {parseFloat(detailsSale.tax_amount || 0) > 0 && (
@@ -1111,7 +1108,7 @@ export default function SalesPage() {
                     </div>
                   )}
                   <div className="border-t border-gray-300 pt-1.5 flex justify-between font-bold text-gray-900 text-sm">
-                    <span>Grand Total (අපේ මිල එකතුව):</span>
+                    <span>Grand Total (එකතුව):</span>
                     <span className="font-mono">{fmt(detailsSale.total_amount)}</span>
                   </div>
                   <div className="flex justify-between text-gray-700">

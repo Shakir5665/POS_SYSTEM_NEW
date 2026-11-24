@@ -40,7 +40,76 @@ function uploadToCloudinary(fileInput, options = {}) {
   })
 }
 
+/**
+ * Extract Cloudinary public_id from a secure_url or url
+ * e.g. "https://res.cloudinary.com/demo/image/upload/v1234567/nextill/branding/store_logo_123.png"
+ * returns "nextill/branding/store_logo_123"
+ * @param {string} url - Cloudinary image URL
+ * @returns {string|null} public_id or null
+ */
+function extractPublicIdFromUrl(url) {
+  if (!url || typeof url !== 'string') return null
+  if (!url.includes('cloudinary.com')) return null
+
+  try {
+    const parts = url.split('/upload/')
+    if (parts.length < 2) return null
+    // parts[1] might look like "v1234567/nextill/branding/store_logo_123.png" or "nextill/branding/store_logo_123.png"
+    let pathPart = parts[1]
+    // Strip version prefix if present (e.g., "v1234567/")
+    pathPart = pathPart.replace(/^v\d+\//, '')
+    // Strip file extension
+    const lastDotIndex = pathPart.lastIndexOf('.')
+    if (lastDotIndex !== -1) {
+      pathPart = pathPart.substring(0, lastDotIndex)
+    }
+    return pathPart || null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Permanently delete an image from Cloudinary by its public_id or URL
+ * @param {string} publicIdOrUrl - Cloudinary public_id or full Cloudinary URL
+ * @param {object} options - Options (resource_type, invalidate, etc.)
+ * @returns {Promise<object>} Deletion result
+ */
+async function deleteFromCloudinary(publicIdOrUrl, options = {}) {
+  if (!publicIdOrUrl) return { result: 'not_found' }
+  if (!process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+    return { result: 'skipped_no_credentials' }
+  }
+
+  let publicId = publicIdOrUrl
+  if (publicIdOrUrl.includes('cloudinary.com')) {
+    publicId = extractPublicIdFromUrl(publicIdOrUrl)
+  }
+
+  if (!publicId) return { result: 'invalid_id' }
+
+  return new Promise((resolve) => {
+    cloudinary.uploader.destroy(
+      publicId,
+      {
+        resource_type: 'image',
+        invalidate: true,
+        ...options,
+      },
+      (error, result) => {
+        if (error) {
+          console.warn('[Cloudinary Delete Warning]:', error.message || error)
+          return resolve({ result: 'error', error: error.message })
+        }
+        resolve(result)
+      }
+    )
+  })
+}
+
 module.exports = {
   cloudinary,
   uploadToCloudinary,
+  extractPublicIdFromUrl,
+  deleteFromCloudinary,
 }

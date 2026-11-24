@@ -219,7 +219,7 @@ async function generateInvoicePdf(saleId, format = 'a4') {
     doc.text('Product', colProductX, tableTop, { width: colProductW })
     doc.text('Qty', colQtyX, tableTop, { width: colQtyW, align: 'center' })
     doc.text(headerMarket, colUnitMarketX, tableTop, { width: colUnitMarketW, align: 'right' })
-    doc.text('Discount', colDiscountX, tableTop, { width: colDiscountW, align: 'right' })
+
     doc.text(headerNet, colNetPriceX, tableTop, { width: colNetPriceW, align: 'right' })
     doc.text('Subtotal', colTotalX, tableTop, { width: colTotalW, align: 'right' })
 
@@ -248,13 +248,7 @@ async function generateInvoicePdf(saleId, format = 'a4') {
       doc.font(fontRegular).fontSize(8).fillColor('#4B5563')
       doc.text(formatMoney(item.unitMarketPrice, ''), colUnitMarketX, rowY, { width: colUnitMarketW, align: 'right' })
 
-      if (item.lineDiscount > 0) {
-        doc.font(fontRegular).fontSize(8).fillColor('#059669')
-        doc.text(`-${formatMoney(item.lineDiscount, '')}`, colDiscountX, rowY, { width: colDiscountW, align: 'right' })
-      } else {
-        doc.font(fontRegular).fontSize(8).fillColor('#9CA3AF')
-        doc.text('0.00', colDiscountX, rowY, { width: colDiscountW, align: 'right' })
-      }
+      
 
       doc.font(fontBold).fontSize(8).fillColor('#111827')
       doc.text(formatMoney(item.unitOurPrice, ''), colNetPriceX, rowY, { width: colNetPriceW, align: 'right' })
@@ -314,14 +308,14 @@ async function generateInvoicePdf(saleId, format = 'a4') {
       currentSummaryY += 13
     }
 
-    const labelSubtotal = HAS_SINHALA_FONT ? 'Subtotal (සා.මිල එකතුව):' : 'Subtotal (Market Price):'
+    const labelSubtotal = HAS_SINHALA_FONT ? 'Subtotal:' : 'Subtotal (Market Price):'
     const labelDiscount = HAS_SINHALA_FONT ? 'Total Discounts (වට්ටම්):' : 'Total Discounts:'
-    const labelGrand = HAS_SINHALA_FONT ? 'Grand Total (අපේ මිල එකතුව):' : 'Grand Total (Our Price):'
+    const labelGrand = HAS_SINHALA_FONT ? 'Grand Total (එකතුව):' : 'Grand Total (Our Price):'
 
     summaryRow(labelSubtotal, formatMoney(marketSubtotal, currency))
 
     if (totalDiscounts > 0) {
-      summaryRow(labelDiscount, `-${formatMoney(totalDiscounts, currency)}`, false, '#059669')
+      summaryRow(labelDiscount, `${formatMoney(totalDiscounts, currency)}`, false, '#059669')
     }
 
     if (Number(sale.tax_amount || 0) > 0) {
@@ -369,7 +363,7 @@ async function generateInvoicePdf(saleId, format = 'a4') {
   })
 }
 
-async function generateCreditNotePdf(returnId, format = 'a4') {
+async function generateCreditNotePdf(returnId) {
   const sr = await prisma.salesReturn.findUnique({
     where: { id: returnId },
     include: {

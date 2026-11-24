@@ -24,5 +24,6 @@ router.use(authenticate)
 router.get('/', settingsController.getSettings)
 router.put('/', authorize(['ADMIN']), settingsController.updateSettings)
 router.post('/logo', authorize(['ADMIN']), upload.single('logo'), settingsController.uploadLogo)
+router.delete('/logo', authorize(['ADMIN']), settingsController.removeLogo)
 
 module.exports = router

@@ -7,4 +7,5 @@ export const settingsService = {
     api.post('/settings/logo', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     }),
+  removeLogo: () => api.delete('/settings/logo'),
 }

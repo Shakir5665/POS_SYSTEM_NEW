@@ -99,10 +99,26 @@ export default function SettingsPage() {
     }
   }
 
-  function handleRemoveLogo() {
-    setLogoPreview('')
-    setSettings((prev) => ({ ...prev, logo_url: '' }))
-    if (updateSettings) updateSettings({ logo_url: '' })
+  async function handleRemoveLogo() {
+    const toastId = toast.loading('Removing store logo...')
+    try {
+      await settingsService.removeLogo()
+      setLogoPreview('')
+      setSettings((prev) => ({ ...prev, logo_url: '' }))
+      if (updateSettings) updateSettings({ logo_url: '' })
+      toast.success('Logo removed and reset to default', { id: toastId })
+    } catch {
+      // Fallback: update settings directly
+      try {
+        await settingsService.update({ ...settings, logo_url: '' })
+        setLogoPreview('')
+        setSettings((prev) => ({ ...prev, logo_url: '' }))
+        if (updateSettings) updateSettings({ logo_url: '' })
+        toast.success('Logo reset to default', { id: toastId })
+      } catch (err) {
+        toast.error(err.response?.data?.error?.message || 'Failed to remove logo', { id: toastId })
+      }
+    }
   }
 
   function validate() {

@@ -139,7 +139,7 @@ export default function SalesReturnsPage() {
             {v}
           </button>
           {row.is_cancelled && (
-            <span className="ml-2 inline-block px-1.5 py-0.5 text-3xs font-bold uppercase rounded bg-danger-100 text-danger-700">
+            <span className="ml-2 inline-block px-1.5 py-0.2 text-xs rounded bg-danger-100 text-danger-500">
               Cancelled
             </span>
           )}

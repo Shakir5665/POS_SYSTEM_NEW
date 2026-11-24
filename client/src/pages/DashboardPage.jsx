@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ResponsiveContainer,
@@ -17,6 +17,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { reportsService } from '../services/reports'
 import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
+import { subscribeRealtimeEvents } from '../utils/realtime'
 
 const PIE_COLORS = ['#2563EB', '#6366F1', '#10B981', '#F59E0B', '#EC4899', '#06B6D4']
 
@@ -137,6 +138,7 @@ export default function DashboardPage() {
   const [loadingSummary, setLoadingSummary] = useState(true)
   const [loadingCharts, setLoadingCharts] = useState(true)
   const [loadingInventory, setLoadingInventory] = useState(true)
+  const [isRefreshingRealtime, setIsRefreshingRealtime] = useState(false)
   const [error, setError] = useState(null)
 
   // Compute last-7-days range
@@ -144,57 +146,112 @@ export default function DashboardPage() {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
   const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
 
-  useEffect(() => {
-    async function fetchSummary() {
-      try {
-        const [sumRes, dashRes] = await Promise.all([
-          reportsService.salesSummary({ start_date: today, end_date: today }),
-          reportsService.dashboard(),
-        ])
-        setSummary(sumRes.data?.data ?? sumRes.data)
-        setDashboardMetrics(dashRes.data?.data ?? dashRes.data)
-      } catch {
-        setError('Failed to load summary data.')
-      } finally {
-        setLoadingSummary(false)
-      }
+  const fetchSummary = useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground) setLoadingSummary(true)
+      const [sumRes, dashRes] = await Promise.all([
+        reportsService.salesSummary({ start_date: today, end_date: today }),
+        reportsService.dashboard(),
+      ])
+      setSummary(sumRes.data?.data ?? sumRes.data)
+      setDashboardMetrics(dashRes.data?.data ?? dashRes.data)
+    } catch {
+      if (!isBackground) setError('Failed to load summary data.')
+    } finally {
+      if (!isBackground) setLoadingSummary(false)
     }
-    fetchSummary()
   }, [today])
 
-  useEffect(() => {
-    async function fetchCharts() {
-      try {
-        const [dailyRes, topRes, catRes] = await Promise.all([
-          reportsService.salesByDay({ start_date: sevenDaysAgoStr, end_date: today }),
-          reportsService.topProducts({ limit: 5, start_date: sevenDaysAgoStr, end_date: today }),
-          reportsService.categoryPerformance({ start_date: sevenDaysAgoStr, end_date: today }),
-        ])
-        setDailySales(dailyRes.data?.data ?? dailyRes.data ?? [])
-        setTopProducts(topRes.data?.data ?? topRes.data ?? [])
-        setCategories(catRes.data?.data ?? catRes.data ?? [])
-      } catch {
-        // non-fatal
-      } finally {
-        setLoadingCharts(false)
-      }
+  const fetchCharts = useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground) setLoadingCharts(true)
+      const [dailyRes, topRes, catRes] = await Promise.all([
+        reportsService.salesByDay({ start_date: sevenDaysAgoStr, end_date: today }),
+        reportsService.topProducts({ limit: 5, start_date: sevenDaysAgoStr, end_date: today }),
+        reportsService.categoryPerformance({ start_date: sevenDaysAgoStr, end_date: today }),
+      ])
+      setDailySales(dailyRes.data?.data ?? dailyRes.data ?? [])
+      setTopProducts(topRes.data?.data ?? topRes.data ?? [])
+      setCategories(catRes.data?.data ?? catRes.data ?? [])
+    } catch {
+      // non-fatal
+    } finally {
+      if (!isBackground) setLoadingCharts(false)
     }
-    fetchCharts()
   }, [sevenDaysAgoStr, today])
 
+  const fetchInventory = useCallback(async (isBackground = false) => {
+    try {
+      if (!isBackground) setLoadingInventory(true)
+      const res = await reportsService.inventoryStatus()
+      setInventoryStatus(res.data?.data ?? res.data)
+    } catch {
+      // non-fatal
+    } finally {
+      if (!isBackground) setLoadingInventory(false)
+    }
+  }, [])
+
+  // Initial data load
   useEffect(() => {
-    async function fetchInventory() {
-      try {
-        const res = await reportsService.inventoryStatus()
-        setInventoryStatus(res.data?.data ?? res.data)
-      } catch {
-        // non-fatal
-      } finally {
-        setLoadingInventory(false)
+    fetchSummary()
+  }, [fetchSummary])
+
+  useEffect(() => {
+    fetchCharts()
+  }, [fetchCharts])
+
+  useEffect(() => {
+    fetchInventory()
+  }, [fetchInventory])
+
+  // Real-time synchronization: instant update on sale events + visibility change + automatic 10s polling
+  const refreshTimerRef = useRef(null)
+  const refreshAllRealtime = useCallback(async () => {
+    setIsRefreshingRealtime(true)
+    await Promise.all([
+      fetchSummary(true),
+      fetchCharts(true),
+      fetchInventory(true),
+    ])
+    setTimeout(() => setIsRefreshingRealtime(false), 600)
+  }, [fetchSummary, fetchCharts, fetchInventory])
+
+  useEffect(() => {
+    // 1. Listen for real-time events broadcast locally or across tabs
+    const unsubscribe = subscribeRealtimeEvents(
+      ['sale:created', 'sale:updated', 'sale:cancelled', 'sale:refunded', 'inventory:updated'],
+      () => {
+        // Debounce rapid events
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+        refreshTimerRef.current = setTimeout(() => {
+          refreshAllRealtime()
+        }, 150)
+      }
+    )
+
+    // 2. Poll every 10 seconds while the dashboard tab is active/visible
+    const interval = setInterval(() => {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        refreshAllRealtime()
+      }
+    }, 10000)
+
+    // 3. Re-sync immediately when user switches back to this tab
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshAllRealtime()
       }
     }
-    fetchInventory()
-  }, [])
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      unsubscribe()
+      clearInterval(interval)
+      if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [refreshAllRealtime])
 
   const lowStockItems = inventoryStatus?.low_stock ?? []
 
@@ -359,7 +416,13 @@ export default function DashboardPage() {
           {/* Revenue line chart */}
           <div className="xl:col-span-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold tracking-tight text-slate-900">Revenue — Last 7 Days</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-bold tracking-tight text-slate-900">Revenue — Last 7 Days</h2>
+                <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isRefreshingRealtime ? 'animate-ping' : ''}`} />
+                  Live
+                </span>
+              </div>
               <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-100">
                 Performance
               </span>

@@ -8,7 +8,7 @@ import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
 import { suppliersService } from '../services/suppliers'
-import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
+import { formatCurrency} from '../utils/formatCurrency'
 
 const EMPTY_SUPPLIER_FORM = {
   name: '',

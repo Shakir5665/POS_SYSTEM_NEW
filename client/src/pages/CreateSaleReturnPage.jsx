@@ -1,4 +1,4 @@
-import { useState, useEffect, useId } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
@@ -9,6 +9,7 @@ import { PageHeader } from '../components/PageHeader'
 import { GlassCard } from '../components/GlassCard'
 import { salesService } from '../services/sales'
 import { returnsService } from '../services/returns'
+import { broadcastRealtimeEvent } from '../utils/realtime'
 import { useSettings } from '../hooks/useSettings'
 import { formatCurrency } from '../utils/formatCurrency'
 
@@ -164,6 +165,7 @@ export default function CreateSaleReturnPage() {
 
       await returnsService.createSalesReturn(payload)
       toast.success('Sales return processed successfully')
+      broadcastRealtimeEvent('sale:refunded', { saleId: payload.sale_id })
       navigate('/app/sale-return')
     } catch (err) {
       toast.error(err.response?.data?.error?.message || 'Failed to process return')
@@ -199,18 +201,23 @@ export default function CreateSaleReturnPage() {
               value={saleSearch}
               onChange={(e) => setSaleSearch(e.target.value)}
             />
-            <select
-              value={selectedSaleId}
-              onChange={(e) => setSelectedSaleId(e.target.value)}
-              className="w-full px-3.5 py-2.5 text-sm border border-slate-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white/90 shadow-2xs font-medium text-slate-800"
-            >
-              <option value="">Choose a sale to return items from…</option>
-              {salesList.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.transaction_id} — {s.customer?.name || 'Walk-in'} ({fmt(s.total_amount)})
+            <div className="relative">
+              <select
+                value={selectedSaleId}
+                onChange={(e) => setSelectedSaleId(e.target.value)}
+                disabled={searchingSales}
+                className="w-full px-3.5 py-2.5 text-sm border border-slate-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white/90 shadow-2xs font-medium text-slate-800 disabled:opacity-60"
+              >
+                <option value="">
+                  {searchingSales ? 'Searching transactions...' : 'Choose a sale to return items from…'}
                 </option>
-              ))}
-            </select>
+                {salesList.map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.transaction_id} — {s.customer?.name || 'Walk-in'} ({fmt(s.total_amount)})
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </GlassCard>
 

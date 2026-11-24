@@ -286,7 +286,8 @@ async function getSalesByDay({ start_date, end_date, warehouse_id, is_legacy_imp
     FROM "Sale" s
     WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
       AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
-      AND s.payment_status = 'COMPLETED'
+      AND s.payment_status != 'REFUNDED'
+      AND s.is_cancelled = false
       ${warehouseFilter}
       ${legacyFilter}
     GROUP BY DATE(COALESCE(s.sale_date, s.created_at))
