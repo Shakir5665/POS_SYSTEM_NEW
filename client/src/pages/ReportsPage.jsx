@@ -337,13 +337,13 @@ export default function ReportsPage() {
           </Button>
         </GlassCard>
 
-        {/* Tabs */}
-        <div className="flex gap-1.5 p-1 bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass-sm w-fit overflow-x-auto">
+        {/* Tabs / Option Bar */}
+        <div className="w-full max-w-full overflow-x-auto scrollbar-hide scroll-smooth touch-pan-x flex items-center gap-1.5 p-1.5 bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass-sm">
           {TABS.map((tab) => (
             <button
               key={tab.id}
               onClick={() => handleTabChange(tab.id)}
-              className={`whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+              className={`flex-shrink-0 whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
                 activeTab === tab.id
                   ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'

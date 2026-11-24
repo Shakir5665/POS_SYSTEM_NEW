@@ -532,36 +532,81 @@ export default function FinancePage() {
                 </select>
               </div>
             )}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
               <MetricCard
+                size="compact"
                 title="Operating Expenses"
                 value={formatCompactCurrency(summary.total_expenses)}
+                tooltip={formatCurrency(summary.total_expenses)}
                 subtitle="Rent, utilities & logistics"
                 color="red"
+                valueClassName="text-rose-600 font-bold"
+                iconBg="bg-rose-50 text-rose-600 border border-rose-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z" />
+                  </svg>
+                }
               />
               <MetricCard
+                size="compact"
                 title="Assets Valuation"
                 value={formatCompactCurrency(summary.total_asset_value)}
+                tooltip={formatCurrency(summary.total_asset_value)}
                 subtitle="Equipment & electronics"
                 color="indigo"
+                valueClassName="text-indigo-600 font-bold"
+                iconBg="bg-indigo-50 text-indigo-600 border border-indigo-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                  </svg>
+                }
               />
               <MetricCard
+                size="compact"
                 title="Net Owner Capital"
                 value={formatCompactCurrency(summary.net_capital)}
+                tooltip={formatCurrency(summary.net_capital)}
                 subtitle={`In: ${formatCompactCurrency(summary.total_contributions)} | Out: ${formatCompactCurrency(summary.total_withdrawals || 0)}`}
                 color="green"
+                valueClassName="text-emerald-600 font-bold"
+                iconBg="bg-emerald-50 text-emerald-600 border border-emerald-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
               />
               <MetricCard
+                size="compact"
                 title="Total Business Equity"
                 value={formatCompactCurrency(summary.total_equity ?? summary.net_capital)}
+                tooltip={formatCurrency(summary.total_equity ?? summary.net_capital)}
                 subtitle={`Retained Profit: ${formatCompactCurrency(summary.retained_earnings || 0)}`}
                 color="blue"
+                valueClassName="text-blue-600 font-bold"
+                iconBg="bg-blue-50 text-blue-600 border border-blue-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" />
+                  </svg>
+                }
               />
               <MetricCard
+                size="compact"
                 title="Outstanding Payables"
                 value={formatCompactCurrency(summary.total_supplier_payables)}
+                tooltip={formatCurrency(summary.total_supplier_payables)}
                 subtitle="Unpaid vendor invoices"
                 color="amber"
+                valueClassName="text-amber-600 font-bold"
+                iconBg="bg-amber-50 text-amber-600 border border-amber-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
               />
             </div>
 
@@ -573,11 +618,11 @@ export default function FinancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Assets & Receivables</p>
                   <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
                     <span className="text-slate-600 font-medium">Fixed & Operating Assets</span>
-                    <span className="font-mono font-bold text-slate-900" title={formatCurrency(summary.total_asset_value)}>{formatCompactCurrency(summary.total_asset_value)}</span>
+                    <span className="font-mono font-bold text-indigo-600" title={formatCurrency(summary.total_asset_value)}>{formatCompactCurrency(summary.total_asset_value)}</span>
                   </div>
                   <div className="flex justify-between text-sm py-1.5">
                     <span className="text-slate-600 font-medium">Customer Credit Receivables</span>
-                    <span className="font-mono font-bold text-slate-900" title={formatCurrency(summary.total_customer_receivables)}>{formatCompactCurrency(summary.total_customer_receivables)}</span>
+                    <span className="font-mono font-bold text-blue-600" title={formatCurrency(summary.total_customer_receivables)}>{formatCompactCurrency(summary.total_customer_receivables)}</span>
                   </div>
                 </div>
 
@@ -585,25 +630,25 @@ export default function FinancePage() {
                   <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Liabilities & Equity</p>
                   <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
                     <span className="text-slate-600 font-medium">Supplier Payables (Debt)</span>
-                    <span className="font-mono font-bold text-danger-600" title={formatCurrency(summary.total_supplier_payables)}>
+                    <span className="font-mono font-bold text-rose-600" title={formatCurrency(summary.total_supplier_payables)}>
                       {formatCompactCurrency(summary.total_supplier_payables)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
                     <span className="text-slate-600 font-medium">Contributed Owner Capital</span>
-                    <span className="font-mono font-bold text-success-600" title={formatCurrency(summary.net_capital)}>
+                    <span className="font-mono font-bold text-emerald-600" title={formatCurrency(summary.net_capital)}>
                       {formatCompactCurrency(summary.net_capital)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
                     <span className="text-slate-600 font-medium">Retained Earnings (Operating Profit)</span>
-                    <span className="font-mono font-bold text-slate-900" title={formatCurrency(summary.retained_earnings || 0)}>
+                    <span className="font-mono font-bold text-slate-800" title={formatCurrency(summary.retained_earnings || 0)}>
                       {formatCompactCurrency(summary.retained_earnings || 0)}
                     </span>
                   </div>
                   <div className="flex justify-between text-sm py-1.5 font-bold">
                     <span className="text-slate-900">Total Business Equity</span>
-                    <span className="font-mono text-emerald-700" title={formatCurrency(summary.total_equity ?? summary.net_capital)}>
+                    <span className="font-mono text-emerald-600" title={formatCurrency(summary.total_equity ?? summary.net_capital)}>
                       {formatCompactCurrency(summary.total_equity ?? summary.net_capital)}
                     </span>
                   </div>
@@ -702,21 +747,51 @@ export default function FinancePage() {
         {/* ----------------- TAB: EQUITY ----------------- */}
         {activeTab === 'equity' && (
           <div className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <MetricCard
+                size="compact"
                 title="Total Owner Contributions"
                 value={`+${formatCompactCurrency(equityMeta.summary?.total_contributions || 0)}`}
+                tooltip={formatCurrency(equityMeta.summary?.total_contributions || 0)}
+                subtitle="Capital injected into business"
                 color="green"
+                valueClassName="text-emerald-600 font-bold"
+                iconBg="bg-emerald-50 text-emerald-600 border border-emerald-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
               />
               <MetricCard
+                size="compact"
                 title="Total Owner Drawings"
                 value={`-${formatCompactCurrency(equityMeta.summary?.total_withdrawals || 0)}`}
+                tooltip={formatCurrency(equityMeta.summary?.total_withdrawals || 0)}
+                subtitle="Capital taken out for personal use"
                 color="red"
+                valueClassName="text-rose-600 font-bold"
+                iconBg="bg-rose-50 text-rose-600 border border-rose-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                }
               />
               <MetricCard
+                size="compact"
                 title="Net Owner Capital"
                 value={formatCompactCurrency(equityMeta.summary?.net_owner_equity || 0)}
+                tooltip={formatCurrency(equityMeta.summary?.net_owner_equity || 0)}
+                subtitle="Current net capital invested"
                 color="blue"
+                valueClassName="text-blue-600 font-bold"
+                iconBg="bg-blue-50 text-blue-600 border border-blue-100"
+                icon={
+                  <svg className="w-4 h-4 sm:w-4.5 sm:h-4.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                }
               />
             </div>
 

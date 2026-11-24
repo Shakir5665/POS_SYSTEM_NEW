@@ -624,18 +624,38 @@ export default function PurchasesPage() {
                 Value: <strong className="text-slate-800" title={formatCurrency(totalPurchasesAmount)}>{formatCompactCurrency(totalPurchasesAmount)}</strong>
               </span>
             }
+            iconBg="bg-blue-50 text-blue-600 border border-blue-100"
+            valueClassName="text-blue-700"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+              </svg>
+            }
           />
           <MetricCard
             title="Pending Delivery"
             value={pendingOrders}
             subtitle="Ordered goods awaiting arrival"
-            color="amber"
+            iconBg="bg-amber-50 text-amber-600 border border-amber-100"
+            valueClassName="text-amber-600"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10a1 1 0 001 1h1m8-1a1 1 0 01-1 1H9m4-1V8a1 1 0 011-1h2.586a1 1 0 01.707.293l3.414 3.414a1 1 0 01.293.707V16a1 1 0 01-1 1h-1m-6-1a1 1 0 001 1h1M5 17a2 2 0 104 0m-4 0a2 2 0 114 0m6 0a2 2 0 104 0m-4 0a2 2 0 114 0" />
+              </svg>
+            }
           />
           <MetricCard
             title="Total Payables Due"
             value={formatCompactCurrency(totalPayablesDue)}
+            tooltip={formatCurrency(totalPayablesDue)}
             subtitle="Outstanding supplier balances"
-            color="red"
+            iconBg="bg-rose-50 text-rose-600 border border-rose-100"
+            valueClassName="text-rose-600"
+            icon={
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+            }
           />
         </div>
 
