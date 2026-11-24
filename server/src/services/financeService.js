@@ -13,17 +13,14 @@ const DEFAULT_EXPENSE_CATEGORIES = [
   { name: 'Miscellaneous', description: 'Other general business operational expenses' },
 ]
 
-// Seed default categories if none exist
+// Seed default categories if not already present
 async function ensureDefaultCategories() {
-  const count = await prisma.expenseCategory.count()
-  if (count === 0) {
-    for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
-      await prisma.expenseCategory.upsert({
-        where: { name: cat.name },
-        update: {},
-        create: cat,
-      })
-    }
+  for (const cat of DEFAULT_EXPENSE_CATEGORIES) {
+    await prisma.expenseCategory.upsert({
+      where: { name: cat.name },
+      update: {},
+      create: cat,
+    })
   }
 }
 
@@ -56,12 +53,13 @@ async function createExpenseCategory({ name, description }) {
   })
 }
 
-async function listExpenses({ page = 1, per_page = 20, category_id, search, start_date, end_date } = {}) {
+async function listExpenses({ page = 1, per_page = 20, category_id, warehouse_id, search, start_date, end_date } = {}) {
   const skip = (page - 1) * per_page
   const take = Math.min(per_page, 100)
 
   const where = {}
   if (category_id) where.category_id = category_id
+  if (warehouse_id) where.warehouse_id = warehouse_id
   if (start_date || end_date) {
     where.expense_date = {}
     if (start_date) where.expense_date.gte = new Date(start_date)
@@ -83,6 +81,7 @@ async function listExpenses({ page = 1, per_page = 20, category_id, search, star
       orderBy: { expense_date: 'desc' },
       include: {
         category: true,
+        warehouse: { select: { id: true, code: true, name: true } },
         user: { select: { id: true, full_name: true, username: true } },
       },
     }),
@@ -105,7 +104,7 @@ async function listExpenses({ page = 1, per_page = 20, category_id, search, star
   }
 }
 
-async function createExpense({ category_id, user_id, amount, payment_method = 'CASH', expense_date, payee, reference, notes }) {
+async function createExpense({ category_id, warehouse_id, user_id, amount, payment_method = 'CASH', expense_date, payee, reference, notes }) {
   if (!category_id) {
     throw new ValidationError('Expense category is required', [{ field: 'category_id', message: 'Category is required' }])
   }
@@ -113,6 +112,11 @@ async function createExpense({ category_id, user_id, amount, payment_method = 'C
   const category = await prisma.expenseCategory.findUnique({ where: { id: category_id } })
   if (!category) throw new NotFoundError('Expense category not found')
   if (!category.is_active) throw new ValidationError('Cannot record expense in an inactive category')
+
+  if (warehouse_id) {
+    const wh = await prisma.warehouse.findUnique({ where: { id: warehouse_id } })
+    if (!wh) throw new NotFoundError('Branch / Warehouse not found')
+  }
 
   const parsedAmount = toMoney(amount)
   if (parsedAmount.lte(0)) {
@@ -124,6 +128,7 @@ async function createExpense({ category_id, user_id, amount, payment_method = 'C
   return prisma.expense.create({
     data: {
       category_id,
+      warehouse_id: warehouse_id || null,
       user_id,
       amount: parsedAmount,
       payment_method: payment_method || 'CASH',
@@ -134,6 +139,7 @@ async function createExpense({ category_id, user_id, amount, payment_method = 'C
     },
     include: {
       category: true,
+      warehouse: { select: { id: true, code: true, name: true } },
       user: { select: { id: true, full_name: true } },
     },
   })
@@ -357,9 +363,34 @@ async function createOwnerTransaction({ user_id, type, amount, payment_method = 
 
 // ------------------- Executive Financial Overview -------------------
 
-async function getFinanceSummary() {
+async function getFinanceSummary(filters = {}) {
+  const { warehouse_id } = filters
+  const expenseWhere = warehouse_id ? { warehouse_id } : {}
+  const purchaseWhere = { status: { not: 'CANCELLED' }, balance_due: { gt: 0 } }
+  if (warehouse_id) purchaseWhere.warehouse_id = warehouse_id
+  const saleWhere = { balance_due: { gt: 0 } }
+  if (warehouse_id) saleWhere.warehouse_id = warehouse_id
+  const netSaleWhere = { payment_status: { not: 'REFUNDED' } }
+  if (warehouse_id) netSaleWhere.warehouse_id = warehouse_id
+
+  const cogsQuery = warehouse_id
+    ? prisma.$queryRaw`
+        SELECT COALESCE(SUM(COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0))), 0)::float as cogs
+        FROM "SaleItem" si
+        JOIN "Product" p ON p.id = si.product_id
+        JOIN "Sale" s ON s.id = si.sale_id
+        WHERE s.payment_status != 'REFUNDED' AND s.warehouse_id = ${warehouse_id}
+      `
+    : prisma.$queryRaw`
+        SELECT COALESCE(SUM(COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0))), 0)::float as cogs
+        FROM "SaleItem" si
+        JOIN "Product" p ON p.id = si.product_id
+        JOIN "Sale" s ON s.id = si.sale_id
+        WHERE s.payment_status != 'REFUNDED'
+      `
+
   const [expenseAgg, assetAgg, contribAgg, withdrAgg, supplierDebtAgg, customerDebtAgg, salesAgg, cogsAgg] = await Promise.all([
-    prisma.expense.aggregate({ _sum: { amount: true } }),
+    prisma.expense.aggregate({ where: expenseWhere, _sum: { amount: true } }),
     prisma.businessAsset.aggregate({
       where: { status: 'ACTIVE' },
       _sum: { current_value: true },
@@ -373,24 +404,18 @@ async function getFinanceSummary() {
       _sum: { amount: true },
     }),
     prisma.purchase.aggregate({
-      where: { status: { not: 'CANCELLED' }, balance_due: { gt: 0 } },
+      where: purchaseWhere,
       _sum: { balance_due: true },
     }),
     prisma.sale.aggregate({
-      where: { balance_due: { gt: 0 } },
+      where: saleWhere,
       _sum: { balance_due: true },
     }),
     prisma.sale.aggregate({
-      where: { payment_status: { not: 'REFUNDED' } },
+      where: netSaleWhere,
       _sum: { total_amount: true },
     }),
-    prisma.$queryRaw`
-      SELECT COALESCE(SUM(COALESCE(NULLIF(si.line_cost, 0), si.quantity * COALESCE(p.cost_price, 0))), 0)::float as cogs
-      FROM "SaleItem" si
-      JOIN "Product" p ON p.id = si.product_id
-      JOIN "Sale" s ON s.id = si.sale_id
-      WHERE s.payment_status != 'REFUNDED'
-    `,
+    cogsQuery,
   ])
 
   const total_expenses = expenseAgg._sum.amount ? Number(expenseAgg._sum.amount) : 0

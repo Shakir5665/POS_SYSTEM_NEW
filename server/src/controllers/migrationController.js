@@ -285,12 +285,28 @@ async function clearDatabase(req, res, next) {
         'Brand',
         'Variation',
         'VariationValue',
+        'WarehouseStock',
+        'StockTransferItem',
+        'StockTransfer',
       ];
     }
 
     if (tableNames.length > 0) {
-      const truncateSql = `TRUNCATE TABLE ${tableNames.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE;`;
-      await prisma.$executeRawUnsafe(truncateSql);
+      // Step 1: Decouple any users linked to a warehouse so User accounts are never cascade-affected
+      await prisma.$executeRawUnsafe('UPDATE "User" SET "warehouse_id" = NULL;');
+
+      // Step 2: Separate Warehouse from TRUNCATE CASCADE list.
+      // In PostgreSQL, TRUNCATE "Warehouse" CASCADE would cascade to "User" due to foreign key references.
+      const tablesToTruncate = tableNames.filter((t) => t !== 'Warehouse');
+      if (tablesToTruncate.length > 0) {
+        const truncateSql = `TRUNCATE TABLE ${tablesToTruncate.map((t) => `"${t}"`).join(', ')} RESTART IDENTITY CASCADE;`;
+        await prisma.$executeRawUnsafe(truncateSql);
+      }
+
+      // Step 3: Now that child tables are truncated, safely delete all records from Warehouse
+      if (tableNames.includes('Warehouse')) {
+        await prisma.$executeRawUnsafe('DELETE FROM "Warehouse";');
+      }
     }
 
     const remainingUsers = await prisma.user.count();

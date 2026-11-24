@@ -5,6 +5,7 @@ import { useCart } from '../hooks/useCart'
 import { productsService } from '../services/products'
 import { salesService } from '../services/sales'
 import { customersService } from '../services/customers'
+import { warehouseService } from '../services/warehouses'
 import { formatCurrency } from '../utils/formatCurrency'
 import { toPesewas, fromPesewas, lineTotalPesewas } from '../utils/money'
 import { formatQuantityWithUnit, getAvailableStockForItem, getUnitFactor } from '../utils/uom'
@@ -1282,6 +1283,29 @@ export default function POSPage() {
   const navigate = useNavigate()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [activeBranchName, setActiveBranchName] = useState('')
+
+  useEffect(() => {
+    async function resolveBranch() {
+      try {
+        const whId = configuredWarehouseId || user?.warehouse_id
+        if (whId) {
+          const res = await warehouseService.get(whId)
+          if (res.data?.data?.name) {
+            setActiveBranchName(res.data.data.name)
+            return
+          }
+        }
+        const defRes = await warehouseService.getDefault()
+        if (defRes.data?.data?.name) {
+          setActiveBranchName(defRes.data.data.name)
+        }
+      } catch {
+        // non-fatal
+      }
+    }
+    resolveBranch()
+  }, [configuredWarehouseId, user?.warehouse_id])
 
   async function handleConfirmLogout() {
     setIsLoggingOut(true)
@@ -1787,7 +1811,15 @@ export default function POSPage() {
               className="h-9 w-auto object-contain hidden sm:block drop-shadow-xs"
             />
             <div>
-              <h1 className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">Point of Sale</h1>           
+              <h1 className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">Point of Sale</h1>
+              {activeBranchName && (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                    Branch: <span className="text-slate-800">{activeBranchName}</span>
+                  </span>
+                </div>
+              )}
             </div>
            
           </div>

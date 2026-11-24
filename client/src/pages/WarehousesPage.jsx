@@ -165,7 +165,7 @@ export default function WarehousesPage() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Warehouse Management</h1>
             <p className="text-xs font-medium text-slate-500 mt-1">
-              Configure physical locations and assign transaction attribution
+              Configure physical branch locations, warehouses, and inter-branch inventory tracking
             </p>
           </div>
           {isAdminOrManager && (
@@ -173,7 +173,7 @@ export default function WarehousesPage() {
               <svg className="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
               </svg>
-              Add Warehouse
+              Add Branch / Warehouse
             </Button>
           )}
         </div>
@@ -185,7 +185,7 @@ export default function WarehousesPage() {
           </svg>
           <div>
             <span className="font-bold block text-blue-950 mb-0.5">Authoritative Inventory Balance Architecture</span>
-            NexTill utilizes <code className="bg-blue-100/90 text-blue-900 px-1.5 py-0.5 rounded-md font-mono text-2xs font-semibold">Product.quantity</code> as the authoritative global inventory balance. Warehouse attribution connects sales, purchase orders, returns, and stock adjustments to locations for audit and reporting without partitioning physical balances.
+            NexTill utilizes <code className="bg-blue-100/90 text-blue-900 px-1.5 py-0.5 rounded-md font-mono text-2xs font-semibold">Product.quantity</code> as the authoritative global inventory balance synchronized with real-time per-branch stock balances (<code className="bg-blue-100/90 text-blue-900 px-1.5 py-0.5 rounded-md font-mono text-2xs font-semibold">WarehouseStock</code>). Warehouse attribution connects sales, purchase orders, returns, operating expenses, and inter-branch stock transfers to physical locations.
           </div>
         </div>
         <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/90 shadow-glass-sm flex flex-col sm:flex-row gap-4 justify-between items-center">

@@ -52,7 +52,8 @@ async function getCashierPerformance(req, res, next) {
 
 async function getInventoryStatus(req, res, next) {
   try {
-    const data = await reportService.getInventoryStatus()
+    const { warehouse_id } = req.query
+    const data = await reportService.getInventoryStatus({ warehouse_id })
     res.json({ success: true, data })
   } catch (err) {
     next(err)

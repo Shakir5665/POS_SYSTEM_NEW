@@ -22,6 +22,7 @@ import ReportsPage from './pages/ReportsPage'
 import UsersPage from './pages/UsersPage'
 import SettingsPage from './pages/SettingsPage'
 import WarehousesPage from './pages/WarehousesPage'
+import TransfersPage from './pages/TransfersPage'
 import MigrationPage from './pages/MigrationPage'
 
 function LoadingScreen() {
@@ -244,6 +245,22 @@ export default function App() {
         element={
           <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
             <InventoryPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transfers"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <TransfersPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/app/transfers"
+        element={
+          <ProtectedRoute roles={['MANAGER', 'ADMIN']}>
+            <TransfersPage />
           </ProtectedRoute>
         }
       />

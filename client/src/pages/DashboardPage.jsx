@@ -15,6 +15,7 @@ import {
 } from 'recharts'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { reportsService } from '../services/reports'
+import { warehouseService } from '../services/warehouses'
 import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
 import { subscribeRealtimeEvents } from '../utils/realtime'
@@ -154,12 +155,27 @@ export default function DashboardPage() {
   const [topProducts, setTopProducts] = useState([])
   const [productSales, setProductSales] = useState([])
   const [inventoryStatus, setInventoryStatus] = useState(null)
+  const [warehouses, setWarehouses] = useState([])
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
 
   const [loadingSummary, setLoadingSummary] = useState(true)
   const [loadingCharts, setLoadingCharts] = useState(true)
   const [loadingInventory, setLoadingInventory] = useState(true)
   const [isRefreshingRealtime, setIsRefreshingRealtime] = useState(false)
   const [error, setError] = useState(null)
+
+  // Load active warehouses/branches
+  useEffect(() => {
+    async function loadWarehouses() {
+      try {
+        const { data } = await warehouseService.list({ is_active: true })
+        setWarehouses(data?.data || [])
+      } catch (err) {
+        console.error('Failed to load branches', err)
+      }
+    }
+    loadWarehouses()
+  }, [])
 
   // Compute last-7-days range using local calendar dates
   const sevenDaysAgo = new Date()
@@ -169,11 +185,12 @@ export default function DashboardPage() {
   const fetchSummary = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoadingSummary(true)
+      const whId = selectedWarehouseId || undefined
       const [sumRes, dashRes, allSalesRes, allPurchasesRes] = await Promise.all([
-        reportsService.salesSummary({ start_date: today, end_date: today }),
-        reportsService.dashboard(),
-        reportsService.salesSummary({ start_date: '2000-01-01', end_date: today }),
-        reportsService.purchasesSummary({ start_date: '2000-01-01', end_date: today }),
+        reportsService.salesSummary({ start_date: today, end_date: today, warehouse_id: whId }),
+        reportsService.dashboard({ warehouse_id: whId }),
+        reportsService.salesSummary({ start_date: '2000-01-01', end_date: today, warehouse_id: whId }),
+        reportsService.purchasesSummary({ start_date: '2000-01-01', end_date: today, warehouse_id: whId }),
       ])
       setSummary(sumRes.data?.data ?? sumRes.data)
       setDashboardMetrics(dashRes.data?.data ?? dashRes.data)
@@ -184,15 +201,16 @@ export default function DashboardPage() {
     } finally {
       if (!isBackground) setLoadingSummary(false)
     }
-  }, [today])
+  }, [today, selectedWarehouseId])
 
   const fetchCharts = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoadingCharts(true)
+      const whId = selectedWarehouseId || undefined
       const [dailyRes, topRes, productsRes] = await Promise.all([
-        reportsService.salesByDay({ start_date: sevenDaysAgoStr, end_date: today }),
-        reportsService.topProducts({ limit: 5, start_date: sevenDaysAgoStr, end_date: today }),
-        reportsService.topProducts({ limit: 8, start_date: sevenDaysAgoStr, end_date: today }),
+        reportsService.salesByDay({ start_date: sevenDaysAgoStr, end_date: today, warehouse_id: whId }),
+        reportsService.topProducts({ limit: 5, start_date: sevenDaysAgoStr, end_date: today, warehouse_id: whId }),
+        reportsService.topProducts({ limit: 8, start_date: sevenDaysAgoStr, end_date: today, warehouse_id: whId }),
       ])
       setDailySales(dailyRes.data?.data ?? dailyRes.data ?? [])
       setTopProducts(topRes.data?.data ?? topRes.data ?? [])
@@ -202,19 +220,20 @@ export default function DashboardPage() {
     } finally {
       if (!isBackground) setLoadingCharts(false)
     }
-  }, [sevenDaysAgoStr, today])
+  }, [sevenDaysAgoStr, today, selectedWarehouseId])
 
   const fetchInventory = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoadingInventory(true)
-      const res = await reportsService.inventoryStatus()
+      const whId = selectedWarehouseId || undefined
+      const res = await reportsService.inventoryStatus({ warehouse_id: whId })
       setInventoryStatus(res.data?.data ?? res.data)
     } catch {
       // non-fatal
     } finally {
       if (!isBackground) setLoadingInventory(false)
     }
-  }, [])
+  }, [selectedWarehouseId])
 
   // Initial data load
   useEffect(() => {
@@ -304,7 +323,28 @@ export default function DashboardPage() {
               })}
             </p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Branch / Warehouse selector */}
+            {warehouses.length > 0 && (
+              <div className="flex items-center gap-1.5 bg-white/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-slate-200/90 shadow-2xs">
+                <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">Branch:</span>
+                <select
+                  value={selectedWarehouseId}
+                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                  className="bg-transparent text-xs font-bold text-slate-800 focus:outline-none cursor-pointer"
+                  aria-label="Filter dashboard by branch"
+                >
+                  <option value="">All Branches & Warehouses</option>
+                  {warehouses.map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name} {wh.is_default ? '(Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
             <Link
               to="/pos"
               className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-2xs hover:shadow-primary-glow transition-all"

@@ -4,9 +4,9 @@ async function listInventory(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1
     const per_page = parseInt(req.query.per_page) || 20
-    const { search, status } = req.query
+    const { search, status, warehouse_id } = req.query
 
-    const result = await inventoryService.listInventory({ page, per_page, search, status })
+    const result = await inventoryService.listInventory({ page, per_page, search, status, warehouse_id })
 
     res.json({
       success: true,
@@ -30,14 +30,15 @@ async function getLowStock(req, res, next) {
 
 async function adjustStock(req, res, next) {
   try {
-    const { product_id, quantity_change, notes, unit } = req.body
+    const { product_id, quantity_change, notes, unit, warehouse_id } = req.body
     const result = await inventoryService.adjustStock(
       product_id,
       quantity_change,
       'ADJUSTMENT',
       req.user.id,
       notes,
-      unit
+      unit,
+      warehouse_id
     )
     res.json({ success: true, data: result, message: 'Stock adjusted successfully' })
   } catch (err) {

@@ -20,6 +20,7 @@ beforeAll(async () => {
     const prods = await prisma.product.findMany({ where: { category_id: staleCat.id }, select: { id: true } })
     const prodIds = prods.map((p) => p.id)
     if (prodIds.length > 0) {
+      await prisma.stockAdjustmentItem.deleteMany({ where: { product_id: { in: prodIds } } })
       await prisma.inventoryLog.deleteMany({ where: { product_id: { in: prodIds } } })
       await prisma.saleItem.deleteMany({ where: { product_id: { in: prodIds } } })
       await prisma.product.deleteMany({ where: { id: { in: prodIds } } })
@@ -32,6 +33,7 @@ beforeAll(async () => {
   })
   if (staleUsers.length > 0) {
     const staleIds = staleUsers.map((u) => u.id)
+    await prisma.stockAdjustment.deleteMany({ where: { user_id: { in: staleIds } } })
     await prisma.authLog.deleteMany({ where: { user_id: { in: staleIds } } })
     await prisma.user.deleteMany({ where: { id: { in: staleIds } } })
   }
@@ -94,6 +96,8 @@ beforeAll(async () => {
 })
 
 afterAll(async () => {
+  await prisma.stockAdjustmentItem.deleteMany({ where: { product_id: { in: [testProduct.id, leadingZeroProduct.id] } } })
+  await prisma.stockAdjustment.deleteMany({ where: { user_id: { in: [managerUser.id, cashierUser.id] } } })
   await prisma.inventoryLog.deleteMany({ where: { product_id: { in: [testProduct.id, leadingZeroProduct.id] } } })
   await prisma.product.deleteMany({ where: { id: { in: [testProduct.id, leadingZeroProduct.id] } } })
   await prisma.category.delete({ where: { id: testCategory.id } })

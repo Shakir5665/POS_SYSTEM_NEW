@@ -9,7 +9,7 @@ const fs = require('fs')
 
 async function listProducts({ page = 1, per_page = 20, search, category_id, brand_id, include_inactive = false } = {}) {
   const skip = (page - 1) * per_page
-  const take = Math.min(per_page, 100)
+  const take = Math.min(per_page, 500)
 
   const where = {}
   if (!include_inactive) where.is_active = true

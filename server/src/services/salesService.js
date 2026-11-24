@@ -5,6 +5,7 @@ const { NotFoundError, ValidationError, AppError } = require('../utils/errors')
 const { toBaseUnitQuantity, toPricingUnitQuantity, calculateLineGross, calculateLineCost, validateQuantity, isValidUnitForCategory } = require('../utils/uom')
 const { verifyTransaction, createRefund } = require('./paystackService')
 const { getSettingValue } = require('./settingsService')
+const { getOrCreateWarehouseStock } = require('./branchStockService')
 
 async function createSale({ items, customer_id, payment_method, amount_paid, discount_amount = 0, notes, reference, warehouse_id, sale_date, is_legacy_import = false }, userId) {
   // Step 1: Validate all items exist and have sufficient stock
@@ -364,9 +365,19 @@ async function createSale({ items, customer_id, payment_method, amount_paid, dis
 
       const prevQty = newQty.plus(item.base_quantity)
 
+      // Also adjust branch stock if a warehouse is assigned to this sale
+      if (resolvedWarehouseId) {
+        const branchStock = await getOrCreateWarehouseStock(tx, resolvedWarehouseId, item.product_id, 0)
+        await tx.warehouseStock.update({
+          where: { id: branchStock.id },
+          data: { quantity: { decrement: item.base_quantity } },
+        })
+      }
+
       await tx.inventoryLog.create({
         data: {
           product_id: item.product_id,
+          warehouse_id: resolvedWarehouseId || null,
           change_type: 'SALE',
           unit: item.base_unit,
           quantity_change: item.base_quantity.negated(),

@@ -464,7 +464,51 @@ async function getCashierPerformance({ start_date, end_date, warehouse_id, is_le
   }))
 }
 
-async function getInventoryStatus() {
+async function getInventoryStatus(filters = {}) {
+  const { warehouse_id } = filters || {}
+  if (warehouse_id) {
+    await ensureWarehouseExists(warehouse_id)
+    const [totalProducts, totalLowStock, totalOutOfStock, lowStockItems, outOfStockItems] = await Promise.all([
+      prisma.product.count({ where: { is_active: true } }),
+      prisma.$queryRaw`
+        SELECT COUNT(*)::int as cnt
+        FROM "WarehouseStock" ws
+        JOIN "Product" p ON p.id = ws.product_id
+        WHERE p.is_active = true AND ws.warehouse_id = ${warehouse_id} AND ws.quantity > 0 AND ws.quantity <= ws.low_stock_threshold
+      `,
+      prisma.$queryRaw`
+        SELECT COUNT(*)::int as cnt
+        FROM "WarehouseStock" ws
+        JOIN "Product" p ON p.id = ws.product_id
+        WHERE p.is_active = true AND ws.warehouse_id = ${warehouse_id} AND ws.quantity = 0
+      `,
+      prisma.$queryRaw`
+        SELECT p.id, p.name, p.sku, ws.quantity, ws.low_stock_threshold
+        FROM "WarehouseStock" ws
+        JOIN "Product" p ON p.id = ws.product_id
+        WHERE p.is_active = true AND ws.warehouse_id = ${warehouse_id} AND ws.quantity > 0 AND ws.quantity <= ws.low_stock_threshold
+        ORDER BY ws.quantity ASC
+        LIMIT 20
+      `,
+      prisma.$queryRaw`
+        SELECT p.id, p.name, p.sku, ws.quantity
+        FROM "WarehouseStock" ws
+        JOIN "Product" p ON p.id = ws.product_id
+        WHERE p.is_active = true AND ws.warehouse_id = ${warehouse_id} AND ws.quantity = 0
+        ORDER BY p.name ASC
+        LIMIT 20
+      `,
+    ])
+
+    return {
+      total_products: totalProducts,
+      low_stock_count: totalLowStock[0]?.cnt || 0,
+      out_of_stock_count: totalOutOfStock[0]?.cnt || 0,
+      low_stock: lowStockItems,
+      out_of_stock: outOfStockItems,
+    }
+  }
+
   const [totalProducts, totalLowStock, totalOutOfStock, lowStockItems, outOfStockItems] = await Promise.all([
     prisma.product.count({ where: { is_active: true } }),
     prisma.$queryRaw`SELECT COUNT(*)::int as cnt FROM "Product" WHERE is_active = true AND quantity > 0 AND quantity <= low_stock_threshold`,

@@ -9,8 +9,8 @@ export const reportsService = {
   topProducts: (params) => api.get('/reports/top-products', { params }),
   categoryPerformance: (params) => api.get('/reports/category-performance', { params }),
   cashierPerformance: (params) => api.get('/reports/cashier-performance', { params }),
-  inventoryStatus: () => api.get('/reports/inventory-status'),
+  inventoryStatus: (params) => api.get('/reports/inventory-status', { params }),
   profit: (params) => api.get('/reports/profit', { params }),
   financialStatement: (params) => api.get('/reports/financial-statement', { params }),
-  dashboard: () => api.get('/reports/dashboard'),
+  dashboard: (params) => api.get('/reports/dashboard', { params }),
 }

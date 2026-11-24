@@ -89,7 +89,15 @@ describe('Phase 4A: Legacy Migration Engine and Dry-Run Validation', () => {
     })
 
     // Ensure Phase 4A synthetic products exist for dry-run/staged tests
-    const category = await prisma.category.findFirst()
+    let category = await prisma.category.findFirst()
+if (!category) {
+  category = await prisma.category.create({
+    data: {
+      name: 'Default Category',
+      description: 'Auto-created for migrationEngine tests',
+    },
+  })
+}
     const testProducts = [
       { name: 'Sugar', sku: 'LEGACY-SUGAR', price: 100, cost_price: 80, quantity: 50 },
       { name: 'Salt', sku: 'LEGACY-SALT', price: 50, cost_price: 40, quantity: 50 },

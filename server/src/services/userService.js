@@ -5,7 +5,19 @@ const { NotFoundError, ConflictError, ValidationError } = require('../utils/erro
 const BCRYPT_COST = 12
 
 // Never return password hashes
-const USER_FIELDS = { id: true, username: true, email: true, full_name: true, role: true, is_active: true, created_at: true }
+const USER_FIELDS = {
+  id: true,
+  username: true,
+  email: true,
+  full_name: true,
+  role: true,
+  is_active: true,
+  created_at: true,
+  warehouse_id: true,
+  assigned_warehouse: {
+    select: { id: true, name: true, code: true },
+  },
+}
 
 async function findUserOrThrow(id) {
   const user = await prisma.user.findUnique({ where: { id } })
@@ -26,18 +38,25 @@ async function listUsers() {
   }))
 }
 
-async function createUser({ username, email, password, full_name, role }) {
+async function createUser({ username, email, password, full_name, role, warehouse_id }) {
   const existing = await prisma.user.findFirst({ where: { OR: [{ username }, { email }] } })
   if (existing) throw new ConflictError('Username or email already exists')
   const password_hash = await bcrypt.hash(password, BCRYPT_COST)
   return prisma.user.create({
-    data: { username, email, password_hash, full_name, role },
+    data: {
+      username,
+      email,
+      password_hash,
+      full_name,
+      role,
+      warehouse_id: warehouse_id || null,
+    },
     select: USER_FIELDS,
   })
 }
 
-/** Update role, active status, full name and/or email. */
-async function updateUser(id, { role, is_active, full_name, email }) {
+/** Update role, active status, full name, email and/or assigned branch. */
+async function updateUser(id, { role, is_active, full_name, email, warehouse_id }) {
   await findUserOrThrow(id)
   return prisma.user.update({
     where: { id },
@@ -46,6 +65,7 @@ async function updateUser(id, { role, is_active, full_name, email }) {
       ...(is_active !== undefined && { is_active }),
       ...(full_name && { full_name }),
       ...(email && { email }),
+      ...(warehouse_id !== undefined && { warehouse_id: warehouse_id || null }),
     },
     select: USER_FIELDS,
   })

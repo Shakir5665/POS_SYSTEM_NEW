@@ -11,6 +11,7 @@ import { PageHeader } from '../components/PageHeader'
 import { GlassCard } from '../components/GlassCard'
 import { MetricCard } from '../components/MetricCard'
 import { financeService } from '../services/finance'
+import { warehouseService } from '../services/warehouses'
 import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 
 const TABS = [
@@ -24,6 +25,8 @@ export default function FinancePage() {
   const [activeTab, setActiveTab] = useState('overview')
   const [summary, setSummary] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [warehouses, setWarehouses] = useState([])
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
 
   // ------------------ Expenses State ------------------
   const [expenses, setExpenses] = useState([])
@@ -35,6 +38,7 @@ export default function FinancePage() {
   const [expenseModalOpen, setExpenseModalOpen] = useState(false)
   const [expenseForm, setExpenseForm] = useState({
     category_id: '',
+    warehouse_id: '',
     amount: '',
     payment_method: 'CASH',
     payee: '',
@@ -46,6 +50,19 @@ export default function FinancePage() {
   const [showAddCategory, setShowAddCategory] = useState(false)
   const [newCatName, setNewCatName] = useState('')
   const [creatingCat, setCreatingCat] = useState(false)
+
+  // Load active warehouses / branches
+  useEffect(() => {
+    async function loadWarehouses() {
+      try {
+        const { data } = await warehouseService.list({ is_active: true })
+        setWarehouses(data?.data || [])
+      } catch (err) {
+        console.error('Failed to load branches for finance', err)
+      }
+    }
+    loadWarehouses()
+  }, [])
 
   // ------------------ Assets State ------------------
   const [assets, setAssets] = useState([])
@@ -81,14 +98,16 @@ export default function FinancePage() {
   const fetchSummary = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await financeService.summary()
+      const res = await financeService.summary({
+        warehouse_id: selectedWarehouseId || undefined,
+      })
       setSummary(res.data?.data)
     } catch {
       // ignore
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [selectedWarehouseId])
 
   // Fetch expenses
   const fetchExpenses = useCallback(async () => {
@@ -98,6 +117,7 @@ export default function FinancePage() {
         page: expensePage,
         per_page: 20,
         category_id: selectedCategory || undefined,
+        warehouse_id: selectedWarehouseId || undefined,
         search: expenseSearch.trim() || undefined,
       })
       setExpenses(res.data?.data || [])
@@ -107,7 +127,7 @@ export default function FinancePage() {
     } finally {
       setLoading(false)
     }
-  }, [expensePage, selectedCategory, expenseSearch])
+  }, [expensePage, selectedCategory, selectedWarehouseId, expenseSearch])
 
   // Fetch assets
   const fetchAssets = useCallback(async () => {
@@ -213,6 +233,7 @@ export default function FinancePage() {
         amount: amt,
         payment_method: expenseForm.payment_method || 'CASH',
       }
+      if (expenseForm.warehouse_id) payload.warehouse_id = expenseForm.warehouse_id
       if (expenseForm.expense_date) payload.expense_date = new Date(expenseForm.expense_date).toISOString()
       if (expenseForm.payee?.trim()) payload.payee = expenseForm.payee.trim()
       if (expenseForm.reference?.trim()) payload.reference = expenseForm.reference.trim()
@@ -223,6 +244,7 @@ export default function FinancePage() {
       setExpenseModalOpen(false)
       setExpenseForm({
         category_id: categories[0]?.id || '',
+        warehouse_id: '',
         amount: '',
         payment_method: 'CASH',
         payee: '',
@@ -323,6 +345,15 @@ export default function FinancePage() {
       key: 'category',
       label: 'Category',
       render: (val) => <Badge variant="secondary">{val?.name}</Badge>,
+    },
+    {
+      key: 'warehouse',
+      label: 'Branch / Location',
+      render: (val) => (
+        <span className="text-xs font-semibold text-slate-700">
+          {val?.name || 'General'}
+        </span>
+      ),
     },
     {
       key: 'payee',
@@ -481,6 +512,26 @@ export default function FinancePage() {
         {/* ----------------- TAB: OVERVIEW ----------------- */}
         {activeTab === 'overview' && summary && (
           <div className="space-y-6">
+            {warehouses.length > 0 && (
+              <div className="flex items-center justify-between bg-white/80 backdrop-blur-md px-4 py-2.5 rounded-2xl border border-slate-200/80 shadow-2xs">
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-slate-600">Branch P&L Scope:</span>
+                </div>
+                <select
+                  value={selectedWarehouseId}
+                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                  className="text-xs font-bold text-slate-800 bg-white border border-slate-200 rounded-xl px-3 py-1.5 focus:ring-2 focus:ring-primary-500/20 cursor-pointer"
+                >
+                  <option value="">All Branches & Warehouses (Consolidated)</option>
+                  {warehouses.map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name} {wh.is_default ? '(Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <MetricCard
                 title="Operating Expenses"
@@ -566,7 +617,20 @@ export default function FinancePage() {
         {activeTab === 'expenses' && (
           <div className="space-y-4">
             <GlassCard className="p-4 flex flex-col sm:flex-row gap-3 justify-between items-center">
-              <div className="flex gap-2 w-full sm:w-auto">
+              <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                <select
+                  value={selectedWarehouseId}
+                  onChange={(e) => setSelectedWarehouseId(e.target.value)}
+                  className="px-3.5 py-2 text-sm border border-slate-200/80 rounded-xl bg-white/90 shadow-2xs font-semibold text-slate-800 focus:ring-2 focus:ring-primary-500/20 cursor-pointer"
+                >
+                  <option value="">All Branches</option>
+                  {warehouses.map((wh) => (
+                    <option key={wh.id} value={wh.id}>
+                      {wh.name} {wh.is_default ? '(Default)' : ''}
+                    </option>
+                  ))}
+                </select>
+
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
@@ -722,6 +786,23 @@ export default function FinancePage() {
                 </option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="text-sm font-medium text-gray-700">Operating Branch (Optional)</label>
+            <select
+              value={expenseForm.warehouse_id}
+              onChange={(e) => setExpenseForm((f) => ({ ...f, warehouse_id: e.target.value }))}
+              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white mt-1 cursor-pointer"
+            >
+              <option value="">General (All Branches / Company)</option>
+              {warehouses.map((wh) => (
+                <option key={wh.id} value={wh.id}>
+                  {wh.name} {wh.is_default ? '(Default)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-2xs text-gray-400 mt-0.5">Attribute expense to a specific operating location or store</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

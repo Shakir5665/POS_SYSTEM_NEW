@@ -1,7 +1,7 @@
 import api from './api'
 
 export const financeService = {
-  summary: () => api.get('/finance/summary'),
+  summary: (params) => api.get('/finance/summary', { params }),
   categories: () => api.get('/finance/categories'),
   createCategory: (data) => api.post('/finance/categories', data),
   expenses: (params) => api.get('/finance/expenses', { params }),

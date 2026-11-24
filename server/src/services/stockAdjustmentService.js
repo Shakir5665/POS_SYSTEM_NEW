@@ -4,6 +4,7 @@ const { Decimal } = require('../utils/money')
 const { toBaseUnitQuantity, validateQuantity } = require('../utils/uom')
 const generateAdjustmentNumber = require('../utils/generateAdjustmentNumber')
 const { validateWarehouseId, getDefaultWarehouse } = require('./warehouseService')
+const { getOrCreateWarehouseStock } = require('./branchStockService')
 
 /**
  * Determine appropriate InventoryChangeType based on reason and sign.
@@ -192,6 +193,17 @@ async function createLiveAdjustment(data, user) {
             },
           })
         }
+
+        // Also adjust branch stock if an active warehouse is assigned to this adjustment
+        if (warehouseId) {
+          const branchStock = await getOrCreateWarehouseStock(tx, warehouseId, productId, 0)
+          await tx.warehouseStock.update({
+            where: { id: branchStock.id },
+            data: {
+              quantity: new Decimal(branchStock.quantity).plus(netChange),
+            },
+          })
+        }
       }
 
       // Step B: Write InventoryLog entries per item with exact before/after quantities
@@ -209,6 +221,7 @@ async function createLiveAdjustment(data, user) {
         await tx.inventoryLog.create({
           data: {
             product_id: product.id,
+            warehouse_id: warehouseId || null,
             change_type: changeType,
             unit: product.base_unit,
             quantity_change: item.changeInBase,

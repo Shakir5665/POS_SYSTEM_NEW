@@ -18,6 +18,7 @@ import { Button } from '../components/Button'
 import { PageHeader } from '../components/PageHeader'
 import { GlassCard } from '../components/GlassCard'
 import { reportsService } from '../services/reports'
+import { warehouseService } from '../services/warehouses'
 import { formatCurrency, formatCompactCurrency, formatCompactNumber } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
 import { exportCsv } from '../utils/csv'
@@ -90,6 +91,8 @@ export default function ReportsPage() {
   const [activeTab, setActiveTab] = useState('summary')
   const [startDate, setStartDate] = useState(formatDate(-29))
   const [endDate, setEndDate] = useState(formatDate(0))
+  const [warehouses, setWarehouses] = useState([])
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState('')
   const [loading, setLoading] = useState(false)
 
   const [summaryData, setSummaryData] = useState(null)
@@ -103,11 +106,28 @@ export default function ReportsPage() {
   const [profitData, setProfitData] = useState([])
   const [financialData, setFinancialData] = useState(null)
 
+  // Load active warehouses / branches
+  useEffect(() => {
+    async function loadWarehouses() {
+      try {
+        const { data } = await warehouseService.list({ is_active: true })
+        setWarehouses(data?.data || [])
+      } catch (err) {
+        console.error('Failed to load branches for reports', err)
+      }
+    }
+    loadWarehouses()
+  }, [])
+
   const fetchTab = useCallback(
     async (tab) => {
       if (!startDate || !endDate) return
       setLoading(true)
-      const params = { start_date: startDate, end_date: endDate }
+      const params = {
+        start_date: startDate,
+        end_date: endDate,
+        warehouse_id: selectedWarehouseId || undefined,
+      }
       try {
         if (tab === 'summary') {
           const res = await reportsService.salesSummary(params)
@@ -146,7 +166,7 @@ export default function ReportsPage() {
         setLoading(false)
       }
     },
-    [startDate, endDate]
+    [startDate, endDate, selectedWarehouseId]
   )
 
   useEffect(() => {
@@ -275,8 +295,23 @@ export default function ReportsPage() {
           subtitle="Financial performance, net revenue accounting, customer & supplier returns, and profitability"
         />
 
-        {/* Date range */}
+        {/* Filters */}
         <GlassCard className="p-4 flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Branch / Warehouse</label>
+            <select
+              value={selectedWarehouseId}
+              onChange={(e) => setSelectedWarehouseId(e.target.value)}
+              className="border border-slate-200/80 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white/90 shadow-2xs font-semibold text-slate-800 cursor-pointer"
+            >
+              <option value="">All Branches & Warehouses</option>
+              {warehouses.map((wh) => (
+                <option key={wh.id} value={wh.id}>
+                  {wh.name} {wh.is_default ? '(Default)' : ''}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Start Date</label>
             <input

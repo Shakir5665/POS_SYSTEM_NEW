@@ -4,8 +4,9 @@ const { toBaseUnitQuantity, validateQuantity } = require('../utils/uom')
 const { Decimal } = require('../utils/money')
 const generateAdjustmentNumber = require('../utils/generateAdjustmentNumber')
 const { getDefaultWarehouse } = require('./warehouseService')
+const { getOrCreateWarehouseStock } = require('./branchStockService')
 
-async function listInventory({ page = 1, per_page = 20, search, status } = {}) {
+async function listInventory({ page = 1, per_page = 20, search, status, warehouse_id } = {}) {
   const skip = (page - 1) * per_page
   const take = Math.min(per_page, 100)
 
@@ -39,13 +40,30 @@ async function listInventory({ page = 1, per_page = 20, search, status } = {}) {
         unit_category: true,
         category: { select: { id: true, name: true } },
         updated_at: true,
+        warehouse_stocks: warehouse_id ? {
+          where: { warehouse_id },
+          select: { quantity: true, low_stock_threshold: true },
+        } : true,
       },
       orderBy: { name: 'asc' },
     }),
     prisma.product.count({ where }),
   ])
 
-  return { products, total, page, per_page: take, total_pages: Math.ceil(total / take) }
+  // If filtered by warehouse, map the branch quantity onto the returned product
+  const mappedProducts = products.map((p) => {
+    if (warehouse_id && p.warehouse_stocks && p.warehouse_stocks.length > 0) {
+      const bStock = p.warehouse_stocks[0]
+      return {
+        ...p,
+        branch_quantity: bStock.quantity,
+        branch_low_stock_threshold: bStock.low_stock_threshold,
+      }
+    }
+    return p
+  })
+
+  return { products: mappedProducts, total, page, per_page: take, total_pages: Math.ceil(total / take) }
 }
 
 async function getLowStockProducts() {
@@ -99,7 +117,7 @@ async function getLowStock(search) {
   `
 }
 
-async function adjustStock(productId, quantityChange, changeType, userId, notes, unit) {
+async function adjustStock(productId, quantityChange, changeType, userId, notes, unit, warehouseId) {
   const product = await prisma.product.findUnique({ where: { id: productId } })
   if (!product) throw new NotFoundError('Product not found')
 
@@ -115,6 +133,7 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes,
   }
 
   const defaultWh = await getDefaultWarehouse().catch(() => null)
+  const targetWarehouseId = warehouseId || defaultWh?.id || null
   const adjNumber = await generateAdjustmentNumber()
 
   const [updatedProduct, log] = await prisma.$transaction(async (tx) => {
@@ -122,6 +141,14 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes,
       where: { id: productId },
       data: { quantity: newQty },
     })
+
+    if (targetWarehouseId) {
+      const branchStock = await getOrCreateWarehouseStock(tx, targetWarehouseId, productId, 0)
+      await tx.warehouseStock.update({
+        where: { id: branchStock.id },
+        data: { quantity: { increment: changeInBase } },
+      })
+    }
 
     const createdLog = await tx.inventoryLog.create({
       data: {
@@ -132,7 +159,7 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes,
         previous_quantity: currentQty,
         new_quantity: newQty,
         user_id: userId,
-        warehouse_id: defaultWh?.id || null,
+        warehouse_id: targetWarehouseId,
         notes: notes || null,
       },
     })
@@ -141,7 +168,7 @@ async function adjustStock(productId, quantityChange, changeType, userId, notes,
       data: {
         adjustment_number: adjNumber,
         adjustment_date: new Date(),
-        warehouse_id: defaultWh?.id || null,
+        warehouse_id: targetWarehouseId,
         user_id: userId,
         reason: notes || (changeType === 'RESTOCK' ? 'Manual Restock' : 'Stock Adjustment'),
         notes: notes || null,

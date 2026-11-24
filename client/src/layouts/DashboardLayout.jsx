@@ -209,6 +209,11 @@ const icons = {
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
     </svg>
   ),
+  transfers: (
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+    </svg>
+  ),
   migration: (
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
@@ -345,9 +350,16 @@ export function DashboardLayout({ children }) {
                 onClick={() => setSidebarOpen(false)}
               />
               <NavItem
+                to="/transfers"
+                icon={icons.transfers}
+                label="Stock Transfers"
+                iconColor="text-purple-600 bg-purple-50/90 border-purple-200/80"
+                onClick={() => setSidebarOpen(false)}
+              />
+              <NavItem
                 to="/warehouses"
                 icon={icons.warehouses}
-                label="Warehouses"
+                label="Branches & Warehouses"
                 iconColor="text-sky-600 bg-sky-50/90 border-sky-200/80"
                 onClick={() => setSidebarOpen(false)}
               />

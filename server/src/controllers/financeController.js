@@ -23,11 +23,12 @@ async function listExpenses(req, res, next) {
   try {
     const page = parseInt(req.query.page) || 1
     const per_page = parseInt(req.query.per_page) || 20
-    const { category_id, search, start_date, end_date } = req.query
+    const { category_id, warehouse_id, search, start_date, end_date } = req.query
     const result = await financeService.listExpenses({
       page,
       per_page,
       category_id,
+      warehouse_id,
       search,
       start_date,
       end_date,
@@ -179,7 +180,9 @@ async function createOwnerTransaction(req, res, next) {
 // Summary
 async function getSummary(req, res, next) {
   try {
-    const summary = await financeService.getFinanceSummary()
+    const summary = await financeService.getFinanceSummary({
+      warehouse_id: req.query.warehouse_id,
+    })
     res.json({ success: true, data: summary })
   } catch (err) {
     next(err)

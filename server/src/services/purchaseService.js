@@ -3,6 +3,7 @@ const { NotFoundError, ValidationError } = require('../utils/errors')
 const { Decimal, toMoney, roundMoney } = require('../utils/money')
 const { toBaseUnitQuantity, validateQuantity } = require('../utils/uom')
 const generatePurchaseNumber = require('../utils/generatePurchaseNumber')
+const { getOrCreateWarehouseStock } = require('./branchStockService')
 
 async function listPurchases({ page = 1, per_page = 20, search, status, payment_status, supplier_id, warehouse_id, is_legacy_import, start_date, end_date } = {}) {
   const skip = (page - 1) * per_page
@@ -288,9 +289,18 @@ async function createPurchase({
           },
         })
 
+        if (resolvedWarehouseId) {
+          const branchStock = await getOrCreateWarehouseStock(tx, resolvedWarehouseId, item.product_id, 0)
+          await tx.warehouseStock.update({
+            where: { id: branchStock.id },
+            data: { quantity: { increment: item.base_quantity } },
+          })
+        }
+
         await tx.inventoryLog.create({
           data: {
             product_id: item.product_id,
+            warehouse_id: resolvedWarehouseId || null,
             change_type: 'RESTOCK',
             unit: item.unit,
             quantity_change: item.base_quantity,
@@ -337,9 +347,18 @@ async function receivePurchase(id, userId) {
         },
       })
 
+      if (purchase.warehouse_id) {
+        const branchStock = await getOrCreateWarehouseStock(tx, purchase.warehouse_id, item.product_id, 0)
+        await tx.warehouseStock.update({
+          where: { id: branchStock.id },
+          data: { quantity: { increment: item.base_quantity } },
+        })
+      }
+
       await tx.inventoryLog.create({
         data: {
           product_id: item.product_id,
+          warehouse_id: purchase.warehouse_id || null,
           change_type: 'RESTOCK',
           unit: item.unit,
           quantity_change: item.base_quantity,

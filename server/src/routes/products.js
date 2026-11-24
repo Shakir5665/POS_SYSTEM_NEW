@@ -117,7 +117,7 @@ router.delete('/:id', authorize(['ADMIN']), param('id').isString().trim().notEmp
 function listProductsValidation() {
   return [
     query('page').optional().isInt({ min: 1 }).withMessage('Page must be >= 1'),
-    query('per_page').optional().isInt({ min: 1, max: 100 }).withMessage('Per page must be 1-100'),
+    query('per_page').optional().isInt({ min: 1, max: 500 }).withMessage('Per page must be 1-500'),
     query('search').optional().isString().trim(),
     query('category_id').optional().isString().trim(),
     query('brand_id').optional().isString().trim(),

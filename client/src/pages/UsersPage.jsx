@@ -8,6 +8,7 @@ import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
 import { usersService } from '../services/users'
+import { warehouseService } from '../services/warehouses'
 import { useAuth } from '../hooks/useAuth'
 
 const ROLE_BADGE = {
@@ -18,8 +19,8 @@ const ROLE_BADGE = {
 
 const ROLES = ['ADMIN', 'MANAGER', 'CASHIER']
 
-const EMPTY_CREATE = { username: '', email: '', password: '', full_name: '', role: 'CASHIER' }
-const EMPTY_EDIT = { full_name: '', email: '', role: 'CASHIER', is_active: true }
+const EMPTY_CREATE = { username: '', email: '', password: '', full_name: '', role: 'CASHIER', warehouse_id: '' }
+const EMPTY_EDIT = { full_name: '', email: '', role: 'CASHIER', is_active: true, warehouse_id: '' }
 
 function validate(form, mode) {
   const errors = {}
@@ -42,6 +43,19 @@ export default function UsersPage() {
   const [meta, setMeta] = useState({ page: 1, total_pages: 1 })
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
+  const [warehouses, setWarehouses] = useState([])
+
+  useEffect(() => {
+    async function loadWarehouses() {
+      try {
+        const { data } = await warehouseService.list({ is_active: true })
+        setWarehouses(data?.data || [])
+      } catch (err) {
+        console.error('Failed to load branches for users', err)
+      }
+    }
+    loadWarehouses()
+  }, [])
 
   // Modals
   const [createOpen, setCreateOpen] = useState(false)
@@ -110,6 +124,7 @@ export default function UsersPage() {
         password: createForm.password,
         full_name: createForm.full_name.trim(),
         role: createForm.role,
+        warehouse_id: createForm.warehouse_id || undefined,
       })
       toast.success('User created successfully')
       setCreateOpen(false)
@@ -128,6 +143,7 @@ export default function UsersPage() {
       email: user.email ?? '',
       role: user.role ?? 'CASHIER',
       is_active: user.is_active ?? true,
+      warehouse_id: user.warehouse_id ?? '',
     })
     setEditErrors({})
     setEditOpen(true)
@@ -158,6 +174,7 @@ export default function UsersPage() {
         email: editForm.email.trim(),
         role: editForm.role,
         is_active: editForm.is_active,
+        warehouse_id: editForm.warehouse_id || null,
       })
       toast.success('User updated successfully')
       setEditOpen(false)
@@ -242,6 +259,15 @@ export default function UsersPage() {
       ),
     },
     { key: 'email', label: 'Email' },
+    {
+      key: 'assigned_warehouse',
+      label: 'Branch Location',
+      render: (val) => (
+        <span className="text-xs font-semibold text-slate-700">
+          {val?.name || <span className="text-slate-400 font-normal italic">All Branches</span>}
+        </span>
+      ),
+    },
     {
       key: 'role',
       label: 'Role',
@@ -384,6 +410,23 @@ export default function UsersPage() {
               ))}
             </select>
           </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Assigned Branch (Optional)</label>
+            <select
+              name="warehouse_id"
+              value={createForm.warehouse_id}
+              onChange={handleCreateChange}
+              className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
+            >
+              <option value="">All Branches (Floating)</option>
+              {warehouses.map((wh) => (
+                <option key={wh.id} value={wh.id}>
+                  {wh.name} {wh.is_default ? '(Default)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400 mt-1">Locks cashier transactions to this branch by default</p>
+          </div>
           <div className="flex justify-end gap-2.5 pt-2">
             <Button variant="secondary" type="button" onClick={() => setCreateOpen(false)} disabled={saving}>
               Cancel
@@ -428,6 +471,23 @@ export default function UsersPage() {
                 </option>
               ))}
             </select>
+          </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Assigned Branch (Optional)</label>
+            <select
+              name="warehouse_id"
+              value={editForm.warehouse_id}
+              onChange={handleEditChange}
+              className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
+            >
+              <option value="">All Branches (Floating)</option>
+              {warehouses.map((wh) => (
+                <option key={wh.id} value={wh.id}>
+                  {wh.name} {wh.is_default ? '(Default)' : ''}
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-slate-400 mt-1">Locks cashier transactions to this branch by default</p>
           </div>
           <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 pt-1">
             <input
