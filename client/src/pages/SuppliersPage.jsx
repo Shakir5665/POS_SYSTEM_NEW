@@ -67,7 +67,6 @@ export default function SuppliersPage() {
     setPage(1)
   }, [search])
 
-  // Stats calculation
   const totalPayables = suppliers.reduce((sum, s) => sum + Number(s.outstanding_debt || 0), 0)
 
   function openAddModal() {
@@ -104,12 +103,21 @@ export default function SuppliersPage() {
 
     setSaving(true)
     try {
+      const payload = {
+        name: form.name.trim(),
+        phone: form.phone.trim() || null,
+        email: form.email.trim() || null,
+        address: form.address.trim() || null,
+        contact_person: form.contact_person.trim() || null,
+        notes: form.notes.trim() || null,
+      }
+
       if (editTarget) {
-        await suppliersService.update(editTarget.id, form)
-        toast.success('Supplier updated successfully')
+        await suppliersService.update(editTarget.id, payload)
+        toast.success(`Supplier "${payload.name}" updated successfully`)
       } else {
-        await suppliersService.create(form)
-        toast.success('Supplier registered successfully')
+        await suppliersService.create(payload)
+        toast.success(`Supplier "${payload.name}" created successfully`)
       }
       setSupplierModalOpen(false)
       fetchSuppliers()
@@ -122,21 +130,17 @@ export default function SuppliersPage() {
 
   function openRepaymentModal(supplier) {
     setRepaymentSupplier(supplier)
-    setRepaymentAmount(String(supplier.outstanding_debt || ''))
+    setRepaymentAmount('')
     setPaymentMethod('CASH')
     setReference('')
     setNotes('')
   }
 
-  async function handleRecordRepayment(e) {
+  async function handleConfirmRepayment(e) {
     e.preventDefault()
     const amt = parseFloat(repaymentAmount)
     if (isNaN(amt) || amt <= 0) {
-      toast.error('Please enter a valid repayment amount greater than 0')
-      return
-    }
-    if (amt > Number(repaymentSupplier.outstanding_debt)) {
-      toast.error(`Amount cannot exceed outstanding balance (${formatCurrency(repaymentSupplier.outstanding_debt)})`)
+      toast.error('Enter a valid payment amount greater than zero')
       return
     }
 
@@ -148,7 +152,7 @@ export default function SuppliersPage() {
         reference: reference.trim() || undefined,
         notes: notes.trim() || undefined,
       })
-      toast.success('Supplier repayment recorded successfully')
+      toast.success(`Repayment of ${formatCurrency(amt)} recorded successfully`)
       setRepaymentSupplier(null)
       fetchSuppliers()
     } catch (err) {
@@ -163,7 +167,7 @@ export default function SuppliersPage() {
     setStatementLoading(true)
     try {
       const res = await suppliersService.statement(supplier.id)
-      setStatementData(res.data?.data)
+      setStatementData(res.data?.data || null)
     } catch {
       toast.error('Failed to load supplier statement')
     } finally {
@@ -174,45 +178,27 @@ export default function SuppliersPage() {
   const columns = [
     {
       key: 'name',
-      label: 'Supplier',
+      label: 'Supplier Name',
       render: (val, row) => (
         <div>
-          <p className="font-semibold text-gray-900">{val}</p>
+          <p className="font-bold text-slate-900">{val}</p>
           {row.contact_person && (
-            <p className="text-xs text-gray-500 mt-0.5">Contact: {row.contact_person}</p>
+            <p className="text-xs text-slate-400 mt-0.5">Contact: {row.contact_person}</p>
           )}
         </div>
       ),
     },
-    {
-      key: 'contact',
-      label: 'Contact Info',
-      render: (_, row) => (
-        <div className="text-sm">
-          {row.phone ? <p className="text-gray-900">{row.phone}</p> : <span className="text-gray-400">—</span>}
-          {row.email && <p className="text-xs text-gray-400">{row.email}</p>}
-        </div>
-      ),
-    },
-    {
-      key: 'address',
-      label: 'Address',
-      render: (val) => <span className="text-sm text-gray-600">{val || '—'}</span>,
-    },
-    {
-      key: 'purchases',
-      label: 'Orders',
-      render: (_, row) => <Badge variant="secondary">{row._count?.purchases || 0} orders</Badge>,
-    },
+    { key: 'phone', label: 'Phone', render: (v) => v || <span className="text-slate-400">—</span> },
+    { key: 'email', label: 'Email', render: (v) => v || <span className="text-slate-400">—</span> },
     {
       key: 'outstanding_debt',
-      label: 'Payables Due',
+      label: 'Payables (Owed)',
       render: (val) => {
         const debt = Number(val || 0)
-        return debt > 0 ? (
-          <span className="font-bold text-danger-600">{formatCurrency(debt)}</span>
-        ) : (
-          <span className="text-success-600 font-medium">Nil</span>
+        return (
+          <span className={`font-bold ${debt > 0 ? 'text-rose-600 font-mono' : 'text-slate-400'}`}>
+            {debt > 0 ? formatCurrency(debt) : '—'}
+          </span>
         )
       },
     },
@@ -220,16 +206,16 @@ export default function SuppliersPage() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           {Number(row.outstanding_debt || 0) > 0 && (
-            <Button size="sm" variant="success" onClick={() => openRepaymentModal(row)}>
-              Pay Debt
+            <Button size="sm" variant="primary" onClick={() => openRepaymentModal(row)}>
+              Pay
             </Button>
           )}
-          <Button size="sm" variant="secondary" onClick={() => openStatementModal(row)}>
+          <Button size="sm" variant="ghost" onClick={() => openStatementModal(row)}>
             Statement
           </Button>
-          <Button size="sm" variant="outline" onClick={() => openEditModal(row)}>
+          <Button size="sm" variant="secondary" onClick={() => openEditModal(row)}>
             Edit
           </Button>
         </div>
@@ -240,298 +226,224 @@ export default function SuppliersPage() {
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Page Header */}
+        {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Suppliers</h1>
-            <p className="text-sm text-gray-500 mt-0.5">Manage vendors, purchase debt, and account statements</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Suppliers</h1>
+            <p className="text-xs font-medium text-slate-500 mt-1">Manage vendor contacts, accounts, and supplier payables.</p>
           </div>
-          <Button variant="primary" onClick={openAddModal}>
-            + Add Supplier
+          <Button variant="primary" onClick={openAddModal} className="flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Add Supplier
           </Button>
         </div>
 
-        {/* Metric Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-sm text-gray-500 font-medium">Total Suppliers</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{meta.total || suppliers.length}</p>
-          </div>
-          <div className="bg-danger-50 rounded-xl border border-danger-100 p-4">
-            <p className="text-sm text-danger-700 font-medium">Total Payables Due</p>
-            <p className="text-2xl font-bold text-danger-700 mt-1" title={formatCurrency(totalPayables)}>{formatCompactCurrency(totalPayables)}</p>
-            <p className="text-xs text-danger-500 mt-0.5">Supplier debt to be settled</p>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-sm text-gray-500 font-medium">Active Vendors</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">
-              {suppliers.filter((s) => s.is_active).length}
-            </p>
-          </div>
-        </div>
-
-        {/* Search Bar */}
-        <div className="bg-white p-3 rounded-xl border border-gray-200 flex items-center gap-3">
-          <div className="relative flex-1">
-            <input
-              type="text"
-              role="searchbox"
-              placeholder="Search by supplier name, contact person, phone, or email..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 text-sm bg-gray-50 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:bg-white transition"
-            />
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        {/* KPI & Search Bar */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-4 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Payables</p>
+              <p className="text-xl font-bold text-rose-600 mt-1">{formatCurrency(totalPayables)}</p>
+            </div>
+            <div className="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center border border-rose-100">
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
               </svg>
             </div>
-            {search && (
-              <button
-                type="button"
-                onClick={() => setSearch('')}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-              >
-                ✕
-              </button>
-            )}
+          </div>
+
+          <div className="md:col-span-3 bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/90 shadow-glass-sm flex items-center justify-between gap-4">
+            <div className="max-w-md w-full">
+              <Input
+                type="search"
+                placeholder="Search suppliers by name or phone…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+            </div>
+            <p className="text-xs font-medium text-slate-400">Total: {meta.total} suppliers</p>
           </div>
         </div>
 
-        {/* Suppliers Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <Table
-            columns={columns}
-            data={suppliers}
-            isLoading={loading}
-            emptyMessage="No suppliers found."
-          />
-        </div>
+        {/* Table */}
+        <Table
+          columns={columns}
+          data={suppliers}
+          isLoading={loading}
+          emptyMessage="No suppliers found."
+        />
 
-        {/* Pagination */}
         {meta.total_pages > 1 && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
-              Page {meta.page} of {meta.total_pages} &mdash; {meta.total} suppliers
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs font-medium text-slate-500">
+              Page {page} of {meta.total_pages} &mdash; {meta.total} suppliers
             </p>
-            <Pagination page={meta.page} total_pages={meta.total_pages} onPageChange={setPage} />
+            <Pagination page={page} total_pages={meta.total_pages} onPageChange={setPage} />
           </div>
         )}
       </div>
 
       {/* Add / Edit Supplier Modal */}
-      <Modal
-        isOpen={supplierModalOpen}
-        onClose={() => setSupplierModalOpen(false)}
-        title={editTarget ? 'Edit Supplier' : 'Register New Supplier'}
-        size="md"
-      >
+      <Modal isOpen={supplierModalOpen} onClose={() => setSupplierModalOpen(false)} title={editTarget ? 'Edit Supplier' : 'Add Supplier'}>
         <form onSubmit={handleSaveSupplier} className="space-y-4">
           <Input
-            label="Supplier / Business Name *"
+            label="Supplier Name *"
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            placeholder="e.g. Apex Wholesale Goods Ltd"
+            onChange={(e) => setForm((prev) => ({ ...prev, name: e.target.value }))}
+            placeholder="e.g. ABC Beverages Ltd."
             error={errors.name}
+            autoFocus
           />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
               label="Contact Person"
               value={form.contact_person}
-              onChange={(e) => setForm((f) => ({ ...f, contact_person: e.target.value }))}
-              placeholder="e.g. Kwame Mensah"
+              onChange={(e) => setForm((prev) => ({ ...prev, contact_person: e.target.value }))}
+              placeholder="e.g. John Smith"
             />
             <Input
-              label="Phone Number"
+              label="Phone"
               value={form.phone}
-              onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
-              placeholder="e.g. 0241234567"
+              onChange={(e) => setForm((prev) => ({ ...prev, phone: e.target.value }))}
+              placeholder="e.g. 0244123456"
             />
           </div>
           <Input
-            label="Email Address"
+            label="Email"
             type="email"
             value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
-            placeholder="e.g. orders@apexwholesale.com"
-          />
-          <Input
-            label="Physical Address"
-            value={form.address}
-            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-            placeholder="e.g. Warehouse 4, Tema Industrial Area"
+            onChange={(e) => setForm((prev) => ({ ...prev, email: e.target.value }))}
+            placeholder="e.g. info@supplier.com"
           />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Address</label>
             <textarea
+              value={form.address}
+              onChange={(e) => setForm((prev) => ({ ...prev, address: e.target.value }))}
               rows={2}
-              value={form.notes}
-              onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-              placeholder="Payment terms, delivery schedules, etc."
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 resize-none"
+              placeholder="Physical warehouse/office location"
+              className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all placeholder:text-slate-400"
             />
           </div>
-          <div className="flex gap-3 justify-end pt-2">
-            <Button variant="secondary" type="button" onClick={() => setSupplierModalOpen(false)}>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setSupplierModalOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button variant="primary" type="submit" isLoading={saving}>
-              {editTarget ? 'Save Changes' : 'Register Supplier'}
+            <Button type="submit" variant="primary" isLoading={saving}>
+              {editTarget ? 'Save Changes' : 'Create Supplier'}
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Debt Repayment Modal */}
-      <Modal
-        isOpen={!!repaymentSupplier}
-        onClose={() => setRepaymentSupplier(null)}
-        title="Pay Supplier Debt"
-        size="sm"
-      >
-        {repaymentSupplier && (
-          <form onSubmit={handleRecordRepayment} className="space-y-4">
-            <div className="bg-red-50 border border-red-100 rounded-xl p-3">
-              <p className="text-xs text-red-600 font-medium">Current Balance Due</p>
-              <p className="text-2xl font-bold text-red-700 mt-0.5">
-                {formatCurrency(repaymentSupplier.outstanding_debt)}
-              </p>
-              <p className="text-xs text-red-500 mt-1">
-                Payments will be automatically allocated FIFO across the oldest unpaid orders.
-              </p>
+      {/* Repayment Modal */}
+      {repaymentSupplier && (
+        <Modal isOpen={!!repaymentSupplier} onClose={() => setRepaymentSupplier(null)} title={`Record Payment to ${repaymentSupplier.name}`} size="md">
+          <form onSubmit={handleConfirmRepayment} className="space-y-4">
+            <div className="bg-rose-50/80 border border-rose-100 rounded-xl p-3 flex justify-between items-center">
+              <div>
+                <p className="text-[10px] font-bold text-rose-700 uppercase">Outstanding Balance Owed</p>
+                <p className="text-xl font-bold text-rose-800">{formatCurrency(repaymentSupplier.outstanding_debt)}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRepaymentAmount(String(repaymentSupplier.outstanding_debt))}
+                className="text-xs bg-white border border-rose-200 text-rose-700 px-2.5 py-1 rounded-lg font-bold hover:bg-rose-50 transition"
+              >
+                Pay Full Balance
+              </button>
             </div>
 
             <Input
-              label="Repayment Amount *"
+              label="Payment Amount *"
               type="number"
-              step="0.01"
+              step="any"
               value={repaymentAmount}
               onChange={(e) => setRepaymentAmount(e.target.value)}
               placeholder="0.00"
-              required
+              autoFocus
             />
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Payment Method</label>
+              <label className="text-xs font-semibold text-slate-700 block mb-1.5">Payment Method *</label>
               <select
                 value={paymentMethod}
                 onChange={(e) => setPaymentMethod(e.target.value)}
-                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+                className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
               >
                 <option value="CASH">Cash</option>
                 <option value="MOBILE_MONEY">Mobile Money</option>
-                <option value="CARD">Bank / Card Transfer</option>
+                <option value="BANK_TRANSFER">Bank Transfer / Cheque</option>
               </select>
             </div>
 
             <Input
-              label="Reference / Check / Receipt #"
+              label="Reference / Check #"
               value={reference}
               onChange={(e) => setReference(e.target.value)}
-              placeholder="e.g. CHQ-88910 or MoMo Trans ID"
+              placeholder="Cheque # or Bank ref"
             />
 
-            <Input
-              label="Notes"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. Settlement for March shipments"
-            />
-
-            <div className="flex gap-3 justify-end pt-2">
-              <Button variant="secondary" type="button" onClick={() => setRepaymentSupplier(null)}>
+            <div className="flex justify-end gap-2.5 pt-2">
+              <Button variant="secondary" type="button" onClick={() => setRepaymentSupplier(null)} disabled={repaymentSubmitting}>
                 Cancel
               </Button>
-              <Button variant="success" type="submit" isLoading={repaymentSubmitting}>
-                Record Payment
+              <Button variant="primary" type="submit" isLoading={repaymentSubmitting}>
+                Confirm Payment
               </Button>
             </div>
           </form>
-        )}
-      </Modal>
+        </Modal>
+      )}
 
-      {/* Supplier Statement of Account Modal */}
-      <Modal
-        isOpen={!!statementSupplier}
-        onClose={() => { setStatementSupplier(null); setStatementData(null) }}
-        title={`Statement of Account: ${statementSupplier?.name || ''}`}
-        size="lg"
-      >
-        <div className="space-y-4">
-          {statementLoading ? (
-            <div className="py-12 text-center text-sm text-gray-500">Loading statement...</div>
-          ) : statementData ? (
-            <>
-              {/* Summary Cards */}
-              <div className="grid grid-cols-3 gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200">
-                <div title={formatCurrency(statementData.summary.total_purchased)}>
-                  <p className="text-xs text-gray-500">Total Invoiced</p>
-                  <p className="text-base font-bold text-gray-900 mt-0.5">
-                    {formatCompactCurrency(statementData.summary.total_purchased)}
-                  </p>
+      {/* Statement Modal */}
+      {statementSupplier && (
+        <Modal isOpen={!!statementSupplier} onClose={() => setStatementSupplier(null)} title={`Supplier Statement — ${statementSupplier.name}`} size="lg">
+          <div className="space-y-4">
+            {statementLoading ? (
+              <p className="text-xs text-slate-400 py-6 text-center">Loading statement data...</p>
+            ) : statementData ? (
+              <div className="space-y-3">
+                <div className="flex justify-between items-center bg-slate-50 p-3 rounded-xl border border-slate-200/80">
+                  <span className="text-xs font-semibold text-slate-600">Total Outstanding Balance</span>
+                  <span className="text-base font-bold text-rose-600">{formatCurrency(statementData.outstanding_debt || 0)}</span>
                 </div>
-                <div title={formatCurrency(statementData.summary.total_paid)}>
-                  <p className="text-xs text-gray-500">Total Settled</p>
-                  <p className="text-base font-bold text-success-600 mt-0.5">
-                    {formatCompactCurrency(statementData.summary.total_paid)}
-                  </p>
-                </div>
-                <div title={formatCurrency(statementData.summary.current_balance)}>
-                  <p className="text-xs text-gray-500">Current Balance Due</p>
-                  <p className={`text-base font-bold mt-0.5 ${statementData.summary.current_balance > 0 ? 'text-danger-600' : 'text-gray-900'}`}>
-                    {formatCompactCurrency(statementData.summary.current_balance)}
-                  </p>
-                </div>
-              </div>
-
-              {/* Statement Ledger Table */}
-              <div className="max-h-96 overflow-y-auto border border-gray-200 rounded-lg">
-                <table className="min-w-full divide-y divide-gray-200 text-sm">
-                  <thead className="bg-gray-50 sticky top-0">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Date</th>
-                      <th className="px-3 py-2 text-left font-medium text-gray-600">Reference / Description</th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-600">Billed (Debit)</th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-600">Paid (Credit)</th>
-                      <th className="px-3 py-2 text-right font-medium text-gray-600">Balance</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {statementData.statement.map((row, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-gray-500 whitespace-nowrap text-xs">
-                          {new Date(row.date).toLocaleDateString()}
-                        </td>
-                        <td className="px-3 py-2 text-gray-900">
-                          <p className="font-medium text-xs">{row.reference}</p>
-                          <p className="text-2xs text-gray-400">{row.description}</p>
-                        </td>
-                        <td className="px-3 py-2 text-right text-gray-900 font-mono text-xs">
-                          {row.debit > 0 ? formatCurrency(row.debit) : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right text-success-600 font-mono text-xs">
-                          {row.credit > 0 ? formatCurrency(row.credit) : '—'}
-                        </td>
-                        <td className="px-3 py-2 text-right font-bold font-mono text-xs text-gray-900">
-                          {formatCurrency(row.running_balance)}
-                        </td>
+                <div className="max-h-80 overflow-y-auto">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="text-left font-semibold text-slate-500 uppercase border-b border-slate-100">
+                        <th className="pb-2">Date</th>
+                        <th className="pb-2">Type</th>
+                        <th className="pb-2">Ref</th>
+                        <th className="pb-2 text-right">Amount</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {(statementData.transactions || []).map((t, i) => (
+                        <tr key={i}>
+                          <td className="py-2 text-slate-600">{new Date(t.date).toLocaleDateString()}</td>
+                          <td className="py-2"><Badge variant={t.type === 'PAYMENT' ? 'success' : 'default'}>{t.type}</Badge></td>
+                          <td className="py-2 font-mono text-slate-500">{t.reference || '—'}</td>
+                          <td className="py-2 text-right font-bold text-slate-900">{formatCurrency(t.amount)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </>
-          ) : (
-            <p className="text-sm text-gray-500">No statement history found.</p>
-          )}
-
-          <div className="flex justify-end pt-2">
-            <Button variant="secondary" onClick={() => setStatementSupplier(null)}>
-              Close
-            </Button>
+            ) : (
+              <p className="text-xs text-slate-400 py-6 text-center">No transaction records found</p>
+            )}
+            <div className="flex justify-end pt-2">
+              <Button variant="secondary" onClick={() => setStatementSupplier(null)}>
+                Close
+              </Button>
+            </div>
           </div>
-        </div>
-      </Modal>
+        </Modal>
+      )}
     </DashboardLayout>
   )
 }

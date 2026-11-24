@@ -95,35 +95,35 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
     <Modal isOpen={isOpen} onClose={onClose} title="Complete Payment" size="md">
       <div className="space-y-4">
         {/* Total Due & Customer Badge */}
-        <div className="bg-primary-50 border border-primary-100 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-gradient-to-br from-primary-50/90 via-indigo-50/50 to-primary-50/40 border border-primary-200/80 rounded-2xl p-4 flex items-center justify-between shadow-xs">
           <div>
-            <p className="text-xs text-primary-600 font-semibold uppercase tracking-wider">Amount Due</p>
-            <p className="text-3xl font-bold text-primary-800 mt-0.5">{formatCurrency(total)}</p>
+            <p className="text-3xs text-primary-700 font-bold uppercase tracking-wider">Amount Due</p>
+            <p className="text-3xl font-extrabold text-primary-950 tracking-tight mt-0.5">{formatCurrency(total)}</p>
           </div>
           <div className="text-right">
             {customer ? (
-              <div className="bg-white border border-primary-200 rounded-lg px-3 py-1.5 shadow-2xs">
-                <p className="text-xs font-bold text-gray-900">{customer.name}</p>
-                <p className="text-2xs text-success-700 font-medium">Registered Customer</p>
+              <div className="bg-white/90 backdrop-blur-sm border border-primary-200/80 rounded-xl px-3 py-1.5 shadow-2xs">
+                <p className="text-xs font-bold text-slate-900">{customer.name}</p>
+                <p className="text-3xs text-emerald-700 font-bold tracking-wide uppercase">Registered Customer</p>
               </div>
             ) : (
-              <div className="bg-gray-100 border border-gray-200 rounded-lg px-3 py-1.5">
-                <p className="text-xs font-medium text-gray-600">Walk-in Customer</p>
-                <p className="text-2xs text-gray-400">Credit disabled</p>
+              <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-1.5">
+                <p className="text-xs font-semibold text-slate-700">Walk-in Customer</p>
+                <p className="text-3xs text-slate-400 font-medium">Credit disabled</p>
               </div>
             )}
           </div>
         </div>
 
         {/* Payment Method Tabs */}
-        <div className="flex border-b border-gray-200">
+        <div className="flex border-b border-slate-200/80">
           <button
             type="button"
             onClick={() => { setPaymentMethod('CASH'); setErrors({}) }}
-            className={`flex-1 py-2.5 text-sm font-semibold border-b-2 transition ${
+            className={`flex-1 py-2.5 text-sm font-bold border-b-2 transition ${
               paymentMethod === 'CASH'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-primary-600 text-primary-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Cash / Partial Payment
@@ -131,10 +131,10 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
           <button
             type="button"
             onClick={() => { setPaymentMethod('CREDIT'); setErrors({}) }}
-            className={`flex-1 py-2.5 text-sm font-semibold border-b-2 transition ${
+            className={`flex-1 py-2.5 text-sm font-bold border-b-2 transition ${
               paymentMethod === 'CREDIT'
-                ? 'border-primary-600 text-primary-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700'
+                ? 'border-primary-600 text-primary-700'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
             }`}
           >
             Customer Credit Sale
@@ -142,7 +142,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
         </div>
 
         {errors.general && (
-          <div className="bg-danger-50 border border-danger-200 text-danger-700 rounded-lg p-3 text-xs">
+          <div className="bg-danger-50/90 border border-danger-200/80 text-danger-700 rounded-xl p-3 text-xs font-medium">
             {errors.general}
           </div>
         )}
@@ -174,7 +174,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
               <button
                 type="button"
                 onClick={() => { setAmountPaid(String(total)); setErrors({}) }}
-                className="px-2.5 py-1 text-xs font-medium text-primary-700 bg-primary-50 hover:bg-primary-100 rounded border border-primary-200 transition"
+                className="px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50/80 hover:bg-primary-100 rounded-xl border border-primary-200/80 transition shadow-2xs"
               >
                 Exact Amount ({formatCurrency(total)})
               </button>
@@ -182,20 +182,20 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
 
             {/* Change banner */}
             {paidEnough && (
-              <div className="flex justify-between items-center bg-success-50 border border-success-100 rounded-lg px-3 py-2">
-                <span className="text-sm text-success-700 font-medium">Change Returned</span>
-                <span className="font-bold text-success-700 text-lg">{formatCurrency(change)}</span>
+              <div className="flex justify-between items-center bg-emerald-50/80 border border-emerald-200/80 rounded-xl px-3.5 py-2.5 shadow-2xs">
+                <span className="text-sm text-emerald-800 font-semibold">Change Returned</span>
+                <span className="font-extrabold text-emerald-700 text-xl tracking-tight">{formatCurrency(change)}</span>
               </div>
             )}
 
             {/* Partial payment banner */}
             {isPartial && (
-              <div className="bg-warning-50 border border-warning-200 rounded-lg p-3 text-sm space-y-1">
-                <div className="flex justify-between text-warning-800 font-semibold">
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-sm space-y-1 shadow-2xs">
+                <div className="flex justify-between text-amber-900 font-semibold">
                   <span>Partial Payment:</span>
                   <span>{formatCurrency(cashVal)}</span>
                 </div>
-                <div className="flex justify-between text-danger-700 font-bold border-t border-warning-200 pt-1">
+                <div className="flex justify-between text-danger-700 font-bold border-t border-amber-200/60 pt-1">
                   <span>Balance Due (added to {customer.name}):</span>
                   <span>{formatCurrency(balanceDue)}</span>
                 </div>
@@ -208,11 +208,11 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
         {paymentMethod === 'CREDIT' && (
           <div className="space-y-3">
             {!customer ? (
-              <div className="bg-warning-50 border border-warning-200 rounded-xl p-4 text-center space-y-2">
-                <p className="text-sm font-semibold text-warning-800">
+              <div className="bg-amber-50/80 border border-amber-200/80 rounded-2xl p-4 text-center space-y-2 shadow-2xs">
+                <p className="text-sm font-bold text-amber-900">
                   Registered Customer Required
                 </p>
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-slate-600">
                   Credit sales cannot be issued to walk-in customers. Please select or quick-register a customer first.
                 </p>
                 <Button
@@ -228,10 +228,10 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
               </div>
             ) : (
               <div className="space-y-3">
-                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3">
-                  <p className="text-xs text-gray-500">Customer Account</p>
-                  <p className="text-sm font-bold text-gray-900">{customer.name}</p>
-                  <p className="text-xs text-gray-500">{customer.phone || customer.email || 'No phone recorded'}</p>
+                <div className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 shadow-2xs">
+                  <p className="text-3xs uppercase tracking-wider font-bold text-slate-500">Customer Account</p>
+                  <p className="text-sm font-bold text-slate-900 mt-0.5">{customer.name}</p>
+                  <p className="text-xs text-slate-500">{customer.phone || customer.email || 'No phone recorded'}</p>
                 </div>
 
                 <Input
@@ -244,12 +244,12 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
                   error={errors.deposit}
                 />
 
-                <div className="bg-danger-50 border border-danger-200 rounded-lg p-3">
+                <div className="bg-danger-50/80 border border-danger-200/80 rounded-xl p-3 shadow-2xs">
                   <div className="flex justify-between text-sm font-bold text-danger-800">
                     <span>Outstanding Debt to Record:</span>
                     <span>{formatCurrency(creditBalanceDue)}</span>
                   </div>
-                  <p className="text-2xs text-danger-600 mt-1">
+                  <p className="text-3xs text-danger-600 mt-1 font-medium">
                     This amount will be added to {customer.name}&apos;s ledger balance.
                   </p>
                 </div>
@@ -318,7 +318,7 @@ function QuickCustomerModal({ isOpen, onClose, onCustomerCreated }) {
     <Modal isOpen={isOpen} onClose={onClose} title="Quick Customer Registration" size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-danger-50 border border-danger-200 text-danger-700 rounded-lg p-3 text-xs">
+          <div className="bg-danger-50/90 border border-danger-200/80 text-danger-700 rounded-xl p-3 text-xs font-medium">
             {error}
           </div>
         )}
@@ -350,7 +350,7 @@ function QuickCustomerModal({ isOpen, onClose, onCustomerCreated }) {
           label="Address / Location"
           value={address}
           onChange={(e) => setAddress(e.target.value)}
-          placeholder="e.g. Accra Central Market"
+          placeholder="e.g. Colombo Central Market"
         />
 
         <div className="flex justify-end gap-3 pt-2">
@@ -480,7 +480,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
   return (
     <div ref={containerRef} className="relative flex-1">
       {customer && !isOpen ? (
-        <div className="flex items-center justify-between px-3 py-1.5 rounded-lg border border-primary-300 bg-primary-50/50 hover:bg-primary-50 transition">
+        <div className="flex items-center justify-between px-3 py-1.5 rounded-xl border border-primary-200/90 bg-primary-50/80 backdrop-blur-sm hover:bg-primary-50 transition shadow-2xs">
           <div
             onClick={() => {
               setIsOpen(true)
@@ -492,9 +492,9 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
               <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
             </svg>
             <div className="truncate">
-              <span className="text-sm font-semibold text-gray-900">{customer.name}</span>
+              <span className="text-xs font-bold text-slate-900">{customer.name}</span>
               {(customer.phone || customer.email) && (
-                <span className="text-xs text-gray-500 ml-1.5">
+                <span className="text-3xs text-slate-500 ml-1.5 font-medium">
                   ({customer.phone || customer.email})
                 </span>
               )}
@@ -506,7 +506,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
               e.stopPropagation()
               onSelect(null)
             }}
-            className="p-1 text-gray-400 hover:text-danger-600 rounded transition"
+            className="p-1 text-slate-400 hover:text-danger-600 rounded-lg hover:bg-danger-50 transition"
             title="Remove customer (Walk-in)"
             aria-label="Remove customer"
           >
@@ -517,7 +517,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
         </div>
       ) : (
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
+          <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
@@ -582,7 +582,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
               }
             }}
             placeholder="Search customer by name or phone (F5)..."
-            className="w-full pl-8 pr-8 py-1.5 text-sm rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+            className="w-full pl-8 pr-8 py-1.5 text-xs font-medium rounded-xl border border-slate-200/90 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white/90 shadow-2xs transition-all"
           />
           {query && (
             <button
@@ -591,7 +591,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
                 setQuery('')
                 setSelectedIndex(0)
               }}
-              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -604,7 +604,7 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
       {isOpen && (
         <div
           data-testid="customer-search-dropdown"
-          className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 divide-y divide-gray-100 max-h-72 overflow-y-auto"
+          className="absolute left-0 right-0 top-full mt-2 z-50 bg-white/95 backdrop-blur-xl rounded-2xl shadow-glass-xl border border-white/90 divide-y divide-slate-100 max-h-72 overflow-y-auto"
         >
           {/* Walk-in option */}
           <div
@@ -617,37 +617,37 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
               setIsOpen(false)
               setQuery('')
             }}
-            className={`px-3 py-2.5 cursor-pointer flex items-center justify-between transition select-none ${
+            className={`px-3.5 py-2.5 cursor-pointer flex items-center justify-between transition select-none ${
               safeSelectedIndex === 0
-                ? 'bg-primary-50 text-primary-950 font-semibold border-l-4 border-primary-600 pl-[8px]'
-                : 'text-gray-700 hover:bg-gray-50'
+                ? 'bg-primary-50/90 text-primary-950 font-bold border-l-4 border-primary-600 pl-[10px]'
+                : 'text-slate-700 hover:bg-slate-50/80'
             }`}
           >
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+            <div className="flex items-center gap-2.5">
+              <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center text-slate-500">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
               </div>
               <div>
-                <span className="text-sm font-medium">Walk-in Customer (None)</span>
-                <p className="text-2xs text-gray-400">Cash / Immediate payment only</p>
+                <span className="text-xs font-bold">Walk-in Customer (None)</span>
+                <p className="text-3xs text-slate-400 font-medium">Cash / Immediate payment only</p>
               </div>
             </div>
-            <span className="text-2xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded font-medium">Default</span>
+            <span className="text-3xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full font-bold">Default</span>
           </div>
 
           {/* Customer results */}
           {sortedResults.length === 0 && query.trim() ? (
             <div className="py-4 text-center px-3">
-              <p className="text-xs text-gray-500">No customers found for "{query}".</p>
+              <p className="text-xs text-slate-500 font-medium">No customers found for &quot;{query}&quot;.</p>
               <button
                 type="button"
                 onClick={() => {
                   setIsOpen(false)
                   onOpenQuickCustomer?.()
                 }}
-                className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 font-semibold"
+                className="mt-1.5 text-xs text-primary-600 hover:text-primary-800 font-bold"
               >
                 + Quick Register Customer
               </button>
@@ -670,23 +670,21 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
                     setIsOpen(false)
                     setQuery('')
                   }}
-                  className={`px-3 py-2.5 cursor-pointer flex items-center justify-between transition select-none ${
+                  className={`px-3.5 py-2.5 cursor-pointer flex items-center justify-between transition select-none ${
                     isSelected
-                      ? 'bg-primary-50 text-primary-950 font-semibold border-l-4 border-primary-600 pl-[8px]'
+                      ? 'bg-primary-50/90 text-primary-950 font-bold border-l-4 border-primary-600 pl-[10px]'
                       : isCurrentCustomer
-                      ? 'bg-primary-50/50 text-primary-900'
-                      : 'hover:bg-gray-50 text-gray-800'
+                      ? 'bg-primary-50/40 text-primary-900'
+                      : 'hover:bg-slate-50/80 text-slate-800'
                   }`}
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1 mr-2">
-                    <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-extrabold flex-shrink-0">
                       {(c.name || 'C').charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm text-gray-900 truncate">{c.name}</p>
-                      </div>
-                      <p className="text-xs text-gray-500 truncate mt-0.5">
+                      <p className="font-bold text-xs text-slate-900 truncate">{c.name}</p>
+                      <p className="text-3xs text-slate-400 truncate mt-0.5 font-medium">
                         {c.phone || c.email || 'No contact info'}
                       </p>
                     </div>
@@ -694,11 +692,11 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
 
                   <div className="text-right flex-shrink-0">
                     {Number(c.outstanding_debt || 0) > 0 ? (
-                      <span className="inline-block text-2xs px-2 py-0.5 rounded font-semibold bg-danger-50 text-danger-700 border border-danger-200">
+                      <span className="inline-block text-3xs px-2 py-0.5 rounded-full font-bold bg-danger-50 text-danger-700 border border-danger-200">
                         Debt: {c.outstanding_debt}
                       </span>
                     ) : (
-                      <span className="text-2xs text-success-700 font-medium">Clean balance</span>
+                      <span className="text-3xs text-emerald-700 font-bold">Clean balance</span>
                     )}
                   </div>
                 </div>
@@ -959,7 +957,7 @@ export function CartItem({
         }
       }
 
-      // If this is the LAST product line in the cart, advance focus to Additional  Discount
+      // If this is the LAST product line in the cart, advance focus to Additional Discount
       const cartDiscountInput = document.querySelector('[data-testid="additional-cart-discount-input"]')
       if (cartDiscountInput) {
         cartDiscountInput.focus()
@@ -972,25 +970,24 @@ export function CartItem({
   return (
     <div
       id={`cart-item-${item.product_id}`}
-      className={`py-2.5 px-2.5 rounded-lg border transition-all duration-300 ${
+      className={`p-3 rounded-2xl border transition-all duration-200 ${
         isLastAdded
-          ? 'border-primary-400 bg-primary-50/50 shadow-sm ring-1 ring-primary-200'
+          ? 'border-primary-400 bg-primary-50/70 shadow-glass-sm ring-2 ring-primary-400/30'
           : isSelected
-          ? 'border-primary-500 bg-primary-50/40 shadow-sm'
-          : 'border-transparent border-b-gray-100 last:border-b-0'
+          ? 'border-primary-400 bg-primary-50/50 shadow-glass-sm'
+          : 'border-slate-200/80 bg-white/80 hover:bg-white hover:border-slate-300 shadow-2xs'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-gray-900 truncate">{item.name}</p>
-          
+          <p className="text-sm font-bold text-slate-900 truncate">{item.name}</p>
 
-          <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/70 border border-primary-100 rounded-md px-2 py-1">
+          <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/60 border border-primary-100 rounded-xl px-2.5 py-1">
             {/* Left: Discount Checkbox */}
             <div className="flex items-center gap-1.5 min-w-0">
               {hasPredefinedDiscount ? (
                 <>
-                  <label className={`flex items-center gap-1.5 select-none text-primary-900 font-medium ${item.is_wholesale ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
+                  <label className={`flex items-center gap-1.5 select-none text-primary-950 font-bold ${item.is_wholesale ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}>
                     <input
                       type="checkbox"
                       data-testid={`predefined-discount-toggle-${item.product_id}`}
@@ -1007,24 +1004,24 @@ export function CartItem({
                           qtyInputRef.current?.select?.()
                         }
                       }}
-                      className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-gray-300"
+                      className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-slate-300"
                     />
                     <span>Discount</span>
                   </label>
                   {!item.is_wholesale && (
-                    <span className="font-bold text-success-700 ml-1 text-3xs">
+                    <span className="font-extrabold text-emerald-700 ml-1 text-3xs">
                       {isPredefinedApplied ? `-${formatCurrency(predefinedDiscountAmount)}` : 'Off'}
                     </span>
                   )}
                 </>
               ) : (
-                <span className="text-gray-400 font-normal">Standard</span>
+                <span className="text-slate-400 font-medium">Standard</span>
               )}
             </div>
 
             {/* Right: Wholesale Checkbox */}
             <div className="flex items-center gap-1.5 flex-shrink-0">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-primary-900 font-medium">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-primary-950 font-bold">
                 <input
                   type="checkbox"
                   data-testid={`wholesale-toggle-${item.product_id}`}
@@ -1040,12 +1037,12 @@ export function CartItem({
                       qtyInputRef.current?.select?.()
                     }
                   }}
-                  className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-gray-300"
+                  className="rounded text-primary-600 focus:ring-primary-500 h-3.5 w-3.5 border-slate-300"
                 />
                 <span>Wholesale</span>
               </label>
               {item.is_wholesale && (
-                <span className="font-bold text-primary-700 text-3xs bg-primary-100 px-1 py-0.2 rounded">
+                <span className="font-bold text-primary-700 text-3xs bg-primary-100 px-1.5 py-0.5 rounded-full">
                   Active
                 </span>
               )}
@@ -1054,7 +1051,7 @@ export function CartItem({
         </div>
         <button
           onClick={() => onRemove(item.product_id)}
-          className="text-gray-300 hover:text-danger-500 transition flex-shrink-0 p-1 rounded hover:bg-danger-50"
+          className="text-slate-300 hover:text-danger-500 transition flex-shrink-0 p-1 rounded-lg hover:bg-danger-50/60"
           title="Remove item"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1066,13 +1063,13 @@ export function CartItem({
       <div className="flex items-center justify-between mt-2.5 gap-2">
         {/* Quantity control with - / + buttons and Our Price editing box */}
         <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shadow-xs focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
+          <div className="flex items-center border border-slate-200/90 rounded-xl overflow-hidden bg-white shadow-2xs focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
             <button
               type="button"
               id={`cart-qty-dec-${index}`}
               data-testid={`qty-dec-${item.product_id}`}
               onClick={handleDecrement}
-              className="w-7 h-7 flex items-center justify-center text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200 transition font-bold select-none text-sm"
+              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition font-bold select-none text-sm"
               title="Decrease quantity (−)"
               aria-label="Decrease quantity"
             >
@@ -1092,7 +1089,7 @@ export function CartItem({
               onBlur={handleQuantityBlur}
               placeholder="0"
               aria-label={`Quantity for ${item.name}`}
-              className="w-14 text-center text-sm font-semibold text-gray-900 border-x border-gray-200 py-1 px-1 focus:outline-none bg-transparent"
+              className="w-14 text-center text-sm font-bold text-slate-900 border-x border-slate-200/90 py-1 px-1 focus:outline-none bg-transparent"
             />
             <button
               type="button"
@@ -1102,8 +1099,8 @@ export function CartItem({
               disabled={isAtStockLimit}
               className={`w-7 h-7 flex items-center justify-center transition font-bold select-none text-sm ${
                 isAtStockLimit
-                  ? 'text-gray-300 bg-gray-50 cursor-not-allowed'
-                  : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100 active:bg-gray-200'
+                  ? 'text-slate-300 bg-slate-50 cursor-not-allowed'
+                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200'
               }`}
               title={isAtStockLimit ? 'Stock limit reached' : 'Increase quantity (+)'}
               aria-label="Increase quantity"
@@ -1114,18 +1111,18 @@ export function CartItem({
 
           {/* Unit pill switchers for Weight / Volume */}
           {item.unit_category === 'WEIGHT' && (
-            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs">
+            <div className="flex rounded-xl border border-slate-200/90 overflow-hidden text-xs shadow-2xs">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'g')}
-                className={`px-2 py-1 font-medium transition ${item.unit === 'g' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`px-2 py-1 font-bold transition ${item.unit === 'g' ? 'bg-primary-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
               >
                 g
               </button>
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'kg')}
-                className={`px-2 py-1 font-medium transition ${item.unit === 'kg' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`px-2 py-1 font-bold transition ${item.unit === 'kg' ? 'bg-primary-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
               >
                 kg
               </button>
@@ -1133,18 +1130,18 @@ export function CartItem({
           )}
 
           {item.unit_category === 'VOLUME' && (
-            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs">
+            <div className="flex rounded-xl border border-slate-200/90 overflow-hidden text-xs shadow-2xs">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'ml')}
-                className={`px-2 py-1 font-medium transition ${item.unit === 'ml' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`px-2 py-1 font-bold transition ${item.unit === 'ml' ? 'bg-primary-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
               >
                 ml
               </button>
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'L')}
-                className={`px-2 py-1 font-medium transition ${item.unit === 'L' ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                className={`px-2 py-1 font-bold transition ${item.unit === 'L' ? 'bg-primary-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
               >
                 L
               </button>
@@ -1152,13 +1149,13 @@ export function CartItem({
           )}
 
           {item.unit_category === 'LENGTH' && (
-            <div className="flex rounded-md border border-gray-200 overflow-hidden text-xs">
+            <div className="flex rounded-xl border border-slate-200/90 overflow-hidden text-xs shadow-2xs">
               {['m', 'cm', 'yd'].map((u) => (
                 <button
                   key={u}
                   type="button"
                   onClick={() => onUnitChange(item.product_id, u)}
-                  className={`px-2 py-1 font-medium transition ${item.unit === u ? 'bg-primary-600 text-white' : 'bg-white text-gray-600 hover:bg-gray-50'}`}
+                  className={`px-2 py-1 font-bold transition ${item.unit === u ? 'bg-primary-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}
                 >
                   {u}
                 </button>
@@ -1167,12 +1164,12 @@ export function CartItem({
           )}
 
           {item.unit_category === 'COUNT' && (
-            <span className="text-xs text-gray-400 font-medium">{item.unit || item.base_unit || 'pcs'}</span>
+            <span className="text-xs text-slate-400 font-bold">{item.unit || item.base_unit || 'pcs'}</span>
           )}
 
           {/* Our Price editing box directly next to the product count box */}
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-0.5 shadow-xs focus-within:ring-2 focus-within:ring-primary-500 focus-within:border-primary-500">
-            <span className="text-xs text-gray-400 font-medium">@</span>
+          <div className="flex items-center gap-1 bg-white border border-slate-200/90 rounded-xl px-2 py-0.5 shadow-2xs focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
+            <span className="text-xs text-slate-400 font-bold">@</span>
             <input
               ref={ourPriceInputRef}
               data-testid={`cart-our-price-${item.product_id}`}
@@ -1239,16 +1236,16 @@ export function CartItem({
                   qtyInputRef.current?.select?.()
                 }
               }}
-              className="w-14 text-right text-xs font-semibold text-primary-800 bg-transparent focus:outline-none"
+              className="w-14 text-right text-xs font-bold text-primary-900 bg-transparent focus:outline-none"
             />
-            <span className="text-3xs text-gray-400 font-normal">/{item.pricing_unit || 'pcs'}</span>
+            <span className="text-3xs text-slate-400 font-medium">/{item.pricing_unit || 'pcs'}</span>
           </div>
 
           {/* Red Out of stock indicator beside the + button when stock limit is reached */}
           {isAtStockLimit && (
             <span
               data-testid={`out-of-stock-badge-${item.product_id}`}
-              className="text-xs font-semibold text-danger-600 bg-danger-50 border border-danger-200 px-1.5 py-0.5 rounded whitespace-nowrap"
+              className="text-3xs font-bold text-danger-700 bg-danger-50 border border-danger-200/80 px-2 py-0.5 rounded-full whitespace-nowrap shadow-2xs"
             >
               Out of stock
             </span>
@@ -1257,7 +1254,7 @@ export function CartItem({
 
         {/* Line total */}
         <div className="flex items-center gap-2.5">
-          <p className="text-sm font-bold text-gray-900 min-w-[70px] text-right">
+          <p className="text-sm font-extrabold text-slate-900 min-w-[70px] text-right tracking-tight">
             {formatCurrency(fromPesewas(lineTotalPesewas(item)))}
           </p>
         </div>
@@ -1760,19 +1757,22 @@ export default function POSPage() {
   }
 
   return (
-    <div className="flex h-screen bg-gray-100 overflow-hidden">
+    <div className="flex h-screen bg-slate-100/60 overflow-hidden relative selection:bg-primary-500 selection:text-white">
+      {/* Subtle ambient light gradient background */}
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_80%_at_50%_-20%,rgba(59,130,246,0.08),rgba(255,255,255,0))]" />
+
       {/* ── LEFT PANEL: Product Search ── */}
-      <div className="flex flex-col flex-1 min-w-0 p-4 gap-3">
+      <div className="flex flex-col flex-1 min-w-0 p-4 gap-3 relative z-10">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <img src="/logo.png" alt="NexTill" className="h-9 w-auto object-contain hidden sm:block" />
+            <img src="/logo.png" alt="NexTill" className="h-9 w-auto object-contain hidden sm:block drop-shadow-xs" />
             <div>
-              <h1 className="text-lg font-bold text-gray-900 leading-tight">Point of Sale</h1>
-              <p className="text-xs text-gray-400">
-                <kbd className="bg-gray-200 px-1 rounded text-xs">S</kbd> or <kbd className="bg-gray-200 px-1 rounded text-xs">F1</kbd> Search &nbsp;
-                <kbd className="bg-gray-200 px-1 rounded text-xs">F2</kbd> Pay &nbsp;
-                <kbd className="bg-gray-200 px-1 rounded text-xs">F4</kbd> Clear
+              <h1 className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">Point of Sale</h1>
+              <p className="text-xs text-slate-500 font-medium flex items-center gap-1.5 mt-0.5">
+                <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">S</kbd> or <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">F1</kbd> Search &nbsp;•&nbsp;
+                <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">F2</kbd> Pay &nbsp;•&nbsp;
+                <kbd className="px-1.5 py-0.5 rounded-md bg-white/80 border border-slate-200/80 text-3xs font-mono font-bold text-slate-600 shadow-2xs">F4</kbd> Clear
               </p>
             </div>
           </div>
@@ -1780,9 +1780,9 @@ export default function POSPage() {
             {['ADMIN', 'MANAGER'].includes(user?.role) && (
               <button
                 onClick={() => navigate('/dashboard')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-primary-300 hover:bg-primary-50 text-gray-700 hover:text-primary-700 transition text-xs font-medium shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/90 bg-white/80 backdrop-blur-md hover:border-primary-200 hover:bg-white text-slate-700 hover:text-primary-700 transition-all text-xs font-bold shadow-glass-sm hover:shadow-glass"
               >
-                <svg className="w-4 h-4 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <svg className="w-4 h-4 text-slate-500 group-hover:text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
                 </svg>
                 <span>Dashboard</span>
@@ -1790,13 +1790,13 @@ export default function POSPage() {
             )}
 
             <div className="text-right">
-              <p className="text-xs text-gray-400 leading-tight">{user?.role === 'CASHIER' ? 'Cashier' : user?.role}</p>
-              <p className="text-sm font-semibold text-gray-700 leading-tight">{user?.full_name}</p>
+              <p className="text-3xs font-bold uppercase tracking-wider text-primary-600 leading-tight">{user?.role === 'CASHIER' ? 'Cashier' : user?.role}</p>
+              <p className="text-sm font-bold text-slate-900 leading-tight mt-0.5">{user?.full_name}</p>
             </div>
 
             <button
               onClick={handleLogout}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white hover:border-danger-300 hover:bg-danger-50 text-gray-600 hover:text-danger-600 transition text-xs font-medium shadow-sm"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/90 bg-white/80 backdrop-blur-md hover:border-danger-200 hover:bg-danger-50/60 text-slate-600 hover:text-danger-600 transition-all text-xs font-bold shadow-glass-sm hover:shadow-glass"
               title="Sign out of POS"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1809,8 +1809,8 @@ export default function POSPage() {
 
         {/* Search bar */}
         <div ref={searchDropdownContainerRef} className="relative">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <div className="absolute inset-y-0 left-3.5 flex items-center pointer-events-none">
+            <svg className="w-4 h-4 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
@@ -1926,7 +1926,7 @@ export default function POSPage() {
               }
             }}
             placeholder="Search by name, SKU, or scan barcode… (S / F1)"
-            className="w-full pl-9 pr-8 py-3 rounded-xl border border-gray-200 bg-white shadow-sm text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+            className="w-full pl-10 pr-9 py-2.5 rounded-2xl border border-white/90 bg-white/90 backdrop-blur-md shadow-glass-sm text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all"
           />
           {searchQuery && (
             <button
@@ -1937,7 +1937,7 @@ export default function POSPage() {
                 setDropdownSelectedIndex(0)
                 searchRef.current?.focus()
               }}
-              className="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600"
+              className="absolute inset-y-0 right-3.5 flex items-center text-slate-400 hover:text-slate-600"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -1949,7 +1949,7 @@ export default function POSPage() {
           {showProductDropdown && searchDropdownResults.length > 0 && (
             <div
               data-testid="product-search-dropdown"
-              className="absolute left-0 right-0 top-full mt-1.5 z-50 bg-white rounded-xl shadow-2xl border border-gray-200 divide-y divide-gray-100 max-h-80 overflow-y-auto"
+              className="absolute left-0 right-0 top-full mt-2 z-50 bg-white/95 backdrop-blur-xl rounded-2xl shadow-glass-xl border border-white/90 divide-y divide-slate-100 max-h-80 overflow-y-auto"
             >
               {searchDropdownResults.map((product, idx) => {
                 const isSelected = idx === dropdownSelectedIndex
@@ -1971,10 +1971,10 @@ export default function POSPage() {
                       setDropdownSelectedIndex(0)
                       searchRef.current?.focus()
                     }}
-                    className={`flex items-center justify-between px-3.5 py-2.5 cursor-pointer transition select-none ${
+                    className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition select-none ${
                       isSelected
-                        ? 'bg-primary-50 text-primary-950 border-l-4 border-primary-600 pl-[10px]'
-                        : 'hover:bg-gray-50 text-gray-800'
+                        ? 'bg-primary-50/90 text-primary-950 border-l-4 border-primary-600 pl-[12px]'
+                        : 'hover:bg-slate-50/80 text-slate-800'
                     }`}
                   >
                     {/* Left: Thumbnail/Icon + Product Info */}
@@ -1983,27 +1983,27 @@ export default function POSPage() {
                         <img
                           src={product.image_url}
                           alt=""
-                          className="w-9 h-9 object-cover rounded-lg border border-gray-100 flex-shrink-0"
+                          className="w-10 h-10 object-cover rounded-xl border border-slate-100 flex-shrink-0 shadow-2xs"
                         />
                       ) : (
-                        <div className="w-9 h-9 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0 text-gray-400">
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 text-slate-400">
+                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                           </svg>
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-2">
-                          <span className="font-semibold text-sm truncate text-gray-900">
-                            {product.name} <span className="text-gray-400 font-normal text-xs">({product.sku || 'Product'})</span>
+                          <span className="font-bold text-sm truncate text-slate-900">
+                            {product.name} <span className="text-slate-400 font-normal text-xs">({product.sku || 'Product'})</span>
                           </span>
                           {product.unit_category && (
-                            <span className="text-3xs uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 flex-shrink-0">
+                            <span className="text-3xs uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 flex-shrink-0">
                               {product.base_unit || product.unit_category}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-gray-400 truncate flex items-center gap-2 mt-0.5">
+                        <div className="text-xs text-slate-400 truncate flex items-center gap-2 mt-0.5 font-medium">
                           {product.barcode && <span>Barcode: {product.barcode}</span>}
                         </div>
                       </div>
@@ -2013,15 +2013,15 @@ export default function POSPage() {
                     <div className="flex items-center gap-3 flex-shrink-0 text-right">
                       <div>
                         {isOut ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded text-2xs font-semibold bg-danger-50 text-danger-700 border border-danger-200">
+                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-3xs font-bold bg-danger-50 text-danger-700 border border-danger-200">
                             Out of Stock
                           </span>
                         ) : (
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded text-2xs font-medium ${
+                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-3xs font-bold ${
                               lowStock
-                                ? 'bg-warning-50 text-warning-800 border border-warning-200'
-                                : 'bg-success-50 text-success-800 border border-success-200'
+                                ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
                             }`}
                           >
                             {formatQuantityWithUnit(product.quantity, product.base_unit)}
@@ -2030,11 +2030,11 @@ export default function POSPage() {
                       </div>
                       <div className="min-w-[70px]">
                         {product.cost_price != null && product.cost_price !== '' && (
-                          <div className="text-2xs text-gray-400 font-normal leading-tight">
+                          <div className="text-3xs text-slate-400 font-medium leading-tight">
                             Cost: {formatCurrency(product.cost_price)}
                           </div>
                         )}
-                        <span className="text-sm font-bold text-primary-700">
+                        <span className="text-sm font-extrabold text-primary-700 tracking-tight">
                           {formatCurrency(currentPrice)}
                         </span>
                       </div>
@@ -2051,10 +2051,10 @@ export default function POSPage() {
           <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-hide">
             <button
               onClick={() => setSelectedCategory('ALL')}
-              className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+              className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-2xs ${
                 selectedCategory === 'ALL'
-                  ? 'bg-primary-600 text-white'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'
+                  ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow border border-transparent'
+                  : 'bg-white/80 backdrop-blur-md text-slate-600 border border-slate-200/80 hover:bg-white hover:text-slate-900'
               }`}
             >
               All
@@ -2063,10 +2063,10 @@ export default function POSPage() {
               <button
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
-                className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition ${
+                className={`shrink-0 px-3.5 py-1.5 rounded-full text-xs font-bold transition-all shadow-2xs ${
                   selectedCategory === cat.id
-                    ? 'bg-primary-600 text-white'
-                    : 'bg-white text-gray-600 border border-gray-200 hover:border-primary-300'
+                    ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow border border-transparent'
+                    : 'bg-white/80 backdrop-blur-md text-slate-600 border border-slate-200/80 hover:bg-white hover:text-slate-900'
                 }`}
               >
                 {cat.name}
@@ -2080,21 +2080,21 @@ export default function POSPage() {
           {isLoadingProducts && (
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
               {Array.from({ length: 12 }).map((_, i) => (
-                <div key={i} className="bg-white rounded-xl p-3 animate-pulse">
-                  <div className="w-full h-20 bg-gray-200 rounded-lg mb-2" />
-                  <div className="h-4 bg-gray-200 rounded mb-1" />
-                  <div className="h-3 bg-gray-100 rounded w-2/3" />
+                <div key={i} className="bg-white/80 backdrop-blur-md rounded-2xl p-3 border border-white/90 shadow-glass-sm animate-pulse">
+                  <div className="w-full h-24 bg-slate-200/80 rounded-xl mb-2.5" />
+                  <div className="h-4 bg-slate-200/80 rounded mb-1.5" />
+                  <div className="h-3 bg-slate-100 rounded w-2/3" />
                 </div>
               ))}
             </div>
           )}
 
           {!isLoadingProducts && products.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-              <svg className="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+            <div className="flex flex-col items-center justify-center py-16 text-slate-400">
+              <svg className="w-12 h-12 mb-2 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              <p className="text-sm">{searchQuery ? `No products found for "${searchQuery}"` : 'No products in this category'}</p>
+              <p className="text-sm font-semibold">{searchQuery ? `No products found for "${searchQuery}"` : 'No products in this category'}</p>
             </div>
           )}
 
@@ -2110,46 +2110,46 @@ export default function POSPage() {
                     data-testid={`product-card-${product.id}`}
                     onClick={() => handleAddProduct(product)}
                     disabled={isOut}
-                    className={`bg-white rounded-xl p-3 text-left shadow-sm border transition hover:shadow-md active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed ${
+                    className={`bg-white/85 backdrop-blur-md rounded-2xl p-3 text-left shadow-glass-sm border transition-all duration-200 hover:shadow-glass hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${
                       isSelected
-                        ? 'border-primary-500 ring-2 ring-primary-500 ring-offset-2'
+                        ? 'border-primary-500 ring-2 ring-primary-500/30 ring-offset-2 ring-offset-slate-50'
                         : isOut
-                        ? 'border-gray-100'
-                        : 'border-gray-100 hover:border-primary-200'
+                        ? 'border-slate-200/60'
+                        : 'border-white/90 hover:border-primary-200/80'
                     }`}
                   >
                     {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="w-full h-20 object-cover rounded-lg mb-2" />
+                      <img src={product.image_url} alt={product.name} className="w-full h-24 object-cover rounded-xl mb-2 border border-slate-100 shadow-2xs" />
                     ) : (
-                      <div className="w-full h-20 bg-gray-100 rounded-lg mb-2 flex items-center justify-center">
-                        <svg className="w-8 h-8 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+                      <div className="w-full h-24 bg-gradient-to-br from-slate-100 to-slate-50 rounded-xl mb-2 flex items-center justify-center border border-slate-100/80">
+                        <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                         </svg>
                       </div>
                     )}
-                    <p className="text-sm font-semibold text-gray-900 truncate">{product.name}</p>
-                    <p className="text-xs text-gray-400">{product.sku}</p>
-                    <p className="text-xs text-gray-400 mb-1">
+                    <p className="text-sm font-bold text-slate-900 truncate">{product.name}</p>
+                    <p className="text-xs font-mono text-slate-400">{product.sku}</p>
+                    <p className="text-2xs text-slate-400 mb-1 font-medium">
                       cost price: {product.cost_price != null && product.cost_price !== '' ? formatCurrency(product.cost_price) : '—'}
                     </p>
                     <div className="mt-1.5 space-y-1">
                       <div>
                         {Number(product.usual_price) > Number(product.our_price || product.price) && (
-                          <span className="text-xs text-gray-400 line-through mr-1 block">
+                          <span className="text-xs text-slate-400 line-through mr-1 block font-medium">
                             {formatCurrency(product.usual_price)}
                           </span>
                         )}
-                        <span className="text-sm font-bold text-primary-600 block">
+                        <span className="text-sm font-extrabold text-primary-700 block tracking-tight">
                           {formatCurrency(product.our_price || product.price)}
                           {product.pricing_unit && product.pricing_unit !== 'pcs' ? ` / ${product.pricing_unit}` : ''}
                         </span>
                       </div>
 
                       {/* Existing Quantity below the price */}
-                      <div className="flex items-center justify-between text-xs pt-0.5 border-t border-gray-100">
-                        <div className="flex items-center gap-1 text-gray-500">
-                          <span className="font-normal text-gray-400">Qty:</span>
-                          <span className={`font-semibold ${isOut ? 'text-danger-600' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'text-warning-600' : 'text-gray-800'}`}>
+                      <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-100">
+                        <div className="flex items-center gap-1 text-slate-500">
+                          <span className="font-normal text-slate-400 text-3xs">Qty:</span>
+                          <span className={`font-bold text-xs ${isOut ? 'text-danger-600' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'text-amber-600' : 'text-slate-800'}`}>
                             {formatQuantityWithUnit(product.quantity, product.base_unit)}
                           </span>
                         </div>
@@ -2167,14 +2167,16 @@ export default function POSPage() {
       </div>
 
       {/* ── RIGHT PANEL: Cart + Payment ── */}
-      <div className="w-[460px] xl:w-[500px] flex-shrink-0 bg-white border-l border-gray-200 flex flex-col shadow-xl">
+      <div className="w-[460px] xl:w-[500px] flex-shrink-0 bg-white/90 backdrop-blur-xl border-l border-white/80 flex flex-col shadow-glass-xl relative z-20">
         {/* Cart header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
           <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-primary-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-            </svg>
-            <h2 className="font-semibold text-gray-900">Cart</h2>
+            <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+            </div>
+            <h2 className="font-extrabold text-slate-900 tracking-tight">Cart</h2>
             {items.length > 0 && (
               <Badge variant="primary">
                 {distinct_items || items.length} distinct item{(distinct_items || items.length) !== 1 ? 's' : ''} ({total_quantity || items.reduce((s, i) => s + Number(i.quantity || 0), 0)} units)
@@ -2184,7 +2186,7 @@ export default function POSPage() {
           {items.length > 0 && (
             <button
               onClick={() => setShowClearConfirm(true)}
-              className="text-xs text-danger-500 hover:text-danger-700 transition"
+              className="text-xs font-bold text-danger-500 hover:text-danger-700 hover:bg-danger-50 px-2.5 py-1 rounded-lg transition"
               title="Clear cart (F4)"
             >
               Clear
@@ -2193,7 +2195,7 @@ export default function POSPage() {
         </div>
 
         {/* Inline customer selector with Quick Register button */}
-        <div className="px-4 py-2 border-b border-gray-100 flex items-center gap-2">
+        <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
           <InlineCustomerSelector
             customer={customer}
             customersList={allCustomers}
@@ -2203,10 +2205,10 @@ export default function POSPage() {
           <button
             type="button"
             onClick={() => setShowQuickCustomerModal(true)}
-            className="px-3 py-2 bg-primary-50 hover:bg-primary-100 text-primary-700 border border-primary-200 rounded-lg flex items-center gap-1 text-sm font-medium transition shadow-xs flex-shrink-0"
+            className="px-3 py-1.5 bg-primary-50/80 hover:bg-primary-100 text-primary-700 border border-primary-200/80 rounded-xl flex items-center gap-1 text-xs font-bold transition shadow-2xs flex-shrink-0"
             title="Quick Register Customer (+)"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
             <span>New</span>
@@ -2214,17 +2216,19 @@ export default function POSPage() {
         </div>
 
         {/* Cart items */}
-        <div ref={cartContainerRef} className="flex-1 overflow-y-auto px-4">
+        <div ref={cartContainerRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
           {items.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-gray-300 py-8">
-              <svg className="w-12 h-12 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-              </svg>
-              <p className="text-sm">Cart is empty</p>
-              <p className="text-xs">Search for products to add</p>
+            <div className="flex flex-col items-center justify-center h-full text-slate-300 py-12">
+              <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                </svg>
+              </div>
+              <p className="text-sm font-bold text-slate-600">Cart is empty</p>
+              <p className="text-xs text-slate-400 mt-0.5">Search for products to add</p>
             </div>
           ) : (
-            <div>
+            <div className="space-y-2">
               {items.map((item, idx) => (
                 <CartItem
                   key={item.product_id}
@@ -2253,10 +2257,10 @@ export default function POSPage() {
         </div>
 
         {/* Totals + actions */}
-        <div className="border-t border-gray-100 px-4 py-3 space-y-2.5">
+        <div className="border-t border-slate-100 px-5 py-3.5 space-y-3 bg-white/60 backdrop-blur-md">
           {/* Additional discount input */}
           <div className="flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-600 whitespace-nowrap">Additional Discount</label>
+            <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Additional Discount</label>
             <input
               type="text"
               inputMode="decimal"
@@ -2303,56 +2307,55 @@ export default function POSPage() {
                   if (items.length > 0) handleOpenPayment()
                 }
               }}
-              className="flex-1 text-right border border-gray-200 rounded-lg py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 font-medium bg-white"
+              className="flex-1 text-right border border-slate-200/90 rounded-xl py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 font-bold text-slate-900 bg-white/90 shadow-2xs transition-all"
             />
           </div>
 
           {/* Breakdown summary */}
-          <div className="space-y-1 pt-1 border-t border-gray-100 text-sm text-gray-600">
-            
+          <div className="space-y-1 pt-1.5 border-t border-slate-100 text-xs font-semibold text-slate-600">
             {Number(predefined_discounts || 0) > 0 && (
-              <div className="flex justify-between text-success-700">
+              <div className="flex justify-between text-emerald-700">
                 <span>Discount</span>
-                <span>-{formatCurrency(predefined_discounts)}</span>
+                <span className="font-bold">-{formatCurrency(predefined_discounts)}</span>
               </div>
             )}
             {(parseFloat(cartDiscount) || 0) > 0 && (
               <div className="flex justify-between text-danger-600">
                 <span>Additional Discount</span>
-                <span>-{formatCurrency(cartDiscount)}</span>
+                <span className="font-bold">-{formatCurrency(cartDiscount)}</span>
               </div>
             )}
             {tax > 0 && (
-              <div className="flex justify-between text-gray-500">
+              <div className="flex justify-between text-slate-500">
                 <span>Tax</span>
-                <span>{formatCurrency(tax)}</span>
+                <span className="font-bold">{formatCurrency(tax)}</span>
               </div>
             )}
           </div>
 
           {/* Total */}
-          <div className="flex justify-between items-center pt-2 border-t border-gray-100">
+          <div className="flex justify-between items-center pt-2.5 border-t border-slate-100">
             <div>
-              <span className="text-base font-bold text-gray-900 block leading-tight">Grand Total</span>
-              <span className="text-xs text-gray-400">
+              <span className="text-base font-extrabold text-slate-900 block leading-tight tracking-tight">Grand Total</span>
+              <span className="text-xs text-slate-400 font-medium">
                 {distinct_items || items.length} distinct item{(distinct_items || items.length) !== 1 ? 's' : ''} ({total_quantity || items.reduce((s, i) => s + Number(i.quantity || 0), 0)} units)
               </span>
             </div>
-            <span className="text-2xl font-bold text-primary-600">{formatCurrency(total)}</span>
+            <span className="text-3xl font-extrabold text-primary-700 tracking-tight">{formatCurrency(total)}</span>
           </div>
 
           {/* Charge button */}
           <Button
             variant="success"
             size="lg"
-            className="w-full text-base"
+            className="w-full text-base font-bold shadow-glass-md py-3.5"
             disabled={items.length === 0}
             onClick={handleOpenPayment}
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
             </svg>
-            Charge {items.length > 0 && formatCurrency(total)} <span className="ml-1 text-xs opacity-75">(F2)</span>
+            Charge {items.length > 0 && formatCurrency(total)} <span className="ml-1 text-xs opacity-80 font-normal">(F2)</span>
           </Button>
         </div>
       </div>
@@ -2397,7 +2400,7 @@ export default function POSPage() {
         title="Clear Cart"
         size="sm"
       >
-        <p className="text-sm text-gray-600 mb-4">Are you sure you want to clear all items from the cart? This cannot be undone.</p>
+        <p className="text-sm text-slate-600 mb-4 font-medium">Are you sure you want to clear all items from the cart? This cannot be undone.</p>
         <div className="flex gap-3">
           <Button variant="secondary" className="flex-1" onClick={() => setShowClearConfirm(false)}>Cancel</Button>
           <Button

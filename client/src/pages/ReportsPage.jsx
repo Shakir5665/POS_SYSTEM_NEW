@@ -15,6 +15,8 @@ import {
 import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
+import { PageHeader } from '../components/PageHeader'
+import { GlassCard } from '../components/GlassCard'
 import { reportsService } from '../services/reports'
 import { formatCurrency, formatCompactCurrency, formatCompactNumber } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
@@ -53,18 +55,30 @@ function Spinner() {
 }
 
 function KpiCard({ label, value, tooltip, subtitle, highlight = false, danger = false }) {
+  let borderColor = 'border-white/80'
+  let bgGradient = 'bg-white/80'
+  let valColor = 'text-slate-900'
+
+  if (danger) {
+    borderColor = 'border-red-200/60'
+    bgGradient = 'bg-gradient-to-br from-red-50/60 to-white/80'
+    valColor = 'text-red-600'
+  } else if (highlight) {
+    borderColor = 'border-primary-200/60'
+    bgGradient = 'bg-gradient-to-br from-blue-50/60 to-indigo-50/40'
+    valColor = 'text-primary-700'
+  }
+
   return (
     <div
-      className={`border rounded-xl p-5 shadow-xs ${
-        danger ? 'bg-danger-50/50 border-danger-200' : highlight ? 'bg-primary-50/50 border-primary-200' : 'bg-white border-gray-100'
-      }`}
+      className={`rounded-2xl p-5 backdrop-blur-md border ${borderColor} ${bgGradient} shadow-glass-sm transition-all duration-200 hover:shadow-glass hover:-translate-y-0.5`}
       title={tooltip}
     >
-      <p className="text-xs uppercase tracking-wider font-semibold text-gray-500">{label}</p>
-      <p className={`text-2xl font-bold mt-1 ${danger ? 'text-danger-700' : highlight ? 'text-primary-700' : 'text-gray-900'}`}>
+      <p className="text-xs uppercase tracking-wider font-bold text-slate-500">{label}</p>
+      <p className={`text-2xl font-black font-mono mt-1 ${valColor}`}>
         {value}
       </p>
-      {subtitle && <p className="text-2xs text-gray-400 mt-1">{subtitle}</p>}
+      {subtitle && <p className="text-2xs text-slate-400 mt-1">{subtitle}</p>}
     </div>
   )
 }
@@ -256,57 +270,53 @@ export default function ReportsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports & Business Analytics</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Financial performance, net revenue accounting, customer & supplier returns, and profitability
-          </p>
-        </div>
+        <PageHeader
+          title="Reports & Business Analytics"
+          subtitle="Financial performance, net revenue accounting, customer & supplier returns, and profitability"
+        />
 
         {/* Date range */}
-        <div className="bg-white border border-gray-100 rounded-xl p-4 shadow-sm flex flex-wrap items-end gap-4">
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 uppercase tracking-wide">Start Date</label>
+        <GlassCard className="p-4 flex flex-wrap items-end gap-4">
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Start Date</label>
             <input
               type="date"
               value={startDate}
               max={endDate}
               onChange={(e) => setStartDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="border border-slate-200/80 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white/90 shadow-2xs font-medium text-slate-800"
             />
           </div>
-          <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-gray-600 uppercase tracking-wide">End Date</label>
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">End Date</label>
             <input
               type="date"
               value={endDate}
               min={startDate}
               onChange={(e) => setEndDate(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
+              className="border border-slate-200/80 rounded-xl px-3.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white/90 shadow-2xs font-medium text-slate-800"
             />
           </div>
           <Button onClick={handleApply} isLoading={loading}>
             Apply Filters
           </Button>
-        </div>
+        </GlassCard>
 
         {/* Tabs */}
-        <div className="border-b border-gray-200">
-          <nav className="-mb-px flex gap-1 overflow-x-auto">
-            {TABS.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabChange(tab.id)}
-                className={`whitespace-nowrap px-4 py-2.5 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-primary-600 text-primary-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
+        <div className="flex gap-1.5 p-1 bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass-sm w-fit overflow-x-auto">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabChange(tab.id)}
+              className={`whitespace-nowrap px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+                activeTab === tab.id
+                  ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         {/* Tab content */}

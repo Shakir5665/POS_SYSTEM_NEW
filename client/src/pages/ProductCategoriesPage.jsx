@@ -128,9 +128,9 @@ export default function ProductCategoriesPage() {
       label: 'Category Name',
       render: (val, row) => (
         <div>
-          <p className="font-semibold text-gray-900">{val}</p>
+          <p className="font-bold text-slate-900">{val}</p>
           {row.description && (
-            <p className="text-xs text-gray-500 line-clamp-1">{row.description}</p>
+            <p className="text-xs text-slate-500 line-clamp-1 mt-0.5">{row.description}</p>
           )}
         </div>
       ),
@@ -141,7 +141,7 @@ export default function ProductCategoriesPage() {
       render: (val, row) => {
         const count = val?.products ?? row.product_count ?? 0
         return (
-          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200/60">
             {count} {count === 1 ? 'product' : 'products'}
           </span>
         )
@@ -151,14 +151,14 @@ export default function ProductCategoriesPage() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             size="sm"
             variant="ghost"
             onClick={() => openEditModal(row)}
             title="Edit Category"
           >
-            <svg className="w-4 h-4 text-gray-600 hover:text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-500 hover:text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             <span className="sr-only">Edit</span>
@@ -168,7 +168,7 @@ export default function ProductCategoriesPage() {
             variant="ghost"
             onClick={() => setDeleteTarget(row)}
             title="Delete Category"
-            className="text-danger-600 hover:text-danger-700 hover:bg-danger-50"
+            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -186,8 +186,8 @@ export default function ProductCategoriesPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Product Categories</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Product Categories</h1>
+            <p className="text-xs font-medium text-slate-500 mt-1">
               Organize products into hierarchical or grouped catalog categories.
             </p>
           </div>
@@ -200,7 +200,7 @@ export default function ProductCategoriesPage() {
         </div>
 
         {/* Search */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between gap-4">
+        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/90 shadow-glass-sm flex items-center justify-between gap-4">
           <div className="max-w-md w-full">
             <Input
               type="search"
@@ -212,27 +212,29 @@ export default function ProductCategoriesPage() {
               }}
             />
           </div>
-          <p className="text-xs text-gray-400">Total: {meta.total} categories</p>
+          <p className="text-xs font-medium text-slate-400">Total: {meta.total} categories</p>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <Table
-            columns={columns}
-            data={categories}
-            loading={loading}
-            emptyMessage="No product categories found."
-          />
-          {meta.total_pages > 1 && (
-            <div className="p-4 border-t border-gray-100">
-              <Pagination
-                page={page}
-                totalPages={meta.total_pages}
-                onPageChange={(p) => setPage(p)}
-              />
-            </div>
-          )}
-        </div>
+        <Table
+          columns={columns}
+          data={categories}
+          isLoading={loading}
+          emptyMessage="No product categories found."
+        />
+
+        {meta.total_pages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs font-medium text-slate-500">
+              Page {page} of {meta.total_pages} &mdash; {meta.total} categories
+            </p>
+            <Pagination
+              page={page}
+              total_pages={meta.total_pages}
+              onPageChange={(p) => setPage(p)}
+            />
+          </div>
+        )}
       </div>
 
       {/* Create / Edit Category Modal */}
@@ -243,43 +245,44 @@ export default function ProductCategoriesPage() {
       >
         <form onSubmit={handleSaveCategory} className="space-y-4">
           {formError && (
-            <div className="p-3 bg-danger-50 text-danger-700 text-xs rounded-lg border border-danger-200">
+            <div className="p-3 bg-rose-50 text-rose-700 text-xs font-medium rounded-xl border border-rose-200">
               {formError}
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Category Name <span className="text-danger-500">*</span>
-            </label>
-            <Input
-              value={formName}
-              onChange={(e) => setFormName(e.target.value)}
-              placeholder="e.g. Beverages, Electronics, Snacks"
-              required
-              autoFocus
-            />
-          </div>
+          <Input
+            label="Category Name *"
+            value={formName}
+            onChange={(e) => {
+              setFormName(e.target.value)
+              setFormError('')
+            }}
+            placeholder="e.g. Beverages, Electronics"
+            autoFocus
+          />
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Description (Optional)
-            </label>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Description (Optional)</label>
             <textarea
-              className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
-              rows={3}
               value={formDescription}
               onChange={(e) => setFormDescription(e.target.value)}
-              placeholder="Optional notes or details about this product category..."
+              placeholder="Short description for this category..."
+              rows={3}
+              className="block w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all placeholder:text-slate-400"
             />
           </div>
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setModalOpen(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
-              {editingCategory ? 'Save Changes' : 'Create Category'}
+            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+              {editingCategory ? 'Update Category' : 'Create Category'}
             </Button>
           </div>
         </form>
@@ -287,43 +290,34 @@ export default function ProductCategoriesPage() {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        isOpen={Boolean(deleteTarget)}
+        isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
-        title="Delete Product Category"
+        title="Delete Category"
+        size="sm"
       >
         <div className="space-y-4">
-          <div className="p-3 bg-warning-50 border border-warning-200 rounded-lg text-sm text-warning-800">
-            <p className="font-semibold">Safe Unlinking Notice</p>
-            <p className="text-xs mt-1">
-              Deleting this category will <strong>NOT</strong> delete any products.
-              {deleteTarget && (
-                <span>
-                  {' '}The <strong>{deleteTarget._count?.products ?? deleteTarget.product_count ?? 0} associated products</strong> will lose their category association and become unassigned.
-                </span>
-              )}
-            </p>
-          </div>
-
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete the category <strong>"{deleteTarget?.name}"</strong>?
+          <p className="text-sm text-slate-700">
+            Are you sure you want to delete category{' '}
+            <strong className="text-slate-900">&quot;{deleteTarget?.name}&quot;</strong>?
           </p>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setDeleteTarget(null)}
-              disabled={isDeleting}
-            >
+          {Number(deleteTarget?.product_count || 0) > 0 ? (
+            <div className="bg-amber-50/90 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-800">
+              <p className="font-bold">Associated Products Protection:</p>
+              <p className="mt-1 leading-relaxed">
+                This category currently has <strong>{deleteTarget.product_count} associated products</strong>. Deleting this category will NOT delete the products; their category will simply be set to Unassigned.
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-slate-500">
+              This action cannot be undone. Are you sure you want to proceed?
+            </p>
+          )}
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={handleDeleteCategory}
-              isLoading={isDeleting}
-            >
-              Confirm Delete
+            <Button variant="danger" onClick={handleDeleteCategory} isLoading={isDeleting}>
+              Delete Category
             </Button>
           </div>
         </div>

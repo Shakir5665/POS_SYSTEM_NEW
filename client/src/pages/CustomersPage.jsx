@@ -82,13 +82,21 @@ export default function CustomersPage() {
   function handleChange(e) {
     const { name, value } = e.target
     setForm((f) => ({ ...f, [name]: value }))
-    if (errors[name]) setErrors((e) => { const n = { ...e }; delete n[name]; return n })
+    if (errors[name])
+      setErrors((e) => {
+        const n = { ...e }
+        delete n[name]
+        return n
+      })
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
     const errs = validate(form)
-    if (Object.keys(errs).length) { setErrors(errs); return }
+    if (Object.keys(errs).length) {
+      setErrors(errs)
+      return
+    }
     setSaving(true)
     try {
       const payload = {
@@ -99,47 +107,52 @@ export default function CustomersPage() {
       }
       if (editTarget) {
         await customersService.update(editTarget.id, payload)
-        toast.success('Customer updated')
+        toast.success('Customer updated successfully')
       } else {
         await customersService.create(payload)
-        toast.success('Customer added')
+        toast.success('Customer created successfully')
       }
       closeModal()
       fetchCustomers()
     } catch (err) {
-      const msg = err?.response?.data?.error?.message ?? 'Failed to save customer'
-      toast.error(msg)
+      toast.error(err.response?.data?.error?.message ?? 'Failed to save customer')
     } finally {
       setSaving(false)
     }
   }
 
   const columns = [
-    { key: 'name', label: 'Name', render: (v) => <span className="font-medium text-gray-900">{v}</span> },
-    { key: 'phone', label: 'Phone', render: (v) => v ?? <span className="text-gray-400">—</span> },
-    { key: 'email', label: 'Email', render: (v) => v ?? <span className="text-gray-400">—</span> },
     {
-      key: 'loyalty_points',
-      label: 'Loyalty Points',
-      render: (v) => (
-        <span className="inline-flex items-center gap-1 text-primary-700 font-medium">
-          <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-          {v ?? 0}
+      key: 'name',
+      label: 'Customer Name',
+      render: (val, row) => (
+        <span
+          onClick={() => navigate(`/customers/${row.id}`)}
+          className="font-bold text-slate-900 hover:text-primary-600 hover:underline cursor-pointer transition-colors"
+        >
+          {val}
         </span>
       ),
     },
+    { key: 'phone', label: 'Phone', render: (v) => v || <span className="text-slate-400">—</span> },
+    { key: 'email', label: 'Email', render: (v) => v || <span className="text-slate-400">—</span> },
     {
-      key: 'total_purchases',
-      label: 'Total Purchases',
-      render: (v) => v != null ? formatCurrency(v) : <span className="text-gray-400">—</span>,
+      key: 'outstanding_debt',
+      label: 'Outstanding Debt',
+      render: (val) => {
+        const debt = Number(val || 0)
+        return (
+          <span className={`font-bold ${debt > 0 ? 'text-rose-600 font-mono' : 'text-slate-400'}`}>
+            {debt > 0 ? formatCurrency(debt) : '—'}
+          </span>
+        )
+      },
     },
     {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
           <Button size="sm" variant="ghost" onClick={() => navigate(`/customers/${row.id}`)}>
             View
           </Button>
@@ -153,57 +166,63 @@ export default function CustomersPage() {
 
   return (
     <DashboardLayout>
-      <div className="space-y-5">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage customer accounts and loyalty points</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Customers</h1>
+            <p className="text-xs font-medium text-slate-500 mt-1">Manage customer accounts, sales history, and credit balances.</p>
           </div>
-          <Button onClick={openAdd}>
+          <Button variant="primary" onClick={openAdd} className="flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            Register Customer
+            Add Customer
           </Button>
         </div>
 
         {/* Search */}
-        <div className="max-w-sm">
-          <Input
-            placeholder="Search by name, phone, or email..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/90 shadow-glass-sm flex items-center justify-between gap-4">
+          <div className="max-w-md w-full">
+            <Input
+              type="search"
+              placeholder="Search by name, phone, or email…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+          <p className="text-xs font-medium text-slate-400">Total: {customers.length} on page</p>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <Table columns={columns} data={customers} isLoading={loading} emptyMessage="No customers found." />
-        </div>
+        <Table
+          columns={columns}
+          data={customers}
+          isLoading={loading}
+          onRowClick={(row) => navigate(`/customers/${row.id}`)}
+          emptyMessage="No customers found. Try adjusting your search."
+        />
 
-        {/* Pagination */}
         {meta.total_pages > 1 && (
-          <div className="flex justify-end">
-            <Pagination page={meta.page ?? page} total_pages={meta.total_pages} onPageChange={setPage} />
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs font-medium text-slate-500">
+              Page {page} of {meta.total_pages}
+            </p>
+            <Pagination page={page} total_pages={meta.total_pages} onPageChange={setPage} />
           </div>
         )}
       </div>
 
       {/* Add / Edit Modal */}
-      <Modal
-        isOpen={modalOpen}
-        onClose={closeModal}
-        title={editTarget ? 'Edit Customer' : 'Register Customer'}
-      >
-        <form onSubmit={handleSubmit} className="space-y-4">
+      <Modal isOpen={modalOpen} onClose={closeModal} title={editTarget ? 'Edit Customer' : 'Add Customer'}>
+        <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <Input
             label="Full Name *"
             name="name"
             value={form.name}
             onChange={handleChange}
+            placeholder="e.g. Jane Doe"
             error={errors.name}
-            placeholder="e.g. Customer Name"
             autoFocus
           />
           <Input
@@ -211,8 +230,7 @@ export default function CustomersPage() {
             name="phone"
             value={form.phone}
             onChange={handleChange}
-            error={errors.phone}
-            placeholder="e.g. 075 295 8134"
+            placeholder="e.g. 0244123456"
           />
           <Input
             label="Email"
@@ -220,23 +238,25 @@ export default function CustomersPage() {
             type="email"
             value={form.email}
             onChange={handleChange}
-            error={errors.email}
-            placeholder="customer@example.com"
+            placeholder="e.g. jane@example.com"
           />
-          <Input
-            label="Address"
-            name="address"
-            value={form.address}
-            onChange={handleChange}
-            error={errors.address}
-            placeholder="e.g. Colombo, Kalmunai"
-          />
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={closeModal}>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Address</label>
+            <textarea
+              name="address"
+              value={form.address}
+              onChange={handleChange}
+              rows={2}
+              placeholder="e.g. 12 High Street, Accra"
+              className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all placeholder:text-slate-400"
+            />
+          </div>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" type="button" onClick={closeModal} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={saving}>
-              {editTarget ? 'Save Changes' : 'Add Customer'}
+            <Button type="submit" variant="primary" isLoading={saving}>
+              {editTarget ? 'Save Changes' : 'Create Customer'}
             </Button>
           </div>
         </form>

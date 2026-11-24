@@ -7,6 +7,9 @@ import { Modal } from '../components/Modal'
 import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
+import { PageHeader } from '../components/PageHeader'
+import { GlassCard } from '../components/GlassCard'
+import { MetricCard } from '../components/MetricCard'
 import { purchasesService } from '../services/purchases'
 import { suppliersService } from '../services/suppliers'
 import { productsService } from '../services/products'
@@ -588,55 +591,59 @@ export default function PurchasesPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Purchases & Vendor Returns</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Create vendor purchase orders, receive inventory, and return defective goods to suppliers
-            </p>
-          </div>
-          <Button variant="primary" onClick={openCreateModal}>
-            + New Purchase Order
-          </Button>
-        </div>
+        <PageHeader
+          title="Purchases & Vendor Returns"
+          subtitle="Create vendor purchase orders, receive inventory, and return defective goods to suppliers"
+          action={
+            <Button variant="primary" onClick={openCreateModal}>
+              + New Purchase Order
+            </Button>
+          }
+        />
 
         {/* Metric Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="bg-white rounded-xl border border-gray-200 p-4">
-            <p className="text-sm text-gray-500 font-medium">Total Orders</p>
-            <p className="text-2xl font-bold text-gray-900 mt-1">{meta.total || purchases.length}</p>
-            <p className="text-xs text-gray-400 mt-0.5">
-              Value: <span title={formatCurrency(totalPurchasesAmount)}>{formatCompactCurrency(totalPurchasesAmount)}</span>
-            </p>
-          </div>
-          <div className="bg-warning-50 rounded-xl border border-warning-100 p-4">
-            <p className="text-sm text-warning-700 font-medium">Pending Delivery</p>
-            <p className="text-2xl font-bold text-warning-700 mt-1">{pendingOrders}</p>
-            <p className="text-xs text-warning-500 mt-0.5">Ordered goods awaiting arrival</p>
-          </div>
-          <div className="bg-danger-50 rounded-xl border border-danger-100 p-4">
-            <p className="text-sm text-danger-700 font-medium">Total Payables Due</p>
-            <p className="text-2xl font-bold text-danger-700 mt-1" title={formatCurrency(totalPayablesDue)}>
-              {formatCompactCurrency(totalPayablesDue)}
-            </p>
-            <p className="text-xs text-danger-500 mt-0.5">Outstanding supplier balances</p>
-          </div>
+          <MetricCard
+            title="Total Orders"
+            value={meta.total || purchases.length}
+            subtitle={
+              <span>
+                Value: <strong className="text-slate-800" title={formatCurrency(totalPurchasesAmount)}>{formatCompactCurrency(totalPurchasesAmount)}</strong>
+              </span>
+            }
+          />
+          <MetricCard
+            title="Pending Delivery"
+            value={pendingOrders}
+            subtitle="Ordered goods awaiting arrival"
+            color="amber"
+          />
+          <MetricCard
+            title="Total Payables Due"
+            value={formatCompactCurrency(totalPayablesDue)}
+            subtitle="Outstanding supplier balances"
+            color="red"
+          />
         </div>
 
         {/* View Switcher: Purchase Orders vs Purchase Returns */}
-        <div className="flex gap-2 border-b border-gray-200 pb-2">
+        <div className="flex gap-1.5 p-1 bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass-sm w-fit">
           <button
             onClick={() => setActiveTab('ORDERS')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-              activeTab === 'ORDERS' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900'
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+              activeTab === 'ORDERS'
+                ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             Purchase Orders
           </button>
           <button
             onClick={() => setActiveTab('RETURNS')}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-              activeTab === 'RETURNS' ? 'bg-primary-50 text-primary-700' : 'text-gray-600 hover:text-gray-900'
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 ${
+              activeTab === 'RETURNS'
+                ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             Purchase Returns History
@@ -644,9 +651,9 @@ export default function PurchasesPage() {
         </div>
 
         {/* Filter Controls */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-xl border border-gray-200">
+        <GlassCard className="p-4 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
           {activeTab === 'ORDERS' ? (
-            <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+            <div className="flex gap-1 bg-slate-100/80 p-1 rounded-xl w-fit">
               {[
                 { key: 'ALL', label: 'All Orders' },
                 { key: 'ORDERED', label: 'Ordered' },
@@ -655,10 +662,10 @@ export default function PurchasesPage() {
                 <button
                   key={tab.key}
                   onClick={() => setOrderStatusTab(tab.key)}
-                  className={`px-3 py-1.5 text-xs font-medium rounded-lg transition ${
+                  className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
                     orderStatusTab === tab.key
-                      ? 'bg-white text-gray-900 shadow-xs'
-                      : 'text-gray-500 hover:text-gray-700'
+                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
+                      : 'text-slate-600 hover:text-slate-800'
                   }`}
                 >
                   {tab.label}
@@ -666,7 +673,7 @@ export default function PurchasesPage() {
               ))}
             </div>
           ) : (
-            <p className="text-xs font-semibold text-gray-600 uppercase tracking-wider">
+            <p className="text-xs font-bold text-slate-700 uppercase tracking-wider">
               Supplier Defect & Return Log
             </p>
           )}
@@ -675,7 +682,7 @@ export default function PurchasesPage() {
             <select
               value={selectedWarehouseFilter}
               onChange={(e) => setSelectedWarehouseFilter(e.target.value)}
-              className="px-3 py-1.5 text-xs border border-gray-300 rounded-lg bg-white"
+              className="px-3.5 py-2 text-xs border border-slate-200/80 rounded-xl bg-white/90 focus:outline-none focus:ring-2 focus:ring-primary-500/20 font-medium text-slate-800 shadow-2xs"
             >
               <option value="">All Warehouses</option>
               {warehouses.map((wh) => (
@@ -692,9 +699,9 @@ export default function PurchasesPage() {
                 placeholder={activeTab === 'ORDERS' ? 'Search PO # or supplier…' : 'Search return #…'}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-8 pr-8 py-1.5 text-xs bg-white border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                className="w-full pl-8 pr-8 py-2 text-xs bg-white/90 border border-slate-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 font-medium text-slate-800 shadow-2xs"
               />
-              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-gray-400">
+              <div className="absolute inset-y-0 left-0 pl-2.5 flex items-center pointer-events-none text-slate-400">
                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                 </svg>
@@ -703,40 +710,40 @@ export default function PurchasesPage() {
                 <button
                   type="button"
                   onClick={() => setSearch('')}
-                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-gray-400 hover:text-gray-600 text-xs"
+                  className="absolute inset-y-0 right-0 pr-2.5 flex items-center text-slate-400 hover:text-slate-600 text-xs"
                 >
                   ✕
                 </button>
               )}
             </div>
           </div>
-        </div>
+        </GlassCard>
 
         {/* Content Table */}
         {activeTab === 'ORDERS' ? (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <GlassCard className="overflow-hidden p-0 border border-white/80 shadow-glass-sm rounded-2xl">
             <Table
               columns={purchaseColumns}
               data={purchases}
               isLoading={loading}
               emptyMessage="No purchase orders found."
             />
-          </div>
+          </GlassCard>
         ) : (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <GlassCard className="overflow-hidden p-0 border border-white/80 shadow-glass-sm rounded-2xl">
             <Table
               columns={returnColumns}
               data={returnsList}
               isLoading={returnsLoading}
               emptyMessage="No purchase returns recorded."
             />
-          </div>
+          </GlassCard>
         )}
 
         {/* Pagination */}
         {activeTab === 'ORDERS' && meta.total_pages > 1 && (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500 font-medium">
               Page {meta.page} of {meta.total_pages} &mdash; {meta.total} orders
             </p>
             <Pagination page={meta.page} total_pages={meta.total_pages} onPageChange={setPage} />
@@ -744,7 +751,7 @@ export default function PurchasesPage() {
         )}
         {activeTab === 'RETURNS' && returnsMeta.total_pages > 1 && (
           <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-slate-500 font-medium">
               Page {returnsMeta.page} of {returnsMeta.total_pages} &mdash; {returnsMeta.total} returns
             </p>
             <Pagination page={returnsMeta.page} total_pages={returnsMeta.total_pages} onPageChange={setReturnsPage} />

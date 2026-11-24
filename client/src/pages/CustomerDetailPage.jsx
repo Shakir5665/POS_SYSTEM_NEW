@@ -27,9 +27,9 @@ const STATUS_BADGE = {
 
 function InfoRow({ label, value }) {
   return (
-    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 py-3 border-b border-gray-100 last:border-0">
-      <dt className="text-sm font-medium text-gray-500 sm:w-36 flex-shrink-0">{label}</dt>
-      <dd className="text-sm text-gray-900">{value ?? <span className="text-gray-400">—</span>}</dd>
+    <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 py-2.5 border-b border-slate-100/80 last:border-0">
+      <dt className="text-xs font-semibold text-slate-500 sm:w-36 flex-shrink-0">{label}</dt>
+      <dd className="text-xs font-medium text-slate-900">{value ?? <span className="text-slate-400">—</span>}</dd>
     </div>
   )
 }
@@ -81,75 +81,77 @@ function DebtRepaymentModal({ isOpen, onClose, customer, onSuccess }) {
     <Modal isOpen={isOpen} onClose={onClose} title={`Record Debt Repayment — ${customer?.name}`} size="md">
       <form onSubmit={handleSubmit} className="space-y-4">
         {error && (
-          <div className="bg-danger-50 border border-danger-200 text-danger-700 rounded-lg p-3 text-xs">
+          <div className="bg-rose-50/90 border border-rose-200 text-rose-700 rounded-xl p-3 text-xs font-medium">
             {error}
           </div>
         )}
 
-        <div className="bg-primary-50 border border-primary-100 rounded-xl p-3 flex justify-between items-center">
+        <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-4 flex justify-between items-center">
           <div>
-            <p className="text-2xs text-primary-600 font-semibold uppercase">Current Outstanding Debt</p>
-            <p className="text-xl font-bold text-danger-700">{formatCurrency(maxDebt)}</p>
+            <p className="text-[10px] text-primary-700 font-bold uppercase tracking-wider">Current Outstanding Debt</p>
+            <p className="text-2xl font-bold text-rose-600 mt-0.5">{formatCurrency(maxDebt)}</p>
           </div>
           <button
             type="button"
-            onClick={() => { setAmount(String(maxDebt)); setError('') }}
-            className="text-xs bg-white border border-primary-200 text-primary-700 px-2.5 py-1 rounded-md font-medium hover:bg-primary-50 transition"
+            onClick={() => {
+              setAmount(String(maxDebt))
+              setError('')
+            }}
+            className="text-xs bg-white border border-blue-200 text-primary-700 px-3 py-1.5 rounded-xl font-bold hover:bg-blue-50 shadow-2xs transition"
           >
             Pay Full Debt
           </button>
         </div>
 
         <Input
-          label="Amount to Pay *"
+          label="Repayment Amount *"
           type="number"
           step="any"
           value={amount}
-          onChange={(e) => { setAmount(e.target.value); setError('') }}
+          onChange={(e) => {
+            setAmount(e.target.value)
+            setError('')
+          }}
           placeholder="0.00"
           autoFocus
-          required
         />
 
         <div>
-          <label className="block text-xs font-medium text-gray-700 mb-1">Payment Method</label>
-          <div className="grid grid-cols-3 gap-2">
-            {['CASH', 'MOBILE_MONEY', 'CARD'].map((m) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setPaymentMethod(m)}
-                className={`py-2 text-xs font-semibold rounded-lg border transition ${
-                  paymentMethod === m
-                    ? 'border-primary-600 bg-primary-50 text-primary-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
-                }`}
-              >
-                {m.replace('_', ' ')}
-              </button>
-            ))}
-          </div>
+          <label className="text-xs font-semibold text-slate-700 block mb-1.5">Payment Method *</label>
+          <select
+            value={paymentMethod}
+            onChange={(e) => setPaymentMethod(e.target.value)}
+            className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
+          >
+            <option value="CASH">Cash</option>
+            <option value="MOBILE_MONEY">Mobile Money</option>
+            <option value="CARD">Bank Card</option>
+          </select>
         </div>
 
         <Input
-          label="Payment Reference / Receipt #"
+          label="Transaction Reference / Note"
           value={reference}
           onChange={(e) => setReference(e.target.value)}
-          placeholder="e.g. Bank slip, MoMo Txn ID"
+          placeholder="e.g. Receipt #, MoMo Ref"
         />
 
-        <Input
-          label="Notes"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Optional payment notes"
-        />
+        <div>
+          <label className="text-xs font-semibold text-slate-700 block mb-1.5">Internal Notes (Optional)</label>
+          <textarea
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            rows={2}
+            placeholder="Cash collected at counter..."
+            className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all placeholder:text-slate-400"
+          />
+        </div>
 
-        <div className="flex justify-end gap-3 pt-2">
+        <div className="flex justify-end gap-2.5 pt-2 border-t border-slate-100">
           <Button variant="secondary" type="button" onClick={onClose} disabled={isLoading}>
             Cancel
           </Button>
-          <Button variant="success" type="submit" isLoading={isLoading}>
+          <Button variant="primary" type="submit" isLoading={isLoading}>
             Confirm Repayment
           </Button>
         </div>
@@ -163,490 +165,268 @@ export default function CustomerDetailPage() {
   const navigate = useNavigate()
 
   const [customer, setCustomer] = useState(null)
-  const [activeTab, setActiveTab] = useState('purchases') // purchases | credit_sales | repayments | statement
+  const [sales, setSales] = useState([])
+  const [salesMeta, setSalesMeta] = useState({ page: 1, total_pages: 1 })
+  const [salesPage, setSalesPage] = useState(1)
 
-  // Purchases
-  const [purchases, setPurchases] = useState([])
-  const [purchasesMeta, setPurchasesMeta] = useState({ page: 1, total_pages: 1 })
-  const [purchasesPage, setPurchasesPage] = useState(1)
-  const [loadingPurchases, setLoadingPurchases] = useState(true)
+  const [payments, setPayments] = useState([])
+  const [paymentsMeta, setPaymentsMeta] = useState({ page: 1, total_pages: 1 })
+  const [paymentsPage, setPaymentsPage] = useState(1)
 
-  // Credit Sales
-  const [creditSales, setCreditSales] = useState([])
-  const [creditMeta, setCreditMeta] = useState({ page: 1, total_pages: 1 })
-  const [creditPage, setCreditPage] = useState(1)
-  const [loadingCreditSales, setLoadingCreditSales] = useState(false)
-
-  // Debt Repayments
-  const [repayments, setRepayments] = useState([])
-  const [repaymentsMeta, setRepaymentsMeta] = useState({ page: 1, total_pages: 1 })
-  const [repaymentsPage, setRepaymentsPage] = useState(1)
-  const [loadingRepayments, setLoadingRepayments] = useState(false)
-
-  // Statement
-  const [statementData, setStatementData] = useState(null)
-  const [loadingStatement, setLoadingStatement] = useState(false)
-
-  const [loadingCustomer, setLoadingCustomer] = useState(true)
-  const [error, setError] = useState(null)
-  const [showRepaymentModal, setShowRepaymentModal] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState('sales')
+  const [isRepaymentOpen, setIsRepaymentOpen] = useState(false)
 
   const fetchCustomer = useCallback(async () => {
-    setLoadingCustomer(true)
     try {
       const res = await customersService.get(id)
       setCustomer(res.data?.data ?? res.data)
     } catch {
-      setError('Customer not found or could not be loaded.')
-    } finally {
-      setLoadingCustomer(false)
+      toast.error('Failed to load customer profile')
+      navigate('/customers')
     }
-  }, [id])
+  }, [id, navigate])
+
+  const fetchSales = useCallback(async () => {
+    try {
+      const res = await customersService.sales(id, { page: salesPage, per_page: 10 })
+      setSales(res.data?.data ?? res.data ?? [])
+      setSalesMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
+    } catch {
+      // non-fatal
+    }
+  }, [id, salesPage])
+
+  const fetchPayments = useCallback(async () => {
+    try {
+      const res = await customersService.payments(id, { page: paymentsPage, per_page: 10 })
+      setPayments(res.data?.data ?? res.data ?? [])
+      setPaymentsMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
+    } catch {
+      // non-fatal
+    }
+  }, [id, paymentsPage])
 
   useEffect(() => {
-    fetchCustomer()
-  }, [fetchCustomer])
+    setLoading(true)
+    Promise.all([fetchCustomer(), fetchSales(), fetchPayments()]).finally(() => setLoading(false))
+  }, [fetchCustomer, fetchSales, fetchPayments])
 
-  const fetchPurchases = useCallback(async () => {
-    setLoadingPurchases(true)
-    try {
-      const res = await customersService.purchases(id, { page: purchasesPage, per_page: 20 })
-      setPurchases(res.data?.data ?? res.data ?? [])
-      setPurchasesMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
-    } catch {
-      toast.error('Failed to load purchase history')
-    } finally {
-      setLoadingPurchases(false)
-    }
-  }, [id, purchasesPage])
-
-  const fetchCreditSales = useCallback(async () => {
-    setLoadingCreditSales(true)
-    try {
-      const res = await customersService.creditSales(id, { page: creditPage, per_page: 20 })
-      setCreditSales(res.data?.data ?? res.data ?? [])
-      setCreditMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
-    } catch {
-      toast.error('Failed to load credit sales')
-    } finally {
-      setLoadingCreditSales(false)
-    }
-  }, [id, creditPage])
-
-  const fetchRepayments = useCallback(async () => {
-    setLoadingRepayments(true)
-    try {
-      const res = await customersService.payments(id, { page: repaymentsPage, per_page: 20 })
-      setRepayments(res.data?.data ?? res.data ?? [])
-      setRepaymentsMeta(res.data?.meta ?? { page: 1, total_pages: 1 })
-    } catch {
-      toast.error('Failed to load debt repayments')
-    } finally {
-      setLoadingRepayments(false)
-    }
-  }, [id, repaymentsPage])
-
-  const fetchStatement = useCallback(async () => {
-    setLoadingStatement(true)
-    try {
-      const res = await customersService.statement(id)
-      setStatementData(res.data?.data ?? res.data)
-    } catch {
-      toast.error('Failed to load customer statement')
-    } finally {
-      setLoadingStatement(false)
-    }
-  }, [id])
-
-  useEffect(() => {
-    if (activeTab === 'purchases') fetchPurchases()
-    else if (activeTab === 'credit_sales') fetchCreditSales()
-    else if (activeTab === 'repayments') fetchRepayments()
-    else if (activeTab === 'statement') fetchStatement()
-  }, [activeTab, fetchPurchases, fetchCreditSales, fetchRepayments, fetchStatement])
-
-  function handleRepaymentSuccess() {
-    fetchCustomer()
-    if (activeTab === 'credit_sales') fetchCreditSales()
-    else if (activeTab === 'repayments') fetchRepayments()
-    else if (activeTab === 'statement') fetchStatement()
-    else fetchPurchases()
+  if (loading && !customer) {
+    return (
+      <DashboardLayout>
+        <div className="p-12 text-center text-slate-500">
+          <svg className="animate-spin h-8 w-8 text-primary-600 mx-auto mb-3" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+          </svg>
+          <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Loading customer account...</span>
+        </div>
+      </DashboardLayout>
+    )
   }
 
-  // Purchases columns
-  const purchaseColumns = [
+  const debt = Number(customer?.outstanding_debt || 0)
+
+  const salesColumns = [
     {
-      key: 'transaction_id',
-      label: 'Transaction ID',
-      render: (v) => <span className="font-mono text-xs text-primary-700 font-medium">{v}</span>,
+      key: 'invoice_number',
+      label: 'Invoice #',
+      render: (v) => <span className="font-mono font-bold text-slate-900">{v || '—'}</span>,
     },
     {
       key: 'created_at',
       label: 'Date',
-      render: (v) =>
-        v
-          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '—',
-    },
-    {
-      key: 'items_count',
-      label: 'Items',
-      render: (v) => v ?? '—',
+      render: (v) => (v ? new Date(v).toLocaleDateString() : '—'),
     },
     {
       key: 'total_amount',
       label: 'Total',
-      render: (v) => <span className="font-semibold">{formatCurrency(v ?? 0)}</span>,
-    },
-    {
-      key: 'payment_method',
-      label: 'Payment',
-      render: (v) => v ? <Badge variant={PAYMENT_BADGE[v] ?? 'default'}>{v.replace('_', ' ')}</Badge> : '—',
-    },
-  ]
-
-  // Credit Sales columns
-  const creditColumns = [
-    {
-      key: 'transaction_id',
-      label: 'Transaction ID',
-      render: (v) => <span className="font-mono text-xs text-primary-700 font-medium">{v}</span>,
-    },
-    {
-      key: 'created_at',
-      label: 'Date',
-      render: (v) =>
-        v
-          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '—',
-    },
-    {
-      key: 'total_amount',
-      label: 'Total Invoice',
-      render: (v) => <span className="font-semibold">{formatCurrency(v ?? 0)}</span>,
+      render: (v) => <span className="font-semibold text-slate-900">{formatCurrency(v)}</span>,
     },
     {
       key: 'amount_paid',
-      label: 'Amount Paid',
-      render: (v) => <span className="text-success-700 font-medium">{formatCurrency(v ?? 0)}</span>,
-    },
-    {
-      key: 'balance_due',
-      label: 'Balance Due',
-      render: (v) => (
-        <span className={`font-bold ${Number(v) > 0 ? 'text-danger-600' : 'text-gray-400'}`}>
-          {formatCurrency(v ?? 0)}
-        </span>
-      ),
+      label: 'Paid',
+      render: (v) => <span className="text-emerald-700 font-medium">{formatCurrency(v)}</span>,
     },
     {
       key: 'payment_status',
       label: 'Status',
-      render: (v) => <Badge variant={STATUS_BADGE[v] ?? 'default'}>{v ? v.replace('_', ' ') : '—'}</Badge>,
-    },
-  ]
-
-  // Repayments columns
-  const repaymentColumns = [
-    {
-      key: 'created_at',
-      label: 'Date',
-      render: (v) =>
-        v
-          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
-          : '—',
-    },
-    {
-      key: 'amount',
-      label: 'Amount Paid',
-      render: (v) => <span className="font-bold text-success-700">{formatCurrency(v ?? 0)}</span>,
+      render: (v) => <Badge variant={STATUS_BADGE[v] || 'default'}>{v}</Badge>,
     },
     {
       key: 'payment_method',
       label: 'Method',
-      render: (v) => <Badge variant={PAYMENT_BADGE[v] ?? 'default'}>{v?.replace('_', ' ') || 'CASH'}</Badge>,
-    },
-    {
-      key: 'reference',
-      label: 'Reference / Notes',
-      render: (v, row) => (
-        <div className="text-xs">
-          <p className="font-mono text-gray-800">{v || '—'}</p>
-          {row.notes && <p className="text-gray-400">{row.notes}</p>}
-        </div>
-      ),
-    },
-    {
-      key: 'user',
-      label: 'Received By',
-      render: (v) => <span className="text-xs text-gray-600">{v?.full_name || 'Staff'}</span>,
+      render: (v) => <Badge variant={PAYMENT_BADGE[v] || 'default'}>{v}</Badge>,
     },
   ]
 
-  // Statement columns
-  const statementColumns = [
+  const paymentColumns = [
     {
-      key: 'date',
+      key: 'created_at',
       label: 'Date',
-      render: (v) =>
-        v
-          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '—',
+      render: (v) => (v ? new Date(v).toLocaleString() : '—'),
+    },
+    {
+      key: 'amount',
+      label: 'Amount Paid',
+      render: (v) => <span className="font-bold text-emerald-700">{formatCurrency(v)}</span>,
+    },
+    {
+      key: 'payment_method',
+      label: 'Method',
+      render: (v) => <Badge variant={PAYMENT_BADGE[v] || 'default'}>{v}</Badge>,
     },
     {
       key: 'reference',
       label: 'Reference',
-      render: (v, row) => (
-        <div>
-          <span className="font-mono text-xs text-primary-700 font-medium">{v}</span>
-          <p className="text-2xs text-gray-400">{row.description}</p>
-        </div>
-      ),
+      render: (v) => <span className="font-mono text-xs">{v || '—'}</span>,
     },
     {
-      key: 'debit',
-      label: 'Debit (+Debt)',
-      render: (v) => v > 0 ? <span className="text-danger-600 font-semibold">+{formatCurrency(v)}</span> : <span className="text-gray-300">—</span>,
-    },
-    {
-      key: 'credit',
-      label: 'Credit (-Payment)',
-      render: (v) => v > 0 ? <span className="text-success-700 font-semibold">-{formatCurrency(v)}</span> : <span className="text-gray-300">—</span>,
-    },
-    {
-      key: 'running_balance',
-      label: 'Running Balance',
-      render: (v) => (
-        <span className={`font-bold ${v > 0 ? 'text-danger-700' : 'text-gray-700'}`}>
-          {formatCurrency(v ?? 0)}
-        </span>
-      ),
+      key: 'notes',
+      label: 'Notes',
+      render: (v) => <span className="text-slate-500 text-xs">{v || '—'}</span>,
     },
   ]
 
   return (
     <DashboardLayout>
       <div className="space-y-6">
-        {/* Back button */}
+        {/* Header */}
         <div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/customers')}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+          <button
+            type="button"
+            onClick={() => navigate('/customers')}
+            className="text-xs font-semibold text-slate-500 hover:text-primary-600 flex items-center gap-1.5 mb-2 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back to Customers
-          </Button>
+          </button>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-slate-900">{customer?.name}</h1>
+              <p className="text-xs font-medium text-slate-400 mt-0.5">Account ID: {customer?.id}</p>
+            </div>
+            {debt > 0 && (
+              <Button variant="primary" onClick={() => setIsRepaymentOpen(true)}>
+                Record Debt Repayment
+              </Button>
+            )}
+          </div>
         </div>
 
-        {error && (
-          <div className="bg-danger-50 border border-danger-200 text-danger-700 rounded-lg px-4 py-3 text-sm">
-            {error}
+        {/* Profile & KPI Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Customer Details Card */}
+          <div className="md:col-span-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6">
+            <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3">Customer Information</h2>
+            <dl className="divide-y divide-slate-100">
+              <InfoRow label="Full Name" value={customer?.name} />
+              <InfoRow label="Phone" value={customer?.phone} />
+              <InfoRow label="Email" value={customer?.email} />
+              <InfoRow label="Address" value={customer?.address} />
+              <InfoRow label="Account Created" value={customer?.created_at ? new Date(customer.created_at).toLocaleDateString() : null} />
+            </dl>
+          </div>
+
+          {/* Debt Summary Card */}
+          <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6 flex flex-col justify-between">
+            <div>
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Credit Status</h2>
+              <p className="text-xs text-slate-500">Current Outstanding Debt</p>
+              <p className={`text-3xl font-bold tracking-tight mt-1 ${debt > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                {formatCurrency(debt)}
+              </p>
+              <p className="text-xs text-slate-400 mt-2">
+                {debt > 0 ? 'This customer has unpaid credit balances.' : 'Account is fully paid and clear.'}
+              </p>
+            </div>
+            {debt > 0 && (
+              <Button variant="primary" className="mt-4 w-full" onClick={() => setIsRepaymentOpen(true)}>
+                Pay Debt Now
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Tab Navigation */}
+        <div className="flex border-b border-slate-200/80">
+          <button
+            type="button"
+            onClick={() => setActiveTab('sales')}
+            className={`py-2.5 px-4 text-xs font-bold border-b-2 transition-all ${
+              activeTab === 'sales'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Sales History ({sales.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('payments')}
+            className={`py-2.5 px-4 text-xs font-bold border-b-2 transition-all ${
+              activeTab === 'payments'
+                ? 'border-primary-600 text-primary-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
+          >
+            Debt Repayments Log ({payments.length})
+          </button>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'sales' && (
+          <div className="space-y-4">
+            <Table
+              columns={salesColumns}
+              data={sales}
+              emptyMessage="No sales recorded for this customer."
+            />
+            {salesMeta.total_pages > 1 && (
+              <div className="flex justify-end pt-2">
+                <Pagination
+                  page={salesPage}
+                  total_pages={salesMeta.total_pages}
+                  onPageChange={setSalesPage}
+                />
+              </div>
+            )}
           </div>
         )}
 
-        {/* Customer info card */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-6">
-          {loadingCustomer ? (
-            <div className="animate-pulse space-y-4">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gray-200 rounded-full" />
-                <div className="space-y-2 flex-1">
-                  <div className="h-6 bg-gray-200 rounded w-1/3" />
-                  <div className="h-4 bg-gray-200 rounded w-1/4" />
-                </div>
+        {activeTab === 'payments' && (
+          <div className="space-y-4">
+            <Table
+              columns={paymentColumns}
+              data={payments}
+              emptyMessage="No debt repayments recorded for this customer."
+            />
+            {paymentsMeta.total_pages > 1 && (
+              <div className="flex justify-end pt-2">
+                <Pagination
+                  page={paymentsPage}
+                  total_pages={paymentsMeta.total_pages}
+                  onPageChange={setPaymentsPage}
+                />
               </div>
-            </div>
-          ) : customer ? (
-            <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-6">
-              <div className="flex items-start gap-4">
-                {/* Avatar */}
-                <div className="w-16 h-16 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-2xl font-bold flex-shrink-0">
-                  {customer.name?.[0]?.toUpperCase() ?? '?'}
-                </div>
-
-                {/* Details */}
-                <div>
-                  <h1 className="text-xl font-bold text-gray-900">{customer.name}</h1>
-                  <p className="text-sm text-gray-500 mt-0.5">{customer.email ?? 'No email'}</p>
-                  <dl className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-gray-600">
-                    <div>
-                      <span className="font-medium text-gray-400">Phone: </span>
-                      <span>{customer.phone || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-400">Address: </span>
-                      <span>{customer.address || '—'}</span>
-                    </div>
-                    <div>
-                      <span className="font-medium text-gray-400">Loyalty: </span>
-                      <span className="font-bold text-gray-800">{customer.loyalty_points ?? 0} pts</span>
-                    </div>
-                  </dl>
-                </div>
-              </div>
-
-              {/* Outstanding Debt & Action Card */}
-              <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 min-w-[280px]">
-                <div>
-                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Outstanding Debt</p>
-                  <p className={`text-2xl font-black mt-0.5 ${Number(customer.outstanding_debt || 0) > 0 ? 'text-danger-600' : 'text-success-600'}`}>
-                    {formatCurrency(customer.outstanding_debt || 0)}
-                  </p>
-                  <p className="text-2xs text-gray-400 mt-0.5">
-                    {Number(customer.outstanding_debt || 0) > 0 ? 'Credit balance awaiting settlement' : 'Account is fully paid'}
-                  </p>
-                </div>
-                {Number(customer.outstanding_debt || 0) > 0 && (
-                  <Button
-                    variant="success"
-                    size="sm"
-                    onClick={() => setShowRepaymentModal(true)}
-                    className="flex-shrink-0"
-                  >
-                    Accept Repayment
-                  </Button>
-                )}
-              </div>
-            </div>
-          ) : null}
-        </div>
-
-        {/* Tab navigation */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <div className="flex border-b border-gray-100 px-6 gap-6 overflow-x-auto">
-            <button
-              onClick={() => setActiveTab('purchases')}
-              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
-                activeTab === 'purchases'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              All Purchases
-            </button>
-            <button
-              onClick={() => setActiveTab('credit_sales')}
-              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
-                activeTab === 'credit_sales'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Credit Invoices
-            </button>
-            <button
-              onClick={() => setActiveTab('repayments')}
-              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
-                activeTab === 'repayments'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Debt Repayments
-            </button>
-            <button
-              onClick={() => setActiveTab('statement')}
-              className={`py-3.5 text-sm font-semibold border-b-2 transition whitespace-nowrap ${
-                activeTab === 'statement'
-                  ? 'border-primary-600 text-primary-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700'
-              }`}
-            >
-              Account Statement
-            </button>
+            )}
           </div>
-
-          {/* TAB 1: ALL PURCHASES */}
-          {activeTab === 'purchases' && (
-            <div>
-              <Table
-                columns={purchaseColumns}
-                data={purchases}
-                isLoading={loadingPurchases}
-                emptyMessage="No purchases found for this customer."
-              />
-              {purchasesMeta.total_pages > 1 && (
-                <div className="flex justify-end px-6 py-4 border-t border-gray-100">
-                  <Pagination page={purchasesMeta.page ?? purchasesPage} total_pages={purchasesMeta.total_pages} onPageChange={setPurchasesPage} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 2: CREDIT INVOICES */}
-          {activeTab === 'credit_sales' && (
-            <div>
-              <Table
-                columns={creditColumns}
-                data={creditSales}
-                isLoading={loadingCreditSales}
-                emptyMessage="No credit sales or outstanding invoices found."
-              />
-              {creditMeta.total_pages > 1 && (
-                <div className="flex justify-end px-6 py-4 border-t border-gray-100">
-                  <Pagination page={creditMeta.page ?? creditPage} total_pages={creditMeta.total_pages} onPageChange={setCreditPage} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 3: DEBT REPAYMENTS */}
-          {activeTab === 'repayments' && (
-            <div>
-              <Table
-                columns={repaymentColumns}
-                data={repayments}
-                isLoading={loadingRepayments}
-                emptyMessage="No debt repayments recorded for this customer."
-              />
-              {repaymentsMeta.total_pages > 1 && (
-                <div className="flex justify-end px-6 py-4 border-t border-gray-100">
-                  <Pagination page={repaymentsMeta.page ?? repaymentsPage} total_pages={repaymentsMeta.total_pages} onPageChange={setRepaymentsPage} />
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* TAB 4: ACCOUNT STATEMENT */}
-          {activeTab === 'statement' && (
-            <div>
-              {statementData && (
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 p-6 bg-gray-50/50 border-b border-gray-100 text-xs">
-                  <div className="bg-white p-3 rounded-lg border border-gray-200">
-                    <p className="text-gray-500 font-medium">Total Credit Granted</p>
-                    <p className="text-base font-bold text-gray-900 mt-0.5">{formatCurrency(statementData.total_credit_granted || 0)}</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-gray-200">
-                    <p className="text-gray-500 font-medium">Total Repayments</p>
-                    <p className="text-base font-bold text-success-700 mt-0.5">{formatCurrency(statementData.total_repayments || 0)}</p>
-                  </div>
-                  <div className="bg-white p-3 rounded-lg border border-gray-200">
-                    <p className="text-gray-500 font-medium">Current Balance Due</p>
-                    <p className={`text-base font-bold mt-0.5 ${Number(statementData.current_balance || 0) > 0 ? 'text-danger-600' : 'text-gray-900'}`}>
-                      {formatCurrency(statementData.current_balance || 0)}
-                    </p>
-                  </div>
-                </div>
-              )}
-              <Table
-                columns={statementColumns}
-                data={statementData?.statement || []}
-                isLoading={loadingStatement}
-                emptyMessage="No ledger entries found."
-              />
-            </div>
-          )}
-        </div>
+        )}
       </div>
 
-      {/* Debt Repayment Modal */}
-      {showRepaymentModal && (
-        <DebtRepaymentModal
-          isOpen
-          onClose={() => setShowRepaymentModal(false)}
-          customer={customer}
-          onSuccess={handleRepaymentSuccess}
-        />
-      )}
+      <DebtRepaymentModal
+        isOpen={isRepaymentOpen}
+        onClose={() => setIsRepaymentOpen(false)}
+        customer={customer}
+        onSuccess={() => {
+          fetchCustomer()
+          fetchSales()
+          fetchPayments()
+        }}
+      />
     </DashboardLayout>
   )
 }

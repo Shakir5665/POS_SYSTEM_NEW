@@ -4,7 +4,15 @@
 
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 font-sans;
+    @apply text-slate-900 font-sans antialiased;
+    background-color: #F8FAFC;
+    background-image: 
+      radial-gradient(at 0% 0%, rgba(219, 234, 254, 0.65) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, rgba(224, 231, 255, 0.55) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, rgba(219, 234, 254, 0.35) 0px, transparent 50%);
+    background-attachment: fixed;
+    background-repeat: no-repeat;
+    min-height: 100vh;
   }
 
   * {
@@ -30,6 +38,79 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Liquid Glass Custom Utilities */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.78);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.85);
+    box-shadow: 0 8px 30px -4px rgba(15, 23, 42, 0.05), 0 2px 6px -1px rgba(15, 23, 42, 0.02);
+  }
+
+  .glass-card {
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 4px 16px -2px rgba(15, 23, 42, 0.04), 0 1px 3px 0 rgba(15, 23, 42, 0.02);
+    transition: all 180ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-card:hover {
+    box-shadow: 0 10px 25px -3px rgba(15, 23, 42, 0.08), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
+  }
+
+  .glass-card-solid {
+    background: rgba(255, 255, 255, 0.94);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+    box-shadow: 0 2px 8px -1px rgba(15, 23, 42, 0.04);
+  }
+
+  .glass-interactive {
+    background: rgba(255, 255, 255, 0.7);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    border: 1px solid rgba(226, 232, 240, 0.9);
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .glass-interactive:hover {
+    background: rgba(255, 255, 255, 0.95);
+    border-color: rgba(199, 210, 254, 0.9);
+    box-shadow: 0 2px 8px 0 rgba(99, 102, 241, 0.08);
+  }
+
+  .primary-gradient-btn {
+    background-image: linear-gradient(135deg, #2563EB 0%, #6366F1 100%);
+    box-shadow: 0 2px 8px -1px rgba(37, 99, 235, 0.35);
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .primary-gradient-btn:hover:not(:disabled) {
+    background-image: linear-gradient(135deg, #1D4ED8 0%, #4F46E5 100%);
+    box-shadow: 0 4px 14px 0 rgba(37, 99, 235, 0.45);
+    transform: translateY(-1px);
+  }
+
+  .primary-gradient-btn:active:not(:disabled) {
+    transform: translateY(0);
+    box-shadow: 0 1px 4px 0 rgba(37, 99, 235, 0.3);
+  }
+}
+
+/* Reduced motion accessibility support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── Thermal Receipt Printing (Compatible with 58mm & 80mm) ────────────── */
@@ -50,6 +131,7 @@
     margin: 0 !important;
     padding: 0 !important;
     background: #ffffff !important;
+    background-image: none !important;
   }
 
   /* Hide the normal application view */
@@ -66,6 +148,7 @@
     padding: 2mm 3mm;
     box-sizing: border-box;
     background: #ffffff !important;
+    background-image: none !important;
     color: #000000 !important;
     font-family: Consolas, "Courier New", "Iskoola Pota", "Noto Sans Sinhala", monospace, sans-serif;
     font-size: 11px;
@@ -73,12 +156,21 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
     overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   /* Ensure thermal printer prints 100% solid black without faint dithered grays */
   body > #print-root * {
     color: #000000 !important;
     border-color: #000000 !important;
+    box-shadow: none !important;
+    background: transparent !important;
+    background-image: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .receipt-table-row {

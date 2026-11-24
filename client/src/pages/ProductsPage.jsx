@@ -30,7 +30,8 @@ export default function ProductsPage() {
 
   // Load categories once
   useEffect(() => {
-    productsService.categories()
+    productsService
+      .categories()
       .then((res) => setCategories(res.data?.data || []))
       .catch(() => {})
   }, [])
@@ -80,10 +81,10 @@ export default function ProductsPage() {
       label: 'Image',
       render: (val, row) =>
         val ? (
-          <img src={val} alt={row.name} className="w-10 h-10 rounded-lg object-cover" />
+          <img src={val} alt={row.name} className="w-10 h-10 rounded-xl object-cover border border-slate-200/80 shadow-2xs" />
         ) : (
-          <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center">
-            <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <div className="w-10 h-10 rounded-xl bg-slate-100/80 border border-slate-200/60 flex items-center justify-center">
+            <svg className="w-5 h-5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
           </div>
@@ -99,14 +100,14 @@ export default function ProductsPage() {
               e.stopPropagation()
               navigate(`/products/${row.id}/edit`)
             }}
-            className="font-semibold text-gray-900 hover:text-primary-600 hover:underline cursor-pointer transition"
+            className="font-bold text-slate-900 hover:text-primary-600 hover:underline cursor-pointer transition-colors"
           >
             {val}
           </p>
           <div className="flex items-center gap-1.5 mt-0.5">
-            <span className="text-xs text-gray-400 font-mono">{row.sku}</span>
+            <span className="text-[11px] text-slate-400 font-mono">{row.sku}</span>
             {row.variation && (
-              <span className="text-3xs bg-purple-50 text-purple-700 border border-purple-200 px-1 py-0.2 rounded font-medium">
+              <span className="text-[10px] bg-indigo-50/80 text-indigo-700 border border-indigo-200/60 px-1.5 py-0.2 rounded-md font-medium">
                 {row.variation.name}{row.variation_value ? `: ${row.variation_value}` : ''}
               </span>
             )}
@@ -118,12 +119,19 @@ export default function ProductsPage() {
     {
       key: 'category',
       label: 'Category',
-      render: (val) => val?.name ? <Badge variant="default">{val.name}</Badge> : <span className="text-gray-400">—</span>,
+      render: (val) => (val?.name ? <Badge variant="default">{val.name}</Badge> : <span className="text-slate-400">—</span>),
     },
     {
       key: 'brand',
       label: 'Brand',
-      render: (val) => val?.name ? <span className="text-xs font-medium text-gray-700 bg-gray-100 px-2 py-0.5 rounded">{val.name}</span> : <span className="text-gray-400">—</span>,
+      render: (val) =>
+        val?.name ? (
+          <span className="text-xs font-semibold text-slate-700 bg-slate-100/80 px-2 py-0.5 rounded-lg border border-slate-200/60">
+            {val.name}
+          </span>
+        ) : (
+          <span className="text-slate-400">—</span>
+        ),
     },
     {
       key: 'usual_price',
@@ -131,7 +139,7 @@ export default function ProductsPage() {
       render: (val, row) => {
         const u = val ?? row.price
         return (
-          <span className="text-gray-700">
+          <span className="text-slate-600 font-medium">
             {formatCurrency(u)}
             {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
           </span>
@@ -144,7 +152,7 @@ export default function ProductsPage() {
       render: (val, row) => {
         const o = val ?? row.price
         return (
-          <span className="font-semibold text-primary-700">
+          <span className="font-bold text-primary-700">
             {formatCurrency(o)}
             {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
           </span>
@@ -156,12 +164,12 @@ export default function ProductsPage() {
       label: 'Wholesale Price',
       render: (val, row) => {
         return val && Number(val) > 0 ? (
-          <span className="font-medium text-gray-800">
+          <span className="font-semibold text-slate-800">
             {formatCurrency(val)}
             {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
           </span>
         ) : (
-          <span className="text-gray-400">—</span>
+          <span className="text-slate-400">—</span>
         )
       },
     },
@@ -173,25 +181,26 @@ export default function ProductsPage() {
         const o = Number(row.our_price ?? row.price ?? 0)
         const diff = u - o
         return diff > 0 ? (
-          <span className="text-xs font-semibold text-success-700 bg-success-50 border border-success-200 px-1.5 py-0.5 rounded">
+          <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/80 px-2 py-0.5 rounded-lg">
             -{formatCurrency(diff)}
           </span>
         ) : (
-          <span className="text-gray-400">—</span>
+          <span className="text-slate-400">—</span>
         )
       },
     },
     {
       key: 'cost_price',
       label: 'Cost Price',
-      render: (val, row) => (
+      render: (val, row) =>
         val ? (
-          <span className="text-gray-500 text-xs">
+          <span className="text-slate-500 text-xs font-medium">
             {formatCurrency(val)}
             {row.pricing_unit && row.pricing_unit !== 'pcs' ? ` / ${row.pricing_unit}` : ''}
           </span>
-        ) : <span className="text-gray-400">—</span>
-      ),
+        ) : (
+          <span className="text-slate-400">—</span>
+        ),
     },
     {
       key: 'quantity',
@@ -201,7 +210,7 @@ export default function ProductsPage() {
         const isLow = !isOut && Number(val) <= Number(row.low_stock_threshold)
         return (
           <div className="flex items-center gap-1.5">
-            <span className={`font-semibold ${isOut ? 'text-danger-600' : isLow ? 'text-warning-600' : 'text-gray-900'}`}>
+            <span className={`font-bold ${isOut ? 'text-rose-600' : isLow ? 'text-amber-600' : 'text-slate-900'}`}>
               {formatQuantityWithUnit(val, row.base_unit)}
             </span>
             {isOut && <Badge variant="danger">Out</Badge>}
@@ -255,9 +264,9 @@ export default function ProductsPage() {
         {/* Page header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Products</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              {meta.total} product{meta.total !== 1 ? 's' : ''} total
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Products</h1>
+            <p className="text-xs font-medium text-slate-500 mt-1">
+              {meta.total} product{meta.total !== 1 ? 's' : ''} total in catalog
             </p>
           </div>
           <Button variant="primary" onClick={() => navigate('/products/new')}>
@@ -269,7 +278,7 @@ export default function ProductsPage() {
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <div className="bg-white/80 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-4">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="flex-1">
               <Input
@@ -278,15 +287,17 @@ export default function ProductsPage() {
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            <div className="sm:w-52">
+            <div className="sm:w-56">
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 bg-white"
+                className="block w-full rounded-xl border border-slate-200/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 bg-white/90"
               >
                 <option value="">All Categories</option>
                 {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  <option key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </option>
                 ))}
               </select>
             </div>
@@ -294,20 +305,18 @@ export default function ProductsPage() {
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-          <Table
-            columns={columns}
-            data={products}
-            isLoading={isLoading}
-            onRowClick={(row) => navigate(`/products/${row.id}/edit`)}
-            emptyMessage="No products found. Try adjusting your search or filters."
-          />
-        </div>
+        <Table
+          columns={columns}
+          data={products}
+          isLoading={isLoading}
+          onRowClick={(row) => navigate(`/products/${row.id}/edit`)}
+          emptyMessage="No products found. Try adjusting your search or filters."
+        />
 
         {/* Pagination */}
         {meta.total_pages > 1 && (
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-gray-500">
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs font-medium text-slate-500">
               Page {meta.page} of {meta.total_pages} &mdash; {meta.total} results
             </p>
             <Pagination page={meta.page} total_pages={meta.total_pages} onPageChange={setPage} />
@@ -323,12 +332,17 @@ export default function ProductsPage() {
         size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Are you sure you want to deactivate <span className="font-semibold">"{deleteTarget?.name}"</span>?
+          <p className="text-sm text-slate-600">
+            Are you sure you want to deactivate <span className="font-bold text-slate-900">&quot;{deleteTarget?.name}&quot;</span>?
             The product will be hidden from the POS but historical sales will be preserved.
           </p>
-          <div className="flex gap-3">
-            <Button variant="secondary" className="flex-1" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setDeleteTarget(null)}
+              disabled={isDeleting}
+            >
               Cancel
             </Button>
             <Button

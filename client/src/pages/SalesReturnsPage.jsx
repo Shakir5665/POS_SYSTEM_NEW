@@ -8,6 +8,8 @@ import { Modal } from '../components/Modal'
 import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
+import { PageHeader } from '../components/PageHeader'
+import { GlassCard } from '../components/GlassCard'
 import { returnsService } from '../services/returns'
 import { warehouseService } from '../services/warehouses'
 import { useSettings } from '../hooks/useSettings'
@@ -220,23 +222,21 @@ export default function SalesReturnsPage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Sales Return</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Manage product returns, credit notes, and restocking operations.
-            </p>
-          </div>
-          <Button onClick={() => navigate('/app/sale-return/create')} className="flex items-center gap-2">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Create Sale Return
-          </Button>
-        </div>
+        <PageHeader
+          title="Sales Return"
+          subtitle="Manage product returns, credit notes, and restocking operations."
+          action={
+            <Button onClick={() => navigate('/app/sale-return/create')} className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Create Sale Return
+            </Button>
+          }
+        />
 
         {/* Filters */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <GlassCard className="p-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <Input
             type="search"
             placeholder="Search return #, sale #, reason..."
@@ -270,7 +270,7 @@ export default function SalesReturnsPage() {
               setSelectedWarehouse(e.target.value)
               setPage(1)
             }}
-            className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 bg-white"
+            className="w-full px-3.5 py-2.5 text-sm border border-slate-200/80 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 bg-white/90 shadow-2xs font-medium text-slate-800"
           >
             <option value="">All Warehouses</option>
             {warehouses.map((w) => (
@@ -279,10 +279,10 @@ export default function SalesReturnsPage() {
               </option>
             ))}
           </select>
-        </div>
+        </GlassCard>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <GlassCard className="overflow-hidden p-0 border border-white/80 shadow-glass-sm rounded-2xl">
           <Table
             columns={columns}
             data={returnsList}
@@ -290,7 +290,7 @@ export default function SalesReturnsPage() {
             emptyMessage="No sales returns found."
           />
           {meta.total_pages > 1 && (
-            <div className="p-4 border-t border-gray-100">
+            <div className="p-4 border-t border-slate-100">
               <Pagination
                 page={page}
                 totalPages={meta.total_pages}
@@ -298,7 +298,7 @@ export default function SalesReturnsPage() {
               />
             </div>
           )}
-        </div>
+        </GlassCard>
       </div>
 
       {/* View Return Details Modal */}

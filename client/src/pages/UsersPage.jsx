@@ -34,14 +34,6 @@ function validate(form, mode) {
   return errors
 }
 
-function LockIcon({ className = '' }) {
-  return (
-    <svg className={`w-4 h-4 ${className}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-    </svg>
-  )
-}
-
 export default function UsersPage() {
   const { user: currentUser } = useAuth()
   const isAdmin = currentUser?.role === 'ADMIN'
@@ -86,7 +78,6 @@ export default function UsersPage() {
     fetchUsers()
   }, [fetchUsers])
 
-  // Create
   function openCreate() {
     setCreateForm(EMPTY_CREATE)
     setCreateErrors({})
@@ -96,13 +87,21 @@ export default function UsersPage() {
   function handleCreateChange(e) {
     const { name, value } = e.target
     setCreateForm((f) => ({ ...f, [name]: value }))
-    if (createErrors[name]) setCreateErrors((e) => { const n = { ...e }; delete n[name]; return n })
+    if (createErrors[name])
+      setCreateErrors((e) => {
+        const n = { ...e }
+        delete n[name]
+        return n
+      })
   }
 
-  async function handleCreate(e) {
+  async function handleCreateSubmit(e) {
     e.preventDefault()
     const errs = validate(createForm, 'create')
-    if (Object.keys(errs).length) { setCreateErrors(errs); return }
+    if (Object.keys(errs).length) {
+      setCreateErrors(errs)
+      return
+    }
     setSaving(true)
     try {
       await usersService.create({
@@ -116,14 +115,12 @@ export default function UsersPage() {
       setCreateOpen(false)
       fetchUsers()
     } catch (err) {
-      const msg = err?.response?.data?.error?.message ?? 'Failed to create user'
-      toast.error(msg)
+      toast.error(err.response?.data?.error?.message ?? 'Failed to create user')
     } finally {
       setSaving(false)
     }
   }
 
-  // Edit
   function openEdit(user) {
     setEditTarget(user)
     setEditForm({
@@ -138,15 +135,22 @@ export default function UsersPage() {
 
   function handleEditChange(e) {
     const { name, value, type, checked } = e.target
-    const val = type === 'checkbox' ? checked : value
-    setEditForm((f) => ({ ...f, [name]: val }))
-    if (editErrors[name]) setEditErrors((e) => { const n = { ...e }; delete n[name]; return n })
+    setEditForm((f) => ({ ...f, [name]: type === 'checkbox' ? checked : value }))
+    if (editErrors[name])
+      setEditErrors((e) => {
+        const n = { ...e }
+        delete n[name]
+        return n
+      })
   }
 
-  async function handleEdit(e) {
+  async function handleEditSubmit(e) {
     e.preventDefault()
     const errs = validate(editForm, 'edit')
-    if (Object.keys(errs).length) { setEditErrors(errs); return }
+    if (Object.keys(errs).length) {
+      setEditErrors(errs)
+      return
+    }
     setSaving(true)
     try {
       await usersService.update(editTarget.id, {
@@ -155,18 +159,16 @@ export default function UsersPage() {
         role: editForm.role,
         is_active: editForm.is_active,
       })
-      toast.success('User updated')
+      toast.success('User updated successfully')
       setEditOpen(false)
       fetchUsers()
     } catch (err) {
-      const msg = err?.response?.data?.error?.message ?? 'Failed to update user'
-      toast.error(msg)
+      toast.error(err.response?.data?.error?.message ?? 'Failed to update user')
     } finally {
       setSaving(false)
     }
   }
 
-  // Reset password
   function openReset(user) {
     setEditTarget(user)
     setNewPassword('')
@@ -174,49 +176,50 @@ export default function UsersPage() {
     setResetOpen(true)
   }
 
-  async function handleReset(e) {
+  async function handleResetSubmit(e) {
     e.preventDefault()
-    if (!newPassword.trim()) { setNewPasswordError('Password is required'); return }
-    if (newPassword.length < 6) { setNewPasswordError('Password must be at least 6 characters'); return }
+    if (!newPassword.trim()) {
+      setNewPasswordError('New password is required')
+      return
+    }
+    if (newPassword.length < 6) {
+      setNewPasswordError('Password must be at least 6 characters')
+      return
+    }
     setSaving(true)
     try {
-      await usersService.resetPassword(editTarget.id, { password: newPassword })
-      toast.success('Password reset successfully')
+      await usersService.resetPassword(editTarget.id, newPassword)
+      toast.success(`Password reset for ${editTarget.full_name}`)
       setResetOpen(false)
     } catch (err) {
-      const msg = err?.response?.data?.error?.message ?? 'Failed to reset password'
-      toast.error(msg)
+      toast.error(err.response?.data?.error?.message ?? 'Failed to reset password')
     } finally {
       setSaving(false)
     }
   }
 
-  // Unlock
   async function handleUnlock(user) {
     setUnlocking(user.id)
     try {
       await usersService.unlock(user.id)
-      toast.success(`${user.full_name}'s account unlocked`)
+      toast.success(`Account unlocked for ${user.full_name}`)
       fetchUsers()
-    } catch {
-      toast.error('Failed to unlock account')
+    } catch (err) {
+      toast.error(err.response?.data?.error?.message ?? 'Failed to unlock user')
     } finally {
       setUnlocking(null)
     }
   }
 
-  // Delete permanently (ADMIN only)
-  async function handleDeleteUser() {
-    if (!deleteTarget) return
+  async function handleDeleteConfirm() {
     setDeleting(true)
     try {
       await usersService.delete(deleteTarget.id)
-      toast.success(`User ${deleteTarget.full_name} permanently deleted`)
+      toast.success(`User ${deleteTarget.full_name} deleted`)
       setDeleteTarget(null)
       fetchUsers()
     } catch (err) {
-      const msg = err?.response?.data?.error?.message ?? 'Failed to delete user'
-      toast.error(msg)
+      toast.error(err.response?.data?.error?.message ?? 'Failed to delete user')
     } finally {
       setDeleting(false)
     }
@@ -225,18 +228,15 @@ export default function UsersPage() {
   const columns = [
     {
       key: 'full_name',
-      label: 'Name',
-      render: (v, row) => (
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-primary-100 text-primary-700 flex items-center justify-center text-xs font-bold flex-shrink-0">
-            {v?.[0]?.toUpperCase()}
+      label: 'Staff Member',
+      render: (val, row) => (
+        <div className="flex items-center gap-2.5">
+          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-bold text-xs flex items-center justify-center flex-shrink-0 shadow-2xs">
+            {val?.[0]?.toUpperCase()}
           </div>
           <div>
-            <p className="font-medium text-gray-900 flex items-center gap-1.5">
-              {v}
-              {row.is_locked && <LockIcon className="text-danger-500" />}
-            </p>
-            <p className="text-xs text-gray-400">@{row.username}</p>
+            <p className="font-bold text-slate-900">{val}</p>
+            <p className="text-[11px] text-slate-400 font-mono">@{row.username}</p>
           </div>
         </div>
       ),
@@ -245,97 +245,102 @@ export default function UsersPage() {
     {
       key: 'role',
       label: 'Role',
-      render: (v) => <Badge variant={ROLE_BADGE[v] ?? 'default'}>{v}</Badge>,
+      render: (v) => <Badge variant={ROLE_BADGE[v] || 'default'}>{v}</Badge>,
     },
     {
       key: 'is_active',
       label: 'Status',
-      render: (v) => (
-        <Badge variant={v ? 'success' : 'default'}>{v ? 'Active' : 'Inactive'}</Badge>
-      ),
+      render: (val, row) => {
+        const isLocked = row.locked_until && new Date(row.locked_until) > new Date()
+        if (isLocked) return <Badge variant="danger">Locked</Badge>
+        return <Badge variant={val ? 'success' : 'default'}>{val ? 'Active' : 'Inactive'}</Badge>
+      },
     },
     {
       key: 'created_at',
       label: 'Created',
-      render: (v) =>
-        v
-          ? new Date(v).toLocaleDateString('en-GH', { day: '2-digit', month: 'short', year: 'numeric' })
-          : '—',
+      render: (v) => (v ? new Date(v).toLocaleDateString() : '—'),
     },
     {
       key: 'actions',
       label: 'Actions',
-      render: (_, row) => (
-        <div className="flex items-center gap-1.5">
-          <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>
-            Edit
-          </Button>
-          <Button size="sm" variant="ghost" onClick={() => openReset(row)}>
-            Reset Pwd
-          </Button>
-          {row.is_locked && (
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => handleUnlock(row)}
-              isLoading={unlocking === row.id}
-            >
-              Unlock
+      render: (_, row) => {
+        const isSelf = row.id === currentUser?.id
+        const isLocked = row.locked_until && new Date(row.locked_until) > new Date()
+        return (
+          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+            {isLocked && isAdmin && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleUnlock(row)}
+                isLoading={unlocking === row.id}
+                className="text-amber-600 hover:text-amber-700"
+              >
+                Unlock
+              </Button>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>
+              Edit
             </Button>
-          )}
-          {isAdmin && row.id !== currentUser?.id && (
-            <Button
-              size="sm"
-              variant="danger"
-              onClick={() => setDeleteTarget(row)}
-            >
-              Delete
-            </Button>
-          )}
-        </div>
-      ),
+            {isAdmin && (
+              <Button size="sm" variant="ghost" onClick={() => openReset(row)}>
+                Reset PW
+              </Button>
+            )}
+            {isAdmin && !isSelf && (
+              <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setDeleteTarget(row)}>
+                Delete
+              </Button>
+            )}
+          </div>
+        )
+      },
     },
   ]
 
   return (
     <DashboardLayout>
-      <div className="space-y-5">
+      <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-            <p className="text-sm text-gray-500 mt-1">Manage system users and permissions</p>
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">User Management</h1>
+            <p className="text-xs font-medium text-slate-500 mt-1">Configure user accounts, roles, access levels, and security settings.</p>
           </div>
-          <Button onClick={openCreate}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Register User
-          </Button>
+          {isAdmin && (
+            <Button variant="primary" onClick={openCreate} className="flex items-center gap-2">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              Add Staff Member
+            </Button>
+          )}
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
-          <Table columns={columns} data={users} isLoading={loading} emptyMessage="No users found." />
-        </div>
+        <Table columns={columns} data={users} isLoading={loading} emptyMessage="No users found." />
 
         {meta.total_pages > 1 && (
-          <div className="flex justify-end">
-            <Pagination page={meta.page ?? page} total_pages={meta.total_pages} onPageChange={setPage} />
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs font-medium text-slate-500">
+              Page {page} of {meta.total_pages}
+            </p>
+            <Pagination page={page} total_pages={meta.total_pages} onPageChange={setPage} />
           </div>
         )}
       </div>
 
-      {/* Create Modal */}
-      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Register New User">
-        <form onSubmit={handleCreate} className="space-y-4">
+      {/* Create User Modal */}
+      <Modal isOpen={createOpen} onClose={() => setCreateOpen(false)} title="Add New User">
+        <form onSubmit={handleCreateSubmit} noValidate className="space-y-4">
           <Input
             label="Full Name *"
             name="full_name"
             value={createForm.full_name}
             onChange={handleCreateChange}
+            placeholder="e.g. Alice Smith"
             error={createErrors.full_name}
-            placeholder="e.g. Ama Owusu"
             autoFocus
           />
           <Input
@@ -343,8 +348,8 @@ export default function UsersPage() {
             name="username"
             value={createForm.username}
             onChange={handleCreateChange}
+            placeholder="e.g. asmith"
             error={createErrors.username}
-            placeholder="e.g. aowusu"
           />
           <Input
             label="Email *"
@@ -352,8 +357,8 @@ export default function UsersPage() {
             type="email"
             value={createForm.email}
             onChange={handleCreateChange}
+            placeholder="e.g. alice@example.com"
             error={createErrors.email}
-            placeholder="e.g. ama@store.com"
           />
           <Input
             label="Password *"
@@ -361,36 +366,38 @@ export default function UsersPage() {
             type="password"
             value={createForm.password}
             onChange={handleCreateChange}
-            error={createErrors.password}
             placeholder="Min 6 characters"
+            error={createErrors.password}
           />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Role</label>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Role *</label>
             <select
               name="role"
               value={createForm.role}
               onChange={handleCreateChange}
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
             >
               {ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>
+                  {r}
+                </option>
               ))}
             </select>
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setCreateOpen(false)}>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setCreateOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={saving}>
+            <Button type="submit" variant="primary" isLoading={saving}>
               Create User
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Edit Modal */}
-      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title="Edit User">
-        <form onSubmit={handleEdit} className="space-y-4">
+      {/* Edit User Modal */}
+      <Modal isOpen={editOpen} onClose={() => setEditOpen(false)} title={`Edit Staff: ${editTarget?.full_name}`}>
+        <form onSubmit={handleEditSubmit} noValidate className="space-y-4">
           <Input
             label="Full Name *"
             name="full_name"
@@ -407,37 +414,36 @@ export default function UsersPage() {
             onChange={handleEditChange}
             error={editErrors.email}
           />
-          <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-gray-700">Role</label>
+          <div>
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Role *</label>
             <select
               name="role"
               value={editForm.role}
               onChange={handleEditChange}
-              className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
+              className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600"
             >
               {ROLES.map((r) => (
-                <option key={r} value={r}>{r}</option>
+                <option key={r} value={r}>
+                  {r}
+                </option>
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-slate-700 pt-1">
             <input
               type="checkbox"
-              id="is_active"
               name="is_active"
               checked={editForm.is_active}
               onChange={handleEditChange}
-              className="h-4 w-4 text-primary-600 rounded border-gray-300 focus:ring-primary-500"
+              className="rounded border-slate-300 text-primary-600 focus:ring-primary-500 h-4 w-4"
             />
-            <label htmlFor="is_active" className="text-sm font-medium text-gray-700">
-              Account Active
-            </label>
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>
+            Account Active
+          </label>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setEditOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={saving}>
+            <Button type="submit" variant="primary" isLoading={saving}>
               Save Changes
             </Button>
           </div>
@@ -445,56 +451,43 @@ export default function UsersPage() {
       </Modal>
 
       {/* Reset Password Modal */}
-      <Modal isOpen={resetOpen} onClose={() => setResetOpen(false)} title="Reset Password" size="sm">
-        <form onSubmit={handleReset} className="space-y-4">
-          {editTarget && (
-            <p className="text-sm text-gray-600">
-              Set a new password for <strong>{editTarget.full_name}</strong>.
-            </p>
-          )}
+      <Modal isOpen={resetOpen} onClose={() => setResetOpen(false)} title={`Reset Password: ${editTarget?.full_name}`} size="sm">
+        <form onSubmit={handleResetSubmit} noValidate className="space-y-4">
           <Input
             label="New Password *"
             type="password"
             value={newPassword}
             onChange={(e) => {
               setNewPassword(e.target.value)
-              if (newPasswordError) setNewPasswordError('')
+              setNewPasswordError('')
             }}
-            error={newPasswordError}
             placeholder="Min 6 characters"
+            error={newPasswordError}
             autoFocus
           />
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setResetOpen(false)}>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setResetOpen(false)} disabled={saving}>
               Cancel
             </Button>
-            <Button type="submit" isLoading={saving}>
+            <Button type="submit" variant="primary" isLoading={saving}>
               Reset Password
             </Button>
           </div>
         </form>
       </Modal>
 
-      {/* Delete User Permanently Modal (ADMIN only) */}
-      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete User Permanently" size="sm">
+      {/* Delete User Modal */}
+      <Modal isOpen={!!deleteTarget} onClose={() => setDeleteTarget(null)} title="Delete User" size="sm">
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Are you sure you want to permanently delete user <strong className="text-gray-900">{deleteTarget?.full_name}</strong> (@{deleteTarget?.username})?
+          <p className="text-sm text-slate-600">
+            Are you sure you want to delete <span className="font-bold text-slate-900">{deleteTarget?.full_name}</span>? This action cannot be undone.
           </p>
-          <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
-            <strong>Warning:</strong> This action cannot be undone. Associated sales, purchases, and logs will be safely reassigned to your admin account to preserve audit records.
-          </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <Button type="button" variant="secondary" onClick={() => setDeleteTarget(null)}>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={deleting}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              variant="danger"
-              isLoading={deleting}
-              onClick={handleDeleteUser}
-            >
-              Delete Permanently
+            <Button variant="danger" onClick={handleDeleteConfirm} isLoading={deleting}>
+              Delete User
             </Button>
           </div>
         </div>

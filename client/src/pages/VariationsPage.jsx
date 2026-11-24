@@ -141,8 +141,11 @@ export default function VariationsPage() {
     if (!deleteTarget) return
     setIsDeleting(true)
     try {
-      await variationsService.delete(deleteTarget.id)
-      toast.success(`Variation "${deleteTarget.name}" deleted successfully`)
+      const res = await variationsService.delete(deleteTarget.id)
+      const count = res.data?.data?.affected_products || 0
+      toast.success(
+        `Variation "${deleteTarget.name}" deleted. ${count > 0 ? `${count} products unlinked.` : ''}`
+      )
       setDeleteTarget(null)
       fetchVariations()
     } catch (err) {
@@ -156,26 +159,23 @@ export default function VariationsPage() {
     {
       key: 'name',
       label: 'Variation Name',
-      render: (val) => <span className="font-semibold text-gray-900">{val}</span>,
+      render: (val) => <span className="font-bold text-slate-900">{val}</span>,
     },
     {
       key: 'values',
-      label: 'Variation Values',
-      render: (vals) => {
-        if (!vals || vals.length === 0) return <span className="text-gray-400">—</span>
+      label: 'Values',
+      render: (val) => {
+        const list = (val || []).map((v) => (typeof v === 'string' ? v : v.value))
         return (
-          <div className="flex flex-wrap gap-1.5 py-1">
-            {vals.map((v, i) => {
-              const label = typeof v === 'string' ? v : v.value
-              return (
-                <span
-                  key={i}
-                  className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-primary-50 text-primary-700 border border-primary-200"
-                >
-                  {label}
-                </span>
-              )
-            })}
+          <div className="flex flex-wrap gap-1.5 max-w-md">
+            {list.map((v, idx) => (
+              <span
+                key={idx}
+                className="inline-flex items-center px-2.5 py-0.5 rounded-lg text-xs font-semibold bg-indigo-50/80 text-indigo-700 border border-indigo-200/60"
+              >
+                {v}
+              </span>
+            ))}
           </div>
         )
       },
@@ -184,14 +184,14 @@ export default function VariationsPage() {
       key: 'actions',
       label: 'Actions',
       render: (_, row) => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <Button
             size="sm"
             variant="ghost"
             onClick={() => openEditModal(row)}
             title="Edit Variation"
           >
-            <svg className="w-4 h-4 text-gray-600 hover:text-gray-900" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4 text-slate-500 hover:text-slate-800" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
             <span className="sr-only">Edit</span>
@@ -201,7 +201,7 @@ export default function VariationsPage() {
             variant="ghost"
             onClick={() => setDeleteTarget(row)}
             title="Delete Variation"
-            className="text-danger-600 hover:text-danger-700 hover:bg-danger-50"
+            className="text-rose-600 hover:text-rose-700 hover:bg-rose-50"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -219,9 +219,9 @@ export default function VariationsPage() {
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Variations</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              Manage product variation attributes (e.g. Sizes, Colors, Materials) and their option values.
+            <h1 className="text-2xl font-bold tracking-tight text-slate-900">Product Variations</h1>
+            <p className="text-xs font-medium text-slate-500 mt-1">
+              Configure product attributes and option matrices (e.g. Size, Color, Volume).
             </p>
           </div>
           <Button onClick={openCreateModal} className="flex items-center gap-2">
@@ -233,7 +233,7 @@ export default function VariationsPage() {
         </div>
 
         {/* Search */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between gap-4">
+        <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/90 shadow-glass-sm flex items-center justify-between gap-4">
           <div className="max-w-md w-full">
             <Input
               type="search"
@@ -245,109 +245,106 @@ export default function VariationsPage() {
               }}
             />
           </div>
-          <p className="text-xs text-gray-400">Total: {meta.total} variations</p>
+          <p className="text-xs font-medium text-slate-400">Total: {meta.total} variations</p>
         </div>
 
         {/* Table */}
-        <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-          <Table
-            columns={columns}
-            data={variations}
-            loading={loading}
-            emptyMessage="No variations found."
-          />
-          {meta.total_pages > 1 && (
-            <div className="p-4 border-t border-gray-100">
-              <Pagination
-                page={page}
-                totalPages={meta.total_pages}
-                onPageChange={(p) => setPage(p)}
-              />
-            </div>
-          )}
-        </div>
+        <Table
+          columns={columns}
+          data={variations}
+          isLoading={loading}
+          emptyMessage="No product variations configured."
+        />
+
+        {meta.total_pages > 1 && (
+          <div className="flex items-center justify-between pt-1">
+            <p className="text-xs font-medium text-slate-500">
+              Page {page} of {meta.total_pages} &mdash; {meta.total} variations
+            </p>
+            <Pagination
+              page={page}
+              total_pages={meta.total_pages}
+              onPageChange={(p) => setPage(p)}
+            />
+          </div>
+        )}
       </div>
 
-      {/* Create / Edit Variation Modal */}
+      {/* Create / Edit Modal */}
       <Modal
         isOpen={modalOpen}
         onClose={() => setModalOpen(false)}
-        title={editingVariation ? 'Edit Variation' : 'Create Variation'}
+        title={editingVariation ? 'Edit Product Variation' : 'Create Product Variation'}
       >
         <form onSubmit={handleSaveVariation} className="space-y-4">
           {formError && (
-            <div className="p-3 bg-danger-50 text-danger-700 text-xs rounded-lg border border-danger-200">
+            <div className="p-3 bg-rose-50 text-rose-700 text-xs font-medium rounded-xl border border-rose-200">
               {formError}
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Variation Name <span className="text-danger-500">*</span>
-            </label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. Size, Color, Flavor, Material"
-              required
-              autoFocus
-            />
-          </div>
+          <Input
+            label="Variation Name *"
+            value={name}
+            onChange={(e) => {
+              setName(e.target.value)
+              setFormError('')
+            }}
+            placeholder="e.g. Size, Color, Flavor"
+            autoFocus
+          />
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wider mb-1">
-              Variation Values <span className="text-danger-500">*</span>
-            </label>
-            <div className="flex gap-2 mb-2">
+            <label className="text-xs font-semibold text-slate-700 block mb-1.5">Add Values *</label>
+            <div className="flex gap-2">
               <Input
                 value={newValueInput}
                 onChange={(e) => setNewValueInput(e.target.value)}
                 onKeyDown={handleKeyDown}
                 placeholder="Enter value (e.g. Small) and press Enter"
+                className="flex-1"
               />
               <Button type="button" variant="secondary" onClick={handleAddValue}>
                 Add
               </Button>
             </div>
+          </div>
 
-            {/* Chips Container */}
-            <div className="min-h-[56px] p-2 bg-gray-50 border border-gray-200 rounded-lg flex flex-wrap gap-2 items-center">
-              {values.length === 0 ? (
-                <span className="text-xs text-gray-400 italic">
-                  No values added yet. Type a value above and click Add or press Enter.
-                </span>
-              ) : (
-                values.map((val, idx) => (
+          {values.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-2">Configured Values ({values.length}):</p>
+              <div className="flex flex-wrap gap-2 p-3 bg-slate-50/80 rounded-xl border border-slate-200/80">
+                {values.map((v, idx) => (
                   <span
                     key={idx}
-                    className="inline-flex items-center gap-1.5 px-3 py-1 bg-white border border-gray-300 rounded-full text-xs font-medium text-gray-800 shadow-xs"
+                    className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-xs font-semibold bg-white border border-slate-200 shadow-2xs text-slate-800"
                   >
-                    <span>{val}</span>
+                    <span>{v}</span>
                     <button
                       type="button"
                       onClick={() => handleRemoveValue(idx)}
-                      className="text-gray-400 hover:text-danger-600 rounded-full p-0.5 hover:bg-danger-50 transition"
-                      title="Remove"
+                      className="text-slate-400 hover:text-rose-600 transition"
+                      title="Remove value"
                     >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      ×
                     </button>
                   </span>
-                ))
-              )}
+                ))}
+              </div>
             </div>
-            <p className="text-[11px] text-gray-500 mt-1">
-              Press Enter or click Add to add values. Duplicate values are disallowed.
-            </p>
-          </div>
+          )}
 
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <Button type="button" variant="ghost" onClick={() => setModalOpen(false)}>
+          <div className="flex justify-end gap-2.5 pt-3">
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={() => setModalOpen(false)}
+              disabled={isSubmitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" isLoading={isSubmitting}>
-              {editingVariation ? 'Save Changes' : 'Create Variation'}
+            <Button type="submit" variant="primary" isLoading={isSubmitting}>
+              {editingVariation ? 'Update Variation' : 'Create Variation'}
             </Button>
           </div>
         </form>
@@ -355,31 +352,28 @@ export default function VariationsPage() {
 
       {/* Delete Confirmation Modal */}
       <Modal
-        isOpen={Boolean(deleteTarget)}
+        isOpen={!!deleteTarget}
         onClose={() => setDeleteTarget(null)}
         title="Delete Variation"
+        size="sm"
       >
         <div className="space-y-4">
-          <p className="text-sm text-gray-600">
-            Are you sure you want to delete the variation <strong>"{deleteTarget?.name}"</strong> and all its option values?
+          <p className="text-sm text-slate-700">
+            Are you sure you want to delete variation{' '}
+            <strong className="text-slate-900">&quot;{deleteTarget?.name}&quot;</strong>?
           </p>
-
-          <div className="flex justify-end gap-3 pt-3 border-t border-gray-100">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => setDeleteTarget(null)}
-              disabled={isDeleting}
-            >
+          <div className="bg-amber-50/90 border border-amber-200/80 rounded-xl p-3.5 text-xs text-amber-800">
+            <p className="font-bold">Notice:</p>
+            <p className="mt-1 leading-relaxed">
+              Deleting this variation will unassign it from existing products without deleting any products.
+            </p>
+          </div>
+          <div className="flex justify-end gap-2.5 pt-2">
+            <Button variant="secondary" onClick={() => setDeleteTarget(null)} disabled={isDeleting}>
               Cancel
             </Button>
-            <Button
-              type="button"
-              variant="danger"
-              onClick={handleDeleteVariation}
-              isLoading={isDeleting}
-            >
-              Confirm Delete
+            <Button variant="danger" onClick={handleDeleteVariation} isLoading={isDeleting}>
+              Delete Variation
             </Button>
           </div>
         </div>

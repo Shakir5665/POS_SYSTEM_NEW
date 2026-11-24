@@ -5,6 +5,7 @@ import { Button } from '../components/Button'
 import { Badge } from '../components/Badge'
 import { Modal } from '../components/Modal'
 import { Table } from '../components/Table'
+import { GlassCard } from '../components/GlassCard'
 import { migrationService } from '../services/migration'
 
 export default function MigrationPage() {
@@ -399,15 +400,15 @@ export default function MigrationPage() {
         {/* Main Page Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider block">Legacy Migration Engine</span>
-            <h1 className="text-2xl font-bold text-gray-900">Database Migration</h1>
-            <p className="text-sm text-gray-500 mt-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block">Legacy Migration Engine</span>
+            <h1 className="text-2xl font-black text-slate-900">Database Migration</h1>
+            <p className="text-sm text-slate-500 mt-1">
               Import or update database records using Excel files that match your database structure.
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <span className="px-3 py-1 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-semibold flex items-center gap-1.5">
-              <span>●</span> Schema-Aware Importer Active
+            <span className="px-3 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-xl text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Schema-Aware Importer Active
             </span>
             <Button
               variant="danger"
@@ -434,48 +435,47 @@ export default function MigrationPage() {
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex border-b border-gray-200 gap-2 pb-px overflow-x-auto">
+        <div className="flex gap-1.5 p-1 bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass-sm w-fit overflow-x-auto">
           <button
             onClick={() => setActiveTab('universal')}
-            className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition border-b-2 whitespace-nowrap ${
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 whitespace-nowrap ${
               activeTab === 'universal'
-                ? 'border-primary-600 text-primary-700 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             Universal Excel Import
           </button>
           <button
             onClick={() => setActiveTab('templates')}
-            className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition border-b-2 whitespace-nowrap ${
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 whitespace-nowrap ${
               activeTab === 'templates'
-                ? 'border-primary-600 text-primary-700 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             Download Templates &amp; Schema
           </button>
           <button
             onClick={() => setActiveTab('batches')}
-            className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition border-b-2 whitespace-nowrap ${
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 whitespace-nowrap ${
               activeTab === 'batches'
-                ? 'border-primary-600 text-primary-700 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             Migration Batches ({batches.length})
           </button>
           <button
             onClick={() => setActiveTab('issues')}
-            className={`px-4 py-2 text-sm font-semibold rounded-t-lg transition border-b-2 whitespace-nowrap ${
+            className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 whitespace-nowrap ${
               activeTab === 'issues'
-                ? 'border-primary-600 text-primary-700 bg-white'
-                : 'border-transparent text-gray-500 hover:text-gray-900'
+                ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
             }`}
           >
             Issues &amp; Unresolved Mappings ({issues.length})
           </button>
-
         </div>
 
         {/* ========================================================================= */}
@@ -484,11 +484,11 @@ export default function MigrationPage() {
         {activeTab === 'universal' && (
           <div className="space-y-6">
             {/* Section A — Upload Excel */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6 shadow-2xs space-y-4">
+            <GlassCard className="p-6 space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-bold text-gray-900">Section A — Upload Excel File</h3>
-                  <p className="text-xs text-gray-500">
+                  <h3 className="text-base font-bold text-slate-900">Section A — Upload Excel File</h3>
+                  <p className="text-xs text-slate-500">
                     Upload a single-table Excel workbook (.xlsx). Exact database column names must be in row 1.
                   </p>
                 </div>
@@ -500,7 +500,7 @@ export default function MigrationPage() {
               </div>
 
               {/* Universal ID Support Info Banner */}
-              <div className="p-3 bg-blue-50/80 border border-blue-200 rounded-lg text-xs flex items-center gap-2.5 text-blue-900">
+              <div className="p-3 bg-blue-50/80 border border-blue-200/80 rounded-xl text-xs flex items-center gap-2.5 text-blue-900">
                 <span className="text-base flex-shrink-0">💡</span>
                 <div>
                   <span className="font-bold">Flexible Primary Key &amp; Reference Support:</span> The <code>id</code> column and foreign key references accept both <strong>UUID v4</strong> (e.g. <code>550e8400-e29b-41d4-a716-446655440000</code>) and <strong>Integer IDs</strong> (e.g. <code>1</code>, <code>2</code>, <code>1001</code>). If omitted or blank in Excel, an authentic UUID v4 is automatically generated.
@@ -511,7 +511,7 @@ export default function MigrationPage() {
                 <div
                   onDragOver={(e) => e.preventDefault()}
                   onDrop={handleDrop}
-                  className="border-2 border-dashed border-gray-300 hover:border-primary-500 rounded-xl p-8 text-center bg-gray-50 hover:bg-white transition cursor-pointer"
+                  className="border-2 border-dashed border-slate-300 hover:border-primary-500 rounded-2xl p-8 text-center bg-white/50 hover:bg-white/80 transition-all duration-200 cursor-pointer shadow-2xs hover:shadow-glass-sm"
                   onClick={() => document.getElementById('excel-file-input')?.click()}
                 >
                   <input
@@ -522,7 +522,7 @@ export default function MigrationPage() {
                     onChange={handleFileChange}
                   />
                   <div className="space-y-2">
-                    <div className="mx-auto w-12 h-12 text-gray-400">
+                    <div className="mx-auto w-12 h-12 text-primary-400">
                       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" className="w-12 h-12">
                         <path
                           strokeLinecap="round"
@@ -532,19 +532,19 @@ export default function MigrationPage() {
                         />
                       </svg>
                     </div>
-                    <p className="text-sm font-medium text-gray-700">
-                      Drag and drop your Excel workbook here, or <span className="text-primary-600 underline">browse</span>
+                    <p className="text-sm font-medium text-slate-700">
+                      Drag and drop your Excel workbook here, or <span className="text-primary-600 font-semibold underline">browse</span>
                     </p>
-                    <p className="text-xs text-gray-400">Supports .xlsx up to 100MB</p>
+                    <p className="text-xs text-slate-400">Supports .xlsx up to 100MB</p>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between p-4 bg-primary-50/50 border border-primary-200 rounded-lg">
+                <div className="flex items-center justify-between p-4 bg-primary-50/50 border border-primary-200 rounded-xl">
                   <div className="flex items-center gap-3">
                     <span className="text-2xl">📊</span>
                     <div>
-                      <p className="text-sm font-bold text-gray-900">{selectedFile.name}</p>
-                      <p className="text-xs text-gray-500">{fileSizeStr}</p>
+                      <p className="text-sm font-bold text-slate-900">{selectedFile.name}</p>
+                      <p className="text-xs text-slate-500">{fileSizeStr}</p>
                     </div>
                   </div>
                   {isUploading && (
@@ -554,7 +554,7 @@ export default function MigrationPage() {
                   )}
                 </div>
               )}
-            </div>
+            </GlassCard>
 
             {/* Section B — Automatic Table Detection */}
             {inspectedFile && (

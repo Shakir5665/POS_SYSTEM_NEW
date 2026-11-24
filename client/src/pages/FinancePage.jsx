@@ -7,6 +7,9 @@ import { Modal } from '../components/Modal'
 import { Table } from '../components/Table'
 import { Pagination } from '../components/Pagination'
 import { Badge } from '../components/Badge'
+import { PageHeader } from '../components/PageHeader'
+import { GlassCard } from '../components/GlassCard'
+import { MetricCard } from '../components/MetricCard'
 import { financeService } from '../services/finance'
 import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 
@@ -434,40 +437,40 @@ export default function FinancePage() {
     <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div>
-            <h1 className="text-2xl font-bold text-gray-900">Business Finance Management</h1>
-            <p className="text-sm text-gray-500 mt-0.5">
-              Track operating expenses, equipment & assets, and owner equity
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            {(activeTab === 'overview' || activeTab === 'expenses') && (
-              <Button variant="primary" onClick={openExpenseModal}>
-                + Record Expense
-              </Button>
-            )}
-            {activeTab === 'assets' && (
-              <Button variant="primary" onClick={() => setAssetModalOpen(true)}>
-                + Register Asset
-              </Button>
-            )}
-            {activeTab === 'equity' && (
-              <Button variant="primary" onClick={() => setEquityModalOpen(true)}>
-                + Capital / Drawing
-              </Button>
-            )}
-          </div>
-        </div>
+        <PageHeader
+          title="Business Finance Management"
+          subtitle="Track operating expenses, equipment & assets, and owner equity"
+          action={
+            <div className="flex items-center gap-2">
+              {(activeTab === 'overview' || activeTab === 'expenses') && (
+                <Button variant="primary" onClick={openExpenseModal}>
+                  + Record Expense
+                </Button>
+              )}
+              {activeTab === 'assets' && (
+                <Button variant="primary" onClick={() => setAssetModalOpen(true)}>
+                  + Register Asset
+                </Button>
+              )}
+              {activeTab === 'equity' && (
+                <Button variant="primary" onClick={() => setEquityModalOpen(true)}>
+                  + Capital / Drawing
+                </Button>
+              )}
+            </div>
+          }
+        />
 
         {/* Top Navigation Tabs */}
-        <div className="flex gap-1 bg-gray-100 p-1 rounded-xl w-fit">
+        <div className="flex gap-1.5 p-1 bg-white/70 backdrop-blur-md rounded-2xl border border-white/80 shadow-glass-sm w-fit overflow-x-auto">
           {TABS.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+              className={`px-4 py-2 text-sm font-semibold rounded-xl transition-all duration-150 whitespace-nowrap ${
+                activeTab === tab.key
+                  ? 'bg-gradient-to-r from-primary-600 to-indigo-600 text-white shadow-primary-glow font-bold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
               }`}
             >
               {tab.label}
@@ -479,100 +482,95 @@ export default function FinancePage() {
         {activeTab === 'overview' && summary && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_expenses)}>
-                <p className="text-sm font-medium text-gray-500">Total Operating Expenses</p>
-                <p className="text-2xl font-bold text-danger-600 mt-1">{formatCompactCurrency(summary.total_expenses)}</p>
-                <p className="text-xs text-gray-400 mt-1">Rent, utilities & logistics</p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_asset_value)}>
-                <p className="text-sm font-medium text-gray-500">Business Assets Valuation</p>
-                <p className="text-2xl font-bold text-primary-600 mt-1">{formatCompactCurrency(summary.total_asset_value)}</p>
-                <p className="text-xs text-gray-400 mt-1">Equipment & electronics</p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.net_capital)}>
-                <p className="text-sm font-medium text-gray-500">Net Owner Capital</p>
-                <p className="text-2xl font-bold text-success-600 mt-1">{formatCompactCurrency(summary.net_capital)}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  In: <span title={formatCurrency(summary.total_contributions)}>{formatCompactCurrency(summary.total_contributions)}</span> | Out: <span title={formatCurrency(summary.total_withdrawals || 0)}>{formatCompactCurrency(summary.total_withdrawals || 0)}</span>
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_equity ?? summary.net_capital)}>
-                <p className="text-sm font-medium text-gray-500">Total Business Equity</p>
-                <p className="text-2xl font-bold text-emerald-700 mt-1">{formatCompactCurrency(summary.total_equity ?? summary.net_capital)}</p>
-                <p className="text-xs text-gray-400 mt-1">
-                  Capital + Profit: <span title={formatCurrency(summary.retained_earnings || 0)}>{formatCompactCurrency(summary.retained_earnings || 0)}</span>
-                </p>
-              </div>
-
-              <div className="bg-white rounded-xl border border-gray-200 p-5 shadow-xs" title={formatCurrency(summary.total_supplier_payables)}>
-                <p className="text-sm font-medium text-gray-500">Outstanding Payables</p>
-                <p className="text-2xl font-bold text-warning-700 mt-1">
-                  {formatCompactCurrency(summary.total_supplier_payables)}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">Unpaid vendor invoices</p>
-              </div>
+              <MetricCard
+                title="Operating Expenses"
+                value={formatCompactCurrency(summary.total_expenses)}
+                subtitle="Rent, utilities & logistics"
+                color="red"
+              />
+              <MetricCard
+                title="Assets Valuation"
+                value={formatCompactCurrency(summary.total_asset_value)}
+                subtitle="Equipment & electronics"
+                color="indigo"
+              />
+              <MetricCard
+                title="Net Owner Capital"
+                value={formatCompactCurrency(summary.net_capital)}
+                subtitle={`In: ${formatCompactCurrency(summary.total_contributions)} | Out: ${formatCompactCurrency(summary.total_withdrawals || 0)}`}
+                color="green"
+              />
+              <MetricCard
+                title="Total Business Equity"
+                value={formatCompactCurrency(summary.total_equity ?? summary.net_capital)}
+                subtitle={`Retained Profit: ${formatCompactCurrency(summary.retained_earnings || 0)}`}
+                color="blue"
+              />
+              <MetricCard
+                title="Outstanding Payables"
+                value={formatCompactCurrency(summary.total_supplier_payables)}
+                subtitle="Unpaid vendor invoices"
+                color="amber"
+              />
             </div>
 
             {/* Quick Balance Health */}
-            <div className="bg-gray-50 rounded-xl border border-gray-200 p-5">
-              <h2 className="text-base font-semibold text-gray-900 mb-3">Balance Sheet Quick View</h2>
+            <GlassCard className="p-6">
+              <h2 className="text-base font-bold text-slate-900 mb-4">Balance Sheet Quick View</h2>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Assets & Receivables</p>
-                  <div className="flex justify-between text-sm py-1 border-b">
-                    <span className="text-gray-600">Fixed & Operating Assets</span>
-                    <span className="font-mono font-medium" title={formatCurrency(summary.total_asset_value)}>{formatCompactCurrency(summary.total_asset_value)}</span>
+                <div className="bg-white/70 p-4 rounded-xl border border-white/90 shadow-2xs space-y-2.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Assets & Receivables</p>
+                  <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
+                    <span className="text-slate-600 font-medium">Fixed & Operating Assets</span>
+                    <span className="font-mono font-bold text-slate-900" title={formatCurrency(summary.total_asset_value)}>{formatCompactCurrency(summary.total_asset_value)}</span>
                   </div>
-                  <div className="flex justify-between text-sm py-1">
-                    <span className="text-gray-600">Customer Credit Receivables</span>
-                    <span className="font-mono font-medium" title={formatCurrency(summary.total_customer_receivables)}>{formatCompactCurrency(summary.total_customer_receivables)}</span>
+                  <div className="flex justify-between text-sm py-1.5">
+                    <span className="text-slate-600 font-medium">Customer Credit Receivables</span>
+                    <span className="font-mono font-bold text-slate-900" title={formatCurrency(summary.total_customer_receivables)}>{formatCompactCurrency(summary.total_customer_receivables)}</span>
                   </div>
                 </div>
 
-                <div className="bg-white p-4 rounded-lg border border-gray-200 space-y-2">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Liabilities & Equity</p>
-                  <div className="flex justify-between text-sm py-1 border-b">
-                    <span className="text-gray-600">Supplier Payables (Debt)</span>
-                    <span className="font-mono font-medium text-danger-600" title={formatCurrency(summary.total_supplier_payables)}>
+                <div className="bg-white/70 p-4 rounded-xl border border-white/90 shadow-2xs space-y-2.5">
+                  <p className="text-xs font-bold uppercase tracking-wider text-slate-500">Liabilities & Equity</p>
+                  <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
+                    <span className="text-slate-600 font-medium">Supplier Payables (Debt)</span>
+                    <span className="font-mono font-bold text-danger-600" title={formatCurrency(summary.total_supplier_payables)}>
                       {formatCompactCurrency(summary.total_supplier_payables)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm py-1 border-b">
-                    <span className="text-gray-600">Contributed Owner Capital</span>
-                    <span className="font-mono font-medium text-success-600" title={formatCurrency(summary.net_capital)}>
+                  <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
+                    <span className="text-slate-600 font-medium">Contributed Owner Capital</span>
+                    <span className="font-mono font-bold text-success-600" title={formatCurrency(summary.net_capital)}>
                       {formatCompactCurrency(summary.net_capital)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm py-1 border-b">
-                    <span className="text-gray-600">Retained Earnings (Operating Profit)</span>
-                    <span className="font-mono font-medium text-gray-900" title={formatCurrency(summary.retained_earnings || 0)}>
+                  <div className="flex justify-between text-sm py-1.5 border-b border-slate-100">
+                    <span className="text-slate-600 font-medium">Retained Earnings (Operating Profit)</span>
+                    <span className="font-mono font-bold text-slate-900" title={formatCurrency(summary.retained_earnings || 0)}>
                       {formatCompactCurrency(summary.retained_earnings || 0)}
                     </span>
                   </div>
-                  <div className="flex justify-between text-sm py-1 font-bold">
-                    <span className="text-gray-800">Total Business Equity</span>
+                  <div className="flex justify-between text-sm py-1.5 font-bold">
+                    <span className="text-slate-900">Total Business Equity</span>
                     <span className="font-mono text-emerald-700" title={formatCurrency(summary.total_equity ?? summary.net_capital)}>
                       {formatCompactCurrency(summary.total_equity ?? summary.net_capital)}
                     </span>
                   </div>
                 </div>
               </div>
-            </div>
+            </GlassCard>
           </div>
         )}
 
         {/* ----------------- TAB: EXPENSES ----------------- */}
         {activeTab === 'expenses' && (
           <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row gap-3 justify-between items-center bg-white p-3 rounded-xl border border-gray-200">
+            <GlassCard className="p-4 flex flex-col sm:flex-row gap-3 justify-between items-center">
               <div className="flex gap-2 w-full sm:w-auto">
                 <select
                   value={selectedCategory}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg bg-white"
+                  className="px-3.5 py-2 text-sm border border-slate-200/80 rounded-xl bg-white/90 shadow-2xs font-medium text-slate-800 focus:ring-2 focus:ring-primary-500/20"
                 >
                   <option value="">All Categories</option>
                   {categories.map((c) => (
@@ -587,53 +585,53 @@ export default function FinancePage() {
                   placeholder="Search payee or notes..."
                   value={expenseSearch}
                   onChange={(e) => setExpenseSearch(e.target.value)}
-                  className="px-3 py-2 text-sm border border-gray-300 rounded-lg w-full sm:w-64"
+                  className="px-3.5 py-2 text-sm border border-slate-200/80 rounded-xl bg-white/90 shadow-2xs font-medium text-slate-800 w-full sm:w-64 focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
 
               <div className="text-right">
-                <p className="text-xs text-gray-500">Total Filtered Expenses</p>
+                <p className="text-xs text-slate-500 font-medium">Total Filtered Expenses</p>
                 <p className="text-lg font-bold text-danger-600 font-mono" title={formatCurrency(expenseMeta.total_expenses_amount || 0)}>
                   {formatCompactCurrency(expenseMeta.total_expenses_amount || 0)}
                 </p>
               </div>
-            </div>
+            </GlassCard>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <GlassCard className="overflow-hidden p-0 border border-white/80 shadow-glass-sm rounded-2xl">
               <Table
                 columns={expenseColumns}
                 data={expenses}
                 isLoading={loading}
                 emptyMessage="No expenses recorded."
               />
-            </div>
+            </GlassCard>
           </div>
         )}
 
         {/* ----------------- TAB: ASSETS ----------------- */}
         {activeTab === 'assets' && (
           <div className="space-y-4">
-            <div className="bg-white p-4 rounded-xl border border-gray-200 flex justify-between items-center">
+            <GlassCard className="p-4 flex justify-between items-center">
               <div>
-                <p className="text-xs text-gray-500 font-medium">Total Assets Tracked</p>
-                <p className="text-xl font-bold text-gray-900 mt-0.5">{assetMeta.total || assets.length} assets</p>
+                <p className="text-xs text-slate-500 font-semibold">Total Assets Tracked</p>
+                <p className="text-xl font-bold text-slate-900 mt-0.5">{assetMeta.total || assets.length} assets</p>
               </div>
               <div className="text-right">
-                <p className="text-xs text-gray-500 font-medium">Total Current Valuation</p>
+                <p className="text-xs text-slate-500 font-semibold">Total Current Valuation</p>
                 <p className="text-2xl font-bold font-mono text-primary-600 mt-0.5" title={formatCurrency(assetMeta.total_current_value || 0)}>
                   {formatCompactCurrency(assetMeta.total_current_value || 0)}
                 </p>
               </div>
-            </div>
+            </GlassCard>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <GlassCard className="overflow-hidden p-0 border border-white/80 shadow-glass-sm rounded-2xl">
               <Table
                 columns={assetColumns}
                 data={assets}
                 isLoading={loading}
                 emptyMessage="No business assets registered."
               />
-            </div>
+            </GlassCard>
           </div>
         )}
 
@@ -641,34 +639,31 @@ export default function FinancePage() {
         {activeTab === 'equity' && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div className="bg-white p-4 rounded-xl border border-gray-200" title={formatCurrency(equityMeta.summary?.total_contributions || 0)}>
-                <p className="text-xs text-gray-500">Total Owner Contributions</p>
-                <p className="text-xl font-bold text-success-600 font-mono mt-1">
-                  +{formatCompactCurrency(equityMeta.summary?.total_contributions || 0)}
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-xl border border-gray-200" title={formatCurrency(equityMeta.summary?.total_withdrawals || 0)}>
-                <p className="text-xs text-gray-500">Total Owner Drawings</p>
-                <p className="text-xl font-bold text-danger-600 font-mono mt-1">
-                  -{formatCompactCurrency(equityMeta.summary?.total_withdrawals || 0)}
-                </p>
-              </div>
-              <div className="bg-white p-4 rounded-xl border border-gray-200" title={formatCurrency(equityMeta.summary?.net_owner_equity || 0)}>
-                <p className="text-xs text-gray-500">Net Owner Capital</p>
-                <p className="text-xl font-bold text-gray-900 font-mono mt-1">
-                  {formatCompactCurrency(equityMeta.summary?.net_owner_equity || 0)}
-                </p>
-              </div>
+              <MetricCard
+                title="Total Owner Contributions"
+                value={`+${formatCompactCurrency(equityMeta.summary?.total_contributions || 0)}`}
+                color="green"
+              />
+              <MetricCard
+                title="Total Owner Drawings"
+                value={`-${formatCompactCurrency(equityMeta.summary?.total_withdrawals || 0)}`}
+                color="red"
+              />
+              <MetricCard
+                title="Net Owner Capital"
+                value={formatCompactCurrency(equityMeta.summary?.net_owner_equity || 0)}
+                color="blue"
+              />
             </div>
 
-            <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <GlassCard className="overflow-hidden p-0 border border-white/80 shadow-glass-sm rounded-2xl">
               <Table
                 columns={equityColumns}
                 data={transactions}
                 isLoading={loading}
                 emptyMessage="No owner transactions recorded."
               />
-            </div>
+            </GlassCard>
           </div>
         )}
       </div>

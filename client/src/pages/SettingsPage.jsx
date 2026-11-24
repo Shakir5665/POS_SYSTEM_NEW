@@ -8,20 +8,27 @@ import { useSettings } from '../hooks/useSettings'
 
 function SkeletonField() {
   return (
-    <div className="animate-pulse">
-      <div className="h-4 bg-gray-200 rounded w-1/4 mb-2" />
-      <div className="h-10 bg-gray-200 rounded" />
+    <div className="animate-pulse space-y-2">
+      <div className="h-3 bg-slate-200/70 rounded-md w-1/4" />
+      <div className="h-10 bg-slate-200/50 rounded-xl" />
     </div>
   )
 }
 
 const getFields = (symbol = 'LKR') => [
   { key: 'store_name', label: 'Store Name', type: 'text', placeholder: 'My POS Store' },
-  { key: 'store_address', label: 'Store Address', type: 'text', placeholder: '123 Main St, Accra, Ghana' },
+  { key: 'store_address', label: 'Store Address', type: 'text', placeholder: '123 Main St, Colombo' },
   { key: 'store_phone', label: 'Store Phone', type: 'text', placeholder: '0XX-XXX-XXXX' },
   { key: 'currency_symbol', label: 'Currency Symbol', type: 'text', placeholder: symbol || 'LKR' },
   { key: 'tax_rate', label: 'Tax Rate (%)', type: 'number', placeholder: '0', min: 0, max: 100, step: 'any' },
-  { key: 'loyalty_points_rate', label: `Loyalty Points Rate (${symbol || 'LKR'} per 1 point)`, type: 'number', placeholder: '10', min: 1, step: 'any' },
+  {
+    key: 'loyalty_points_rate',
+    label: `Loyalty Points Rate (${symbol || 'LKR'} per 1 point)`,
+    type: 'number',
+    placeholder: '10',
+    min: 1,
+    step: 'any',
+  },
   { key: 'receipt_footer', label: 'Receipt Footer Message', type: 'text', placeholder: 'Thank you for your business!' },
 ]
 
@@ -33,7 +40,8 @@ export default function SettingsPage() {
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
-    settingsService.get()
+    settingsService
+      .get()
       .then((res) => {
         const data = res.data?.data || {}
         setSettings(data)
@@ -93,46 +101,36 @@ export default function SettingsPage() {
 
   return (
     <DashboardLayout>
-      <div className="max-w-2xl mx-auto">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
-          <p className="text-sm text-gray-500 mt-1">Configure store information, tax, and loyalty rates.</p>
+      <div className="max-w-2xl mx-auto space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">Settings</h1>
+          <p className="text-xs font-medium text-slate-500 mt-1">Configure store information, tax, and currency settings.</p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6 space-y-5">
-            <h2 className="text-base font-semibold text-gray-800 border-b pb-3">Store Information</h2>
-
-            {isLoading ? (
-              fields.map((f) => <SkeletonField key={f.key} />)
-            ) : (
-              fields.map((field) => (
-                <div key={field.key}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    {field.label}
-                  </label>
+        <form onSubmit={handleSubmit} noValidate>
+          <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6 sm:p-8 space-y-5">
+            {isLoading
+              ? Array.from({ length: 6 }).map((_, i) => <SkeletonField key={i} />)
+              : fields.map(({ key, label, type, placeholder, min, max, step }) => (
                   <Input
-                    type={field.type}
-                    value={settings[field.key] ?? ''}
-                    onChange={(e) => handleChange(field.key, e.target.value)}
-                    placeholder={field.placeholder}
-                    min={field.min}
-                    max={field.max}
-                    step={field.step}
-                    error={errors[field.key]}
+                    key={key}
+                    label={label}
+                    type={type}
+                    min={min}
+                    max={max}
+                    step={step}
+                    placeholder={placeholder}
+                    value={settings[key] ?? ''}
+                    onChange={(e) => handleChange(key, e.target.value)}
+                    error={errors[key]}
                   />
-                  {errors[field.key] && (
-                    <p className="mt-1 text-xs text-red-600">{errors[field.key]}</p>
-                  )}
-                </div>
-              ))
-            )}
-          </div>
+                ))}
 
-          <div className="mt-6 flex justify-end">
-            <Button type="submit" variant="primary" isLoading={isSaving} disabled={isLoading || isSaving}>
-              Save Settings
-            </Button>
+            <div className="pt-4 border-t border-slate-100 flex justify-end">
+              <Button type="submit" variant="primary" isLoading={isSaving} disabled={isLoading}>
+                Save Settings
+              </Button>
+            </div>
           </div>
         </form>
       </div>
