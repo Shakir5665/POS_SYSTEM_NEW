@@ -1,7 +1,13 @@
 const PDFDocument = require('pdfkit')
+const path = require('path')
+const fs = require('fs')
 const prisma = require('../utils/prismaClient')
 const { NotFoundError } = require('../utils/errors')
 const { getSettingValue } = require('./settingsService')
+
+const ISKPOTA_REGULAR = path.join(__dirname, '../../assets/fonts/iskpota.ttf')
+const ISKPOTA_BOLD = path.join(__dirname, '../../assets/fonts/iskpotab.ttf')
+const HAS_SINHALA_FONT = fs.existsSync(ISKPOTA_REGULAR) && fs.existsSync(ISKPOTA_BOLD)
 
 function formatMoney(amount, currency = 'LKR') {
   const num = Number(amount || 0)
@@ -20,6 +26,72 @@ function formatDate(date) {
   })
 }
 
+function computeItemBreakdown(item) {
+  const qty = Number(item.quantity != null ? item.quantity : 1)
+  const unitPrice = Number(item.unit_price != null ? item.unit_price : 0)
+  const usualPrice =
+    item.usual_price_snapshot != null && Number(item.usual_price_snapshot) > 0
+      ? Number(item.usual_price_snapshot)
+      : null
+  const ourPrice =
+    item.our_price_snapshot != null && Number(item.our_price_snapshot) > 0
+      ? Number(item.our_price_snapshot)
+      : null
+  const isWholesale = Boolean(item.is_wholesale)
+  const wholesalePrice =
+    item.wholesale_price_snapshot != null && Number(item.wholesale_price_snapshot) > 0
+      ? Number(item.wholesale_price_snapshot)
+      : null
+  const predefinedApplied = isWholesale
+    ? false
+    : (item.predefined_discount_applied !== undefined && item.predefined_discount_applied !== null
+        ? Boolean(item.predefined_discount_applied)
+        : (usualPrice != null && ourPrice != null && usualPrice > ourPrice && Math.abs(unitPrice - ourPrice) < 0.01))
+
+  let pricingFactor = 1
+  const unitStr = (item.unit || item.base_unit || '').toLowerCase()
+  const pricingUnitStr = (item.pricing_unit || '').toLowerCase()
+  const isWeight =
+    item.product?.unit_category === 'WEIGHT' ||
+    ['g', 'kg'].includes(unitStr) ||
+    ['g', 'kg'].includes(pricingUnitStr)
+  const isVolume =
+    item.product?.unit_category === 'VOLUME' ||
+    ['ml', 'l'].includes(unitStr) ||
+    ['ml', 'l'].includes(pricingUnitStr)
+
+  if (isWeight || isVolume) {
+    const factorSelling = unitStr === 'g' || unitStr === 'ml' ? 0.001 : 1
+    const factorPricing = pricingUnitStr === 'g' || pricingUnitStr === 'ml' ? 0.001 : 1
+    pricingFactor = factorPricing ? factorSelling / factorPricing : 1
+  }
+
+  const pricingQty = qty * pricingFactor
+  const unitMarket = usualPrice != null ? usualPrice : unitPrice
+  const unitOur = isWholesale
+    ? (wholesalePrice != null ? wholesalePrice : unitPrice)
+    : (!predefinedApplied ? unitMarket : (ourPrice != null ? ourPrice : unitPrice))
+
+  const marketPrice = Number((pricingQty * unitMarket).toFixed(2))
+  const lineTotal = Number(
+    Number(item.total != null ? item.total : pricingQty * unitPrice).toFixed(2)
+  )
+  const lineDiscount = Math.max(0, Number((marketPrice - lineTotal).toFixed(2)))
+
+  return {
+    name: item.product_name || item.product?.name || 'Product',
+    sku: item.product_sku || item.product?.sku || '',
+    unit: item.unit || item.pricing_unit || 'pcs',
+    qty,
+    returnedQty: parseFloat(item.returned_quantity || 0),
+    unitMarketPrice: unitMarket,
+    unitOurPrice: unitOur,
+    marketPrice,
+    lineDiscount,
+    lineTotal,
+  }
+}
+
 async function generateInvoicePdf(saleId, format = 'a4') {
   const sale = await prisma.sale.findUnique({
     where: { id: saleId },
@@ -29,7 +101,7 @@ async function generateInvoicePdf(saleId, format = 'a4') {
       warehouse: { select: { id: true, code: true, name: true } },
       sale_items: {
         include: {
-          product: { select: { id: true, name: true, sku: true, base_unit: true, pricing_unit: true } },
+          product: { select: { id: true, name: true, sku: true, base_unit: true, pricing_unit: true, unit_category: true } },
         },
       },
       payments: { where: { is_void: false } },
@@ -59,6 +131,14 @@ async function generateInvoicePdf(saleId, format = 'a4') {
       bufferPages: true,
     })
 
+    const fontRegular = HAS_SINHALA_FONT ? 'Sinhala' : 'Helvetica'
+    const fontBold = HAS_SINHALA_FONT ? 'Sinhala-Bold' : 'Helvetica-Bold'
+
+    if (HAS_SINHALA_FONT) {
+      doc.registerFont('Sinhala', ISKPOTA_REGULAR)
+      doc.registerFont('Sinhala-Bold', ISKPOTA_BOLD)
+    }
+
     const buffers = []
     doc.on('data', (data) => buffers.push(data))
     doc.on('end', () => resolve(Buffer.concat(buffers)))
@@ -69,14 +149,14 @@ async function generateInvoicePdf(saleId, format = 'a4') {
     const contentWidth = pageWidth - margin * 2
 
     // Header: Store Info
-    doc.fontSize(16).font('Helvetica-Bold').text(storeName, margin, margin, { align: 'left' })
-    doc.fontSize(8).font('Helvetica').fillColor('#555555')
+    doc.fontSize(16).font(fontBold).fillColor('#111827').text(storeName, margin, margin, { align: 'left' })
+    doc.fontSize(8).font(fontRegular).fillColor('#555555')
     if (storeAddress) doc.text(storeAddress)
     if (storePhone) doc.text(`Phone: ${storePhone}`)
 
     // Header Right: Invoice Title & Meta
-    doc.fontSize(14).font('Helvetica-Bold').fillColor('#111827').text('COMMERCIAL INVOICE', margin, margin, { align: 'right' })
-    doc.fontSize(8).font('Helvetica').fillColor('#374151')
+    doc.fontSize(14).font(fontBold).fillColor('#111827').text('COMMERCIAL INVOICE', margin, margin, { align: 'right' })
+    doc.fontSize(8).font(fontRegular).fillColor('#374151')
     doc.text(`Invoice #: ${sale.transaction_id}`, { align: 'right' })
     doc.text(`Date: ${formatDate(sale.sale_date || sale.created_at)}`, { align: 'right' })
     doc.text(`Payment Status: ${sale.payment_status}`, { align: 'right' })
@@ -87,8 +167,8 @@ async function generateInvoicePdf(saleId, format = 'a4') {
 
     // Bill To & Sale Meta columns
     const colY = doc.y
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#1F2937').text('BILL TO:', margin, colY)
-    doc.font('Helvetica').fontSize(8).fillColor('#4B5563')
+    doc.fontSize(9).font(fontBold).fillColor('#1F2937').text('BILL TO:', margin, colY)
+    doc.font(fontRegular).fontSize(8).fillColor('#4B5563')
     if (sale.customer) {
       doc.text(sale.customer.name)
       if (sale.customer.phone) doc.text(`Phone: ${sale.customer.phone}`)
@@ -98,8 +178,8 @@ async function generateInvoicePdf(saleId, format = 'a4') {
     }
 
     const rightColX = margin + contentWidth * 0.55
-    doc.fontSize(9).font('Helvetica-Bold').fillColor('#1F2937').text('TRANSACTION DETAILS:', rightColX, colY)
-    doc.font('Helvetica').fontSize(8).fillColor('#4B5563')
+    doc.fontSize(9).font(fontBold).fillColor('#1F2937').text('TRANSACTION DETAILS:', rightColX, colY)
+    doc.font(fontRegular).fontSize(8).fillColor('#4B5563')
     doc.text(`Cashier: ${sale.user?.full_name || sale.user?.username || '—'}`, rightColX)
     if (sale.warehouse) doc.text(`Warehouse: ${sale.warehouse.name}`, rightColX)
     doc.text(`Payment Method: ${sale.payment_method}`, rightColX)
@@ -108,91 +188,175 @@ async function generateInvoicePdf(saleId, format = 'a4') {
     doc.strokeColor('#E5E7EB').lineWidth(0.5).moveTo(margin, doc.y).lineTo(pageWidth - margin, doc.y).stroke()
     doc.moveDown(0.5)
 
-    // Product Table Header
-    const tableTop = doc.y
-    const colProduct = margin
-    const colUnit = margin + contentWidth * 0.42
-    const colQty = margin + contentWidth * 0.55
-    const colPrice = margin + contentWidth * 0.68
-    const colDiscount = margin + contentWidth * 0.82
-    const colTotal = margin + contentWidth * 0.92
+    // Compute items matching the View modal
+    const computedItems = (sale.sale_items || []).map(computeItemBreakdown)
 
-    doc.fontSize(8).font('Helvetica-Bold').fillColor('#374151')
-    doc.text('ITEM & DESCRIPTION', colProduct, tableTop)
-    doc.text('UNIT', colUnit, tableTop)
-    doc.text('QTY', colQty, tableTop, { width: 40, align: 'right' })
-    doc.text('UNIT PRICE', colPrice, tableTop, { width: 50, align: 'right' })
-    doc.text('DISC', colDiscount, tableTop, { width: 35, align: 'right' })
-    doc.text('TOTAL', colTotal, tableTop, { width: contentWidth - (colTotal - margin), align: 'right' })
+    // Product Table Columns matching View Sale Details modal
+    // Product | Qty | Unit Price (සා.මිල) | Discount | Net Price (අපේ මිල) | Subtotal
+    const tableTop = doc.y
+    const colProductX = margin
+    const colProductW = 160
+
+    const colQtyX = margin + 165
+    const colQtyW = 45
+
+    const colUnitMarketX = margin + 215
+    const colUnitMarketW = 80
+
+    const colDiscountX = margin + 300
+    const colDiscountW = 65
+
+    const colNetPriceX = margin + 370
+    const colNetPriceW = 80
+
+    const colTotalX = margin + 455
+    const colTotalW = contentWidth - 455
+
+    const headerMarket = HAS_SINHALA_FONT ? 'Unit Price (සා.මිල)' : 'Unit Price'
+    const headerNet = HAS_SINHALA_FONT ? 'Net Price (අපේ මිල)' : 'Net Price'
+
+    doc.fontSize(8).font(fontBold).fillColor('#374151')
+    doc.text('Product', colProductX, tableTop, { width: colProductW })
+    doc.text('Qty', colQtyX, tableTop, { width: colQtyW, align: 'center' })
+    doc.text(headerMarket, colUnitMarketX, tableTop, { width: colUnitMarketW, align: 'right' })
+    doc.text('Discount', colDiscountX, tableTop, { width: colDiscountW, align: 'right' })
+    doc.text(headerNet, colNetPriceX, tableTop, { width: colNetPriceW, align: 'right' })
+    doc.text('Subtotal', colTotalX, tableTop, { width: colTotalW, align: 'right' })
 
     doc.moveDown(0.4)
     doc.strokeColor('#D1D5DB').lineWidth(1).moveTo(margin, doc.y).lineTo(pageWidth - margin, doc.y).stroke()
     doc.moveDown(0.3)
 
     // Product Rows
-    doc.font('Helvetica').fontSize(8).fillColor('#1F2937')
-    sale.sale_items.forEach((item) => {
-      const rowY = doc.y
-      if (rowY > doc.page.height - 80) {
+    computedItems.forEach((item) => {
+      let rowY = doc.y
+      if (rowY > doc.page.height - 90) {
         doc.addPage()
+        rowY = doc.y
       }
 
-      const pName = item.product_name || item.product?.name || 'Product'
-      const pSku = item.product_sku || item.product?.sku ? ` (${item.product_sku || item.product?.sku})` : ''
-      const lineDisc = Number(item.discount || 0)
+      const pName = item.name
+      const pSku = item.sku ? ` (${item.sku})` : ''
+      const retLabel = item.returnedQty > 0 ? ` [${item.returnedQty} returned]` : ''
 
-      doc.text(`${pName}${pSku}`, colProduct, doc.y, { width: contentWidth * 0.40 })
-      doc.text(item.unit || item.pricing_unit || 'pcs', colUnit, rowY)
-      doc.text(Number(item.quantity).toString(), colQty, rowY, { width: 40, align: 'right' })
-      doc.text(formatMoney(item.unit_price, ''), colPrice, rowY, { width: 50, align: 'right' })
-      doc.text(lineDisc > 0 ? formatMoney(lineDisc, '') : '—', colDiscount, rowY, { width: 35, align: 'right' })
-      doc.text(formatMoney(item.total, ''), colTotal, rowY, { width: contentWidth - (colTotal - margin), align: 'right' })
+      doc.font(fontBold).fontSize(8).fillColor('#111827')
+      doc.text(`${pName}${pSku}${retLabel}`, colProductX, rowY, { width: colProductW })
 
-      doc.moveDown(0.4)
+      doc.font(fontBold).fontSize(8).fillColor('#1F2937')
+      doc.text(`${item.qty} ${item.unit}`, colQtyX, rowY, { width: colQtyW, align: 'center' })
+
+      doc.font(fontRegular).fontSize(8).fillColor('#4B5563')
+      doc.text(formatMoney(item.unitMarketPrice, ''), colUnitMarketX, rowY, { width: colUnitMarketW, align: 'right' })
+
+      if (item.lineDiscount > 0) {
+        doc.font(fontRegular).fontSize(8).fillColor('#059669')
+        doc.text(`-${formatMoney(item.lineDiscount, '')}`, colDiscountX, rowY, { width: colDiscountW, align: 'right' })
+      } else {
+        doc.font(fontRegular).fontSize(8).fillColor('#9CA3AF')
+        doc.text('0.00', colDiscountX, rowY, { width: colDiscountW, align: 'right' })
+      }
+
+      doc.font(fontBold).fontSize(8).fillColor('#111827')
+      doc.text(formatMoney(item.unitOurPrice, ''), colNetPriceX, rowY, { width: colNetPriceW, align: 'right' })
+      doc.text(formatMoney(item.lineTotal, ''), colTotalX, rowY, { width: colTotalW, align: 'right' })
+
+      doc.moveDown(0.5)
     })
 
     doc.moveDown(0.3)
     doc.strokeColor('#E5E7EB').lineWidth(0.5).moveTo(margin, doc.y).lineTo(pageWidth - margin, doc.y).stroke()
-    doc.moveDown(0.5)
+    doc.moveDown(0.6)
 
-    // Financial Summary Block
-    const summaryX = margin + contentWidth * 0.55
-    const summaryValX = margin + contentWidth * 0.80
-    const summaryValW = contentWidth * 0.20
+    // Calculations for summary matching View modal
+    const marketSubtotal = computedItems.reduce((acc, it) => acc + (it.marketPrice || 0), 0)
+    const cartDiscount = Number(sale.discount_amount || 0)
+    const totalItemDiscounts = computedItems.reduce((acc, it) => acc + (it.lineDiscount || 0), 0)
+    const totalDiscounts = Number((totalItemDiscounts + cartDiscount).toFixed(2))
+    const grandTotal = Number(sale.total_amount)
+    const amountPaid = Number(sale.amount_paid != null ? sale.amount_paid : sale.total_amount)
+    const balanceDue = Math.max(0, Number((grandTotal - amountPaid).toFixed(2)))
+    const changeGiven = Number(sale.change_amount || 0)
 
-    function summaryRow(label, val, bold = false) {
-      const y = doc.y
-      doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(bold ? 9 : 8).fillColor('#111827')
-      doc.text(label, summaryX, y)
-      doc.text(val, summaryValX, y, { width: summaryValW, align: 'right' })
-      doc.moveDown(0.4)
-    }
+    // Summary Section (Left: Payment records snapshot; Right: Financial Totals)
+    const summaryBlockTop = doc.y
 
-    summaryRow('Subtotal:', formatMoney(sale.subtotal, currency))
-    if (Number(sale.discount_amount || 0) > 0) {
-      summaryRow('Order Discount:', `-${formatMoney(sale.discount_amount, currency)}`)
-    }
-    if (Number(sale.tax_amount || 0) > 0) {
-      summaryRow('Tax:', formatMoney(sale.tax_amount, currency))
-    }
-    doc.strokeColor('#D1D5DB').lineWidth(1).moveTo(summaryX, doc.y).lineTo(pageWidth - margin, doc.y).stroke()
+    // Left column: Payment Records (matching View modal)
+    const leftW = contentWidth * 0.46
+    doc.fontSize(8).font(fontBold).fillColor('#1F2937').text('Payment Records', margin, summaryBlockTop)
     doc.moveDown(0.3)
-    summaryRow('Grand Total:', formatMoney(sale.total_amount, currency), true)
-    summaryRow('Amount Paid:', formatMoney(sale.amount_paid, currency))
-    summaryRow('Balance Due:', formatMoney(sale.balance_due, currency), Number(sale.balance_due) > 0)
+
+    if (sale.payments && sale.payments.length > 0) {
+      sale.payments.forEach((p) => {
+        const payY = doc.y
+        doc.font(fontRegular).fontSize(7.5).fillColor(p.is_void ? '#DC2626' : '#374151')
+        const refStr = p.reference ? ` (${p.reference})` : ''
+        doc.text(`${p.payment_method}${refStr}`, margin, payY, { width: leftW * 0.65 })
+        doc.font(fontBold).fontSize(7.5).fillColor(p.is_void ? '#DC2626' : '#059669')
+        doc.text(formatMoney(p.amount, currency), margin + leftW * 0.65, payY, { width: leftW * 0.35, align: 'right' })
+        doc.moveDown(0.25)
+      })
+    } else {
+      doc.font(fontRegular).fontSize(7.5).fillColor('#9CA3AF').text('No direct payment records found.', margin, doc.y)
+    }
+
+    // Right column: Financial Summary Block
+    const summaryX = margin + contentWidth * 0.52
+    const summaryLabelW = contentWidth * 0.26
+    const summaryValX = margin + contentWidth * 0.78
+    const summaryValW = contentWidth * 0.22
+
+    let currentSummaryY = summaryBlockTop
+
+    function summaryRow(label, val, bold = false, color = '#111827') {
+      doc.font(bold ? fontBold : fontRegular).fontSize(bold ? 8.5 : 8).fillColor(color)
+      doc.text(label, summaryX, currentSummaryY, { width: summaryLabelW })
+      doc.text(val, summaryValX, currentSummaryY, { width: summaryValW, align: 'right' })
+      currentSummaryY += 13
+    }
+
+    const labelSubtotal = HAS_SINHALA_FONT ? 'Subtotal (සා.මිල එකතුව):' : 'Subtotal (Market Price):'
+    const labelDiscount = HAS_SINHALA_FONT ? 'Total Discounts (වට්ටම්):' : 'Total Discounts:'
+    const labelGrand = HAS_SINHALA_FONT ? 'Grand Total (අපේ මිල එකතුව):' : 'Grand Total (Our Price):'
+
+    summaryRow(labelSubtotal, formatMoney(marketSubtotal, currency))
+
+    if (totalDiscounts > 0) {
+      summaryRow(labelDiscount, `-${formatMoney(totalDiscounts, currency)}`, false, '#059669')
+    }
+
+    if (Number(sale.tax_amount || 0) > 0) {
+      summaryRow('Tax:', `+${formatMoney(sale.tax_amount, currency)}`)
+    }
+
+    // Divider line before Grand Total
+    doc.strokeColor('#D1D5DB').lineWidth(1).moveTo(summaryX, currentSummaryY).lineTo(pageWidth - margin, currentSummaryY).stroke()
+    currentSummaryY += 4
+
+    summaryRow(labelGrand, formatMoney(grandTotal, currency), true, '#111827')
+    summaryRow('Amount Paid:', formatMoney(amountPaid, currency), false, '#047857')
+
+    if (balanceDue > 0) {
+      summaryRow('Balance Due:', formatMoney(balanceDue, currency), true, '#DC2626')
+    }
+
+    if (changeGiven > 0) {
+      summaryRow('Change Given:', formatMoney(changeGiven, currency), false, '#6B7280')
+    }
+
+    doc.y = Math.max(doc.y, currentSummaryY + 10)
 
     // Notes
     if (sale.notes) {
-      doc.moveDown(1)
-      doc.fontSize(8).font('Helvetica-Bold').fillColor('#4B5563').text('Notes / Instructions:')
-      doc.font('Helvetica').fillColor('#6B7280').text(sale.notes)
+      doc.moveDown(0.8)
+      doc.fontSize(8).font(fontBold).fillColor('#4B5563').text('Notes / Instructions:')
+      doc.font(fontRegular).fillColor('#6B7280').text(sale.notes)
     }
 
     // Page numbering in footer
     const pages = doc.bufferedPageRange()
     for (let i = 0; i < pages.count; i++) {
       doc.switchToPage(i)
-      doc.fontSize(7).font('Helvetica').fillColor('#9CA3AF')
+      doc.fontSize(7).font(fontRegular).fillColor('#9CA3AF')
       doc.text(
         `Page ${i + 1} of ${pages.count} — Generated by NexTill POS`,
         margin,
