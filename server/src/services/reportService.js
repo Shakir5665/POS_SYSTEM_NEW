@@ -10,10 +10,35 @@ async function ensureWarehouseExists(warehouseId) {
   }
 }
 
+function parseDateBoundary(dateStr, isEnd = false) {
+  if (!dateStr) return null
+  if (dateStr instanceof Date) {
+    const d = new Date(dateStr)
+    if (isEnd) d.setHours(23, 59, 59, 999)
+    else d.setHours(0, 0, 0, 0)
+    return d
+  }
+  const str = String(dateStr).trim()
+  if (str.includes('T')) {
+    const d = new Date(str)
+    if (isEnd) d.setHours(23, 59, 59, 999)
+    return d
+  }
+  // YYYY-MM-DD local calendar date
+  const parts = str.split('-').map(Number)
+  if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
+    const [y, m, d] = parts
+    return new Date(y, m - 1, d, isEnd ? 23 : 0, isEnd ? 59 : 0, isEnd ? 59 : 0, isEnd ? 999 : 0)
+  }
+  const parsed = new Date(str)
+  if (isEnd) parsed.setHours(23, 59, 59, 999)
+  else parsed.setHours(0, 0, 0, 0)
+  return parsed
+}
+
 function dateRange(start_date, end_date) {
-  const start = start_date ? new Date(start_date) : new Date(new Date().setDate(new Date().getDate() - 30))
-  const end = end_date ? new Date(end_date) : new Date()
-  end.setHours(23, 59, 59, 999)
+  const start = parseDateBoundary(start_date, false) || new Date(new Date().setDate(new Date().getDate() - 30))
+  const end = parseDateBoundary(end_date, true) || new Date()
   return { gte: start, lte: end }
 }
 
@@ -273,27 +298,48 @@ async function getPurchaseReturnsReport({ start_date, end_date, warehouse_id, is
 async function getSalesByDay({ start_date, end_date, warehouse_id, is_legacy_import } = {}) {
   await ensureWarehouseExists(warehouse_id)
   const range = dateRange(start_date, end_date)
-  const warehouseFilter = warehouse_id ? Prisma.sql`AND s.warehouse_id = ${warehouse_id}` : Prisma.empty
-  const legacyFilter = is_legacy_import !== undefined
-    ? Prisma.sql`AND s.is_legacy_import = ${is_legacy_import === 'true' || is_legacy_import === true}`
-    : Prisma.empty
+  const where = {
+    payment_status: { not: 'REFUNDED' },
+    is_cancelled: false,
+    OR: [
+      { sale_date: range },
+      { sale_date: null, created_at: range },
+    ],
+  }
+  if (warehouse_id) where.warehouse_id = warehouse_id
+  if (is_legacy_import !== undefined) {
+    where.is_legacy_import = is_legacy_import === 'true' || is_legacy_import === true
+  }
 
-  const sales = await prisma.$queryRaw`
-    SELECT
-      DATE(COALESCE(s.sale_date, s.created_at)) as label,
-      COUNT(s.id)::int as transactions,
-      SUM(s.total_amount)::float as value
-    FROM "Sale" s
-    WHERE COALESCE(s.sale_date, s.created_at) >= ${range.gte}
-      AND COALESCE(s.sale_date, s.created_at) <= ${range.lte}
-      AND s.payment_status != 'REFUNDED'
-      AND s.is_cancelled = false
-      ${warehouseFilter}
-      ${legacyFilter}
-    GROUP BY DATE(COALESCE(s.sale_date, s.created_at))
-    ORDER BY DATE(COALESCE(s.sale_date, s.created_at)) ASC
-  `
-  return sales.map((r) => ({ label: r.label, value: parseFloat(r.value || 0), transactions: r.transactions }))
+  const rawSales = await prisma.sale.findMany({
+    where,
+    select: {
+      id: true,
+      total_amount: true,
+      sale_date: true,
+      created_at: true,
+    },
+    orderBy: { created_at: 'asc' },
+  })
+
+  // Group by local business date
+  const dayMap = {}
+  for (const s of rawSales) {
+    const rawDate = s.sale_date || s.created_at
+    const d = new Date(rawDate)
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const day = String(d.getDate()).padStart(2, '0')
+    const label = `${y}-${m}-${day}`
+
+    if (!dayMap[label]) {
+      dayMap[label] = { label, value: 0, transactions: 0 }
+    }
+    dayMap[label].value = parseFloat((dayMap[label].value + parseFloat(s.total_amount || 0)).toFixed(2))
+    dayMap[label].transactions += 1
+  }
+
+  return Object.values(dayMap).sort((a, b) => a.label.localeCompare(b.label))
 }
 
 async function getTopProducts({ start_date, end_date, limit = 10, by = 'revenue', warehouse_id, is_legacy_import } = {}) {

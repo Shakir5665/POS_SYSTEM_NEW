@@ -12,6 +12,7 @@ export const DEFAULT_SETTINGS = {
   currency_symbol: 'LKR',
   receipt_footer: 'Thank you for your business!',
   logo_url: '',
+  pos_default_warehouse_id: '',
 }
 
 export const AuthContext = createContext(null)

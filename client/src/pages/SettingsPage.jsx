@@ -4,6 +4,7 @@ import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
 import { Input } from '../components/Input'
 import { settingsService } from '../services/settings'
+import { warehouseService } from '../services/warehouses'
 import { useSettings } from '../hooks/useSettings'
 
 function SkeletonField() {
@@ -35,6 +36,7 @@ const getFields = (symbol = 'LKR') => [
 export default function SettingsPage() {
   const { updateSettings } = useSettings()
   const [settings, setSettings] = useState({})
+  const [warehouses, setWarehouses] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
@@ -43,15 +45,20 @@ export default function SettingsPage() {
   const fileInputRef = useRef(null)
 
   useEffect(() => {
-    settingsService
-      .get()
-      .then((res) => {
-        const data = res.data?.data || {}
+    Promise.all([
+      settingsService.get(),
+      warehouseService.list().catch(() => ({ data: { data: [] } })),
+    ])
+      .then(([settingsRes, warehousesRes]) => {
+        const data = settingsRes.data?.data || {}
         setSettings(data)
         if (data.logo_url) {
           setLogoPreview(data.logo_url)
         }
         if (updateSettings) updateSettings(data)
+
+        const whList = warehousesRes.data?.data || []
+        setWarehouses(whList.filter((w) => w.is_active !== false))
       })
       .catch(() => toast.error('Failed to load settings'))
       .finally(() => setIsLoading(false))
@@ -269,6 +276,28 @@ export default function SettingsPage() {
                     error={errors[key]}
                   />
                 ))}
+
+            {/* POS Terminal Warehouse Binding */}
+            <div className="pt-2">
+              <label className="text-xs font-semibold text-slate-700 block mb-1.5">
+                POS Terminal Assigned Warehouse
+              </label>
+              <select
+                value={settings.pos_default_warehouse_id || ''}
+                onChange={(e) => handleChange('pos_default_warehouse_id', e.target.value)}
+                className="w-full rounded-xl border border-slate-200/90 bg-white/90 px-3.5 py-2.5 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-600 transition-all shadow-2xs font-medium"
+              >
+                <option value="">System Default Active Warehouse (Auto-assign)</option>
+                {warehouses.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} ({w.code}){w.is_default ? ' — [System Default]' : ''}
+                  </option>
+                ))}
+              </select>
+              <p className="text-2xs text-slate-400 mt-1">
+                Sales checked out at the POS terminal will automatically connect to this warehouse behind the scenes for stock audit and inventory tracking.
+              </p>
+            </div>
 
             <div className="pt-4 border-t border-slate-100 flex justify-end">
               <Button type="submit" variant="primary" isLoading={isSaving} disabled={isLoading}>

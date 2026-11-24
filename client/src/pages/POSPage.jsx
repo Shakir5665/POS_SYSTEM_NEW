@@ -1278,7 +1278,7 @@ export function CartItem({
 // ─── Main POSPage ──────────────────────────────────────────────────────────────
 export default function POSPage() {
   const { user, logout } = useAuth()
-  const { logo_url: logoUrl } = useSettings()
+  const { logo_url: logoUrl, pos_default_warehouse_id: configuredWarehouseId } = useSettings()
   const navigate = useNavigate()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -1741,6 +1741,7 @@ export default function POSPage() {
         payment_method: 'CASH',
         amount_paid,
         discount_amount: parseFloat(cartDiscount) || 0,
+        warehouse_id: configuredWarehouseId || undefined,
       }
       const res = await salesService.create(payload)
       const sale = res.data?.data

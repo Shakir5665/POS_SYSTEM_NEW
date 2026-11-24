@@ -19,7 +19,18 @@ import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
 import { subscribeRealtimeEvents } from '../utils/realtime'
 
-const PIE_COLORS = ['#2563EB', '#6366F1', '#10B981', '#F59E0B', '#EC4899', '#06B6D4']
+// High-contrast, vibrant opposing colors (complementary & triadic wheel opposites)
+// Ensures neighboring slices always have maximum contrast and visual distinction
+const PIE_COLORS = [
+  '#2563EB', // Vibrant Royal Blue
+  '#F97316', // High-contrast Vivid Orange (opposite of Blue)
+  '#10B981', // Crisp Emerald Green
+  '#E11D48', // Deep Rose / Crimson (opposite of Green)
+  '#8B5CF6', // Electric Purple
+  '#EAB308', // Solar Amber / Gold (opposite of Purple)
+  '#06B6D4', // Tropical Cyan
+  '#F43F5E', // Bright Coral / Neon Ruby (opposite of Cyan)
+]
 
 function SkeletonCard() {
   return (
@@ -124,15 +135,24 @@ function CustomTooltip({ active, payload, label, currencySymbol }) {
   return null
 }
 
+function getLocalDateString(d = new Date()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export default function DashboardPage() {
   const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
-  const today = new Date().toISOString().split('T')[0]
+  const today = getLocalDateString(new Date())
 
   const [summary, setSummary] = useState(null)
+  const [allTimeSales, setAllTimeSales] = useState(null)
+  const [allTimePurchases, setAllTimePurchases] = useState(null)
   const [dashboardMetrics, setDashboardMetrics] = useState(null)
   const [dailySales, setDailySales] = useState([])
   const [topProducts, setTopProducts] = useState([])
-  const [categories, setCategories] = useState([])
+  const [productSales, setProductSales] = useState([])
   const [inventoryStatus, setInventoryStatus] = useState(null)
 
   const [loadingSummary, setLoadingSummary] = useState(true)
@@ -141,20 +161,24 @@ export default function DashboardPage() {
   const [isRefreshingRealtime, setIsRefreshingRealtime] = useState(false)
   const [error, setError] = useState(null)
 
-  // Compute last-7-days range
+  // Compute last-7-days range using local calendar dates
   const sevenDaysAgo = new Date()
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
-  const sevenDaysAgoStr = sevenDaysAgo.toISOString().split('T')[0]
+  const sevenDaysAgoStr = getLocalDateString(sevenDaysAgo)
 
   const fetchSummary = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoadingSummary(true)
-      const [sumRes, dashRes] = await Promise.all([
+      const [sumRes, dashRes, allSalesRes, allPurchasesRes] = await Promise.all([
         reportsService.salesSummary({ start_date: today, end_date: today }),
         reportsService.dashboard(),
+        reportsService.salesSummary({ start_date: '2000-01-01', end_date: today }),
+        reportsService.purchasesSummary({ start_date: '2000-01-01', end_date: today }),
       ])
       setSummary(sumRes.data?.data ?? sumRes.data)
       setDashboardMetrics(dashRes.data?.data ?? dashRes.data)
+      setAllTimeSales(allSalesRes.data?.data ?? allSalesRes.data)
+      setAllTimePurchases(allPurchasesRes.data?.data ?? allPurchasesRes.data)
     } catch {
       if (!isBackground) setError('Failed to load summary data.')
     } finally {
@@ -165,14 +189,14 @@ export default function DashboardPage() {
   const fetchCharts = useCallback(async (isBackground = false) => {
     try {
       if (!isBackground) setLoadingCharts(true)
-      const [dailyRes, topRes, catRes] = await Promise.all([
+      const [dailyRes, topRes, productsRes] = await Promise.all([
         reportsService.salesByDay({ start_date: sevenDaysAgoStr, end_date: today }),
         reportsService.topProducts({ limit: 5, start_date: sevenDaysAgoStr, end_date: today }),
-        reportsService.categoryPerformance({ start_date: sevenDaysAgoStr, end_date: today }),
+        reportsService.topProducts({ limit: 8, start_date: sevenDaysAgoStr, end_date: today }),
       ])
       setDailySales(dailyRes.data?.data ?? dailyRes.data ?? [])
       setTopProducts(topRes.data?.data ?? topRes.data ?? [])
-      setCategories(catRes.data?.data ?? catRes.data ?? [])
+      setProductSales(productsRes.data?.data ?? productsRes.data ?? [])
     } catch {
       // non-fatal
     } finally {
@@ -256,10 +280,13 @@ export default function DashboardPage() {
   const lowStockItems = inventoryStatus?.low_stock ?? []
 
   const todayRevenue = dashboardMetrics?.today_revenue ?? summary?.total_revenue ?? 0
-  const todayCollections = dashboardMetrics?.today_collections ?? summary?.total_collected ?? 0
-  const todayCredit = dashboardMetrics?.today_credit_sales ?? summary?.total_credit ?? 0
   const customerReceivables = dashboardMetrics?.total_customer_receivables ?? 0
   const supplierPayables = dashboardMetrics?.total_supplier_payables ?? 0
+
+  const totalSalesAllTime = allTimeSales?.gross_sales ?? allTimeSales?.total_revenue ?? 0
+  const salesReturnsAllTime = allTimeSales?.sales_returns ?? 0
+  const totalPurchasesAllTime = allTimePurchases?.gross_purchases ?? 0
+  const purchaseReturnsAllTime = allTimePurchases?.purchase_returns ?? 0
 
   return (
     <DashboardLayout>
@@ -296,7 +323,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* KPI cards - Sales & Collections */}
+        {/* KPI cards - Sales & Operations */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {loadingSummary ? (
             Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
@@ -306,7 +333,7 @@ export default function DashboardPage() {
                 title="Today's Revenue"
                 value={formatCompactCurrency(todayRevenue)}
                 tooltip={formatCurrency(todayRevenue)}
-                subtitle="Total value of goods sold"
+                subtitle="Daily gross sales performance"
                 iconBg="bg-blue-50 text-blue-600 border border-blue-100"
                 to={`/sales?startDate=${today}&endDate=${today}`}
                 icon={
@@ -316,40 +343,41 @@ export default function DashboardPage() {
                 }
               />
               <KpiCard
-                title="Cash Collected Today"
-                value={formatCompactCurrency(todayCollections)}
-                tooltip={formatCurrency(todayCollections)}
-                subtitle="Physical cash & electronic receipts"
+                title="Total Sales"
+                value={formatCompactCurrency(totalSalesAllTime)}
+                tooltip={formatCurrency(totalSalesAllTime)}
+                subtitle="All-time gross sales turnover"
                 iconBg="bg-emerald-50 text-emerald-600 border border-emerald-100"
-                to="/finance"
+                to="/sales"
                 icon={
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
                   </svg>
                 }
               />
               <KpiCard
-                title="Today's Credit Sales"
-                value={formatCompactCurrency(todayCredit)}
-                tooltip={formatCurrency(todayCredit)}
-                subtitle="Dispatched on customer credit"
-                iconBg="bg-indigo-50 text-indigo-600 border border-indigo-100"
+                title="Sales Returns"
+                value={formatCompactCurrency(salesReturnsAllTime)}
+                tooltip={formatCurrency(salesReturnsAllTime)}
+                subtitle="Customer refunds & return credits"
+                iconBg="bg-rose-50 text-rose-600 border border-rose-100"
+                to="/sale-return"
+                icon={
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
+                  </svg>
+                }
+              />
+              <KpiCard
+                title="Customer Receivables"
+                value={formatCompactCurrency(customerReceivables)}
+                tooltip={formatCurrency(customerReceivables)}
+                subtitle="Outstanding credit due from customers"
+                iconBg="bg-amber-50 text-amber-600 border border-amber-100"
                 to="/customers"
                 icon={
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
-                  </svg>
-                }
-              />
-              <KpiCard
-                title="Today's Transactions"
-                value={dashboardMetrics?.today_transactions ?? summary?.transaction_count ?? 0}
-                subtitle="Completed checkouts"
-                iconBg="bg-teal-50 text-teal-600 border border-teal-100"
-                to={`/sales?startDate=${today}&endDate=${today}`}
-                icon={
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
                 }
               />
@@ -357,58 +385,65 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* KPI cards - Balance & Inventory */}
+        {/* KPI cards - Purchases & Inventory */}
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-          <KpiCard
-            title="Customer Receivables"
-            value={formatCompactCurrency(customerReceivables)}
-            tooltip={formatCurrency(customerReceivables)}
-            subtitle="Outstanding credit due from customers"
-            iconBg="bg-amber-50 text-amber-600 border border-amber-100"
-            to="/customers"
-            icon={
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-            }
-          />
-          <KpiCard
-            title="Supplier Payables"
-            value={formatCompactCurrency(supplierPayables)}
-            tooltip={formatCurrency(supplierPayables)}
-            subtitle="Outstanding payables due to vendors"
-            iconBg="bg-rose-50 text-rose-600 border border-rose-100"
-            to="/suppliers"
-            icon={
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
-              </svg>
-            }
-          />
-          <KpiCard
-            title="Low Stock Alerts"
-            value={loadingInventory ? '...' : dashboardMetrics?.low_stock_alerts ?? lowStockItems.length}
-            subtitle="Products below reorder threshold"
-            iconBg="bg-orange-50 text-orange-600 border border-orange-100"
-            to="/inventory?tab=low"
-            icon={
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-              </svg>
-            }
-          />
-          <KpiCard
-            title="Total Active Products"
-            value={inventoryStatus?.total_products ?? (loadingInventory ? '...' : 0)}
-            subtitle="Catalog items active in inventory"
-            iconBg="bg-purple-50 text-purple-600 border border-purple-100"
-            to="/products"
-            icon={
-              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-              </svg>
-            }
-          />
+          {loadingSummary ? (
+            Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)
+          ) : (
+            <>
+              <KpiCard
+                title="Total Purchases"
+                value={formatCompactCurrency(totalPurchasesAllTime)}
+                tooltip={formatCurrency(totalPurchasesAllTime)}
+                subtitle="All-time inventory procurement"
+                iconBg="bg-indigo-50 text-indigo-600 border border-indigo-100"
+                to="/purchases"
+                icon={
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
+                  </svg>
+                }
+              />
+              <KpiCard
+                title="Purchase Returns"
+                value={formatCompactCurrency(purchaseReturnsAllTime)}
+                tooltip={formatCurrency(purchaseReturnsAllTime)}
+                subtitle="Goods returned to suppliers"
+                iconBg="bg-violet-50 text-violet-600 border border-violet-100"
+                to="/purchases?tab=returns"
+                icon={
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                }
+              />
+              <KpiCard
+                title="Supplier Payables"
+                value={formatCompactCurrency(supplierPayables)}
+                tooltip={formatCurrency(supplierPayables)}
+                subtitle="Outstanding payables due to vendors"
+                iconBg="bg-purple-50 text-purple-600 border border-purple-100"
+                to="/suppliers"
+                icon={
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
+                  </svg>
+                }
+              />
+              <KpiCard
+                title="Low Stock Alerts"
+                value={loadingInventory ? '...' : dashboardMetrics?.low_stock_alerts ?? lowStockItems.length}
+                subtitle="Products below reorder threshold"
+                iconBg="bg-orange-50 text-orange-600 border border-orange-100"
+                to="/inventory?tab=low"
+                icon={
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                }
+              />
+            </>
+          )}
         </div>
 
         {/* Charts row */}
@@ -417,7 +452,7 @@ export default function DashboardPage() {
           <div className="xl:col-span-2 bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <h2 className="text-sm font-bold tracking-tight text-slate-900">Revenue — Last 7 Days</h2>
+                <h2 className="text-sm font-bold tracking-tight text-slate-900">Revenue - Last 7 Days</h2>
                 <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
                   <span className={`w-1.5 h-1.5 rounded-full bg-emerald-500 ${isRefreshingRealtime ? 'animate-ping' : ''}`} />
                   Live
@@ -464,20 +499,25 @@ export default function DashboardPage() {
             )}
           </div>
 
-          {/* Category pie chart */}
+          {/* Product pie chart */}
           <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6">
-            <h2 className="text-sm font-bold tracking-tight text-slate-900 mb-4">Sales by Category</h2>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold tracking-tight text-slate-900">Sales by Product</h2>
+              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+                Revenue Share
+              </span>
+            </div>
             {loadingCharts ? (
               <div className="h-60 bg-slate-100/60 rounded-xl animate-pulse" />
-            ) : categories.length === 0 ? (
+            ) : productSales.length === 0 ? (
               <div className="h-60 flex items-center justify-center text-slate-400 text-xs font-medium">
-                No categorical sales recorded
+                No product sales recorded
               </div>
             ) : (
               <ResponsiveContainer width="100%" height={240}>
                 <PieChart>
                   <Pie
-                    data={categories}
+                    data={productSales}
                     dataKey="value"
                     nameKey="label"
                     cx="50%"
@@ -487,7 +527,7 @@ export default function DashboardPage() {
                     paddingAngle={3}
                     labelLine={false}
                   >
-                    {categories.map((_, index) => (
+                    {productSales.map((_, index) => (
                       <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
                     ))}
                   </Pie>

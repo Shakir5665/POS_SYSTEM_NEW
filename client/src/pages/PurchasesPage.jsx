@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { Button } from '../components/Button'
@@ -18,8 +19,20 @@ import { returnsService } from '../services/returns'
 import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 
 export default function PurchasesPage() {
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab')?.toUpperCase() === 'RETURNS' ? 'RETURNS' : 'ORDERS'
+
   // Top view tab: 'ORDERS' or 'RETURNS'
-  const [activeTab, setActiveTab] = useState('ORDERS')
+  const [activeTab, setActiveTab] = useState(initialTab)
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab')
+    if (tabParam?.toUpperCase() === 'RETURNS') {
+      setActiveTab('RETURNS')
+    } else if (tabParam?.toUpperCase() === 'ORDERS') {
+      setActiveTab('ORDERS')
+    }
+  }, [searchParams])
 
   // Common filters
   const [search, setSearch] = useState('')
@@ -726,6 +739,7 @@ export default function PurchasesPage() {
               columns={purchaseColumns}
               data={purchases}
               isLoading={loading}
+              onRowClick={(row) => openViewDetails(row.id)}
               emptyMessage="No purchase orders found."
             />
           </GlassCard>
@@ -735,6 +749,7 @@ export default function PurchasesPage() {
               columns={returnColumns}
               data={returnsList}
               isLoading={returnsLoading}
+              onRowClick={(row) => setSelectedReturnDetails(row)}
               emptyMessage="No purchase returns recorded."
             />
           </GlassCard>
@@ -1026,75 +1041,112 @@ export default function PurchasesPage() {
       >
         {selectedPurchase && (
           <div className="space-y-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-xl border border-gray-200 text-xs">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200/80 text-xs shadow-2xs">
               <div>
-                <p className="text-gray-500">Supplier</p>
-                <p className="font-semibold text-gray-900 mt-0.5">{selectedPurchase.supplier?.name}</p>
+                <p className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Supplier</p>
+                <p className="font-bold text-slate-900 mt-1">{selectedPurchase.supplier?.name || '—'}</p>
+                {selectedPurchase.supplier?.phone && (
+                  <p className="text-[11px] text-slate-500 mt-0.5">{selectedPurchase.supplier.phone}</p>
+                )}
               </div>
               <div>
-                <p className="text-gray-500">Order Date</p>
-                <p className="font-medium text-gray-900 mt-0.5">
-                  {new Date(selectedPurchase.purchase_date || selectedPurchase.created_at).toLocaleDateString()}
+                <p className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Order Date</p>
+                <p className="font-bold text-slate-900 mt-1">
+                  {new Date(selectedPurchase.purchase_date || selectedPurchase.created_at).toLocaleDateString(undefined, {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                  })}
                 </p>
               </div>
               <div>
-                <p className="text-gray-500">Delivery Status</p>
-                <div className="mt-0.5">
+                <p className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Delivery Status</p>
+                <div className="mt-1">
                   {selectedPurchase.status === 'RECEIVED' ? (
                     <Badge variant="success">Received</Badge>
-                  ) : (
+                  ) : selectedPurchase.status === 'ORDERED' ? (
                     <Badge variant="warning">Ordered</Badge>
+                  ) : (
+                    <Badge variant="default">Cancelled</Badge>
                   )}
                 </div>
               </div>
               <div>
-                <p className="text-gray-500">Warehouse</p>
-                <p className="font-medium text-gray-900 mt-0.5">
+                <p className="text-slate-400 font-semibold uppercase tracking-wider text-[10px]">Warehouse</p>
+                <p className="font-bold text-slate-900 mt-1">
                   {selectedPurchase.warehouse?.name || 'Main Warehouse'}
                 </p>
+                {selectedPurchase.warehouse?.code && (
+                  <p className="text-[11px] text-slate-500 font-mono mt-0.5">({selectedPurchase.warehouse.code})</p>
+                )}
               </div>
             </div>
 
+            {selectedPurchase.notes && (
+              <div className="bg-amber-50/70 border border-amber-200/80 rounded-xl px-3.5 py-2.5 text-xs text-amber-900">
+                <span className="font-bold">Notes: </span>
+                <span>{selectedPurchase.notes}</span>
+              </div>
+            )}
+
             {/* Line Items */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200 text-xs">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-medium text-gray-600">Item</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">Quantity</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">Unit Cost</th>
-                    <th className="px-3 py-2 text-right font-medium text-gray-600">Total</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {selectedPurchase.items?.map((item) => (
-                    <tr key={item.id}>
-                      <td className="px-3 py-2">
-                        <p className="font-medium text-gray-900">{item.product_name}</p>
-                        <p className="text-2xs text-gray-400">{item.product_sku}</p>
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono">
-                        {item.quantity} {item.unit}
-                      </td>
-                      <td className="px-3 py-2 text-right font-mono">{formatCurrency(item.unit_cost)}</td>
-                      <td className="px-3 py-2 text-right font-bold font-mono text-gray-900">
-                        {formatCurrency(item.total_cost)}
-                      </td>
+            <div className="border border-slate-200/80 rounded-xl overflow-hidden shadow-2xs bg-white/90">
+              <div className="px-4 py-2.5 bg-slate-50/80 border-b border-slate-100 flex justify-between items-center">
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">Purchased Products</span>
+                <span className="text-xs text-slate-500 font-medium">{selectedPurchase.items?.length || 0} line items</span>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full divide-y divide-slate-100 text-xs">
+                  <thead className="bg-slate-50/50">
+                    <tr>
+                      <th className="px-3.5 py-2.5 text-left font-semibold text-slate-500">Item</th>
+                      <th className="px-3.5 py-2.5 text-right font-semibold text-slate-500">Quantity</th>
+                      <th className="px-3.5 py-2.5 text-right font-semibold text-slate-500">Unit Cost</th>
+                      <th className="px-3.5 py-2.5 text-right font-semibold text-slate-500">Subtotal</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100/80 bg-white">
+                    {selectedPurchase.items?.map((item) => (
+                      <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
+                        <td className="px-3.5 py-2.5">
+                          <p className="font-semibold text-slate-900">{item.product_name || item.product?.name}</p>
+                          <p className="text-[11px] text-slate-400 font-mono">{item.product_sku || item.product?.sku}</p>
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right font-mono font-medium text-slate-700">
+                          {item.quantity} {item.unit || item.product?.base_unit || 'pcs'}
+                        </td>
+                        <td className="px-3.5 py-2.5 text-right font-mono text-slate-600">{formatCurrency(item.unit_cost)}</td>
+                        <td className="px-3.5 py-2.5 text-right font-bold font-mono text-slate-900">
+                          {formatCurrency(item.total_cost || item.quantity * item.unit_cost)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             {/* Financial summary */}
-            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200 flex justify-between items-center text-xs">
-              <div>
-                <p className="text-gray-500">Amount Paid: <span className="font-semibold text-success-600">{formatCurrency(selectedPurchase.amount_paid)}</span></p>
-                <p className="text-gray-500">Balance Due: <span className="font-bold text-danger-600">{formatCurrency(selectedPurchase.balance_due)}</span></p>
+            <div className="bg-slate-50/90 p-4 rounded-xl border border-slate-200/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs shadow-2xs">
+              <div className="space-y-1">
+                <p className="text-slate-600">
+                  Amount Paid: <span className="font-bold text-emerald-600 ml-1">{formatCurrency(selectedPurchase.amount_paid)}</span>
+                </p>
+                <p className="text-slate-600">
+                  Balance Due:{' '}
+                  <span className={`font-bold ml-1 ${Number(selectedPurchase.balance_due || 0) > 0 ? 'text-rose-600' : 'text-emerald-600'}`}>
+                    {formatCurrency(selectedPurchase.balance_due)}
+                  </span>
+                </p>
+                {selectedPurchase.user && (
+                  <p className="text-[11px] text-slate-400">
+                    Created by: {selectedPurchase.user.full_name || selectedPurchase.user.username}
+                  </p>
+                )}
               </div>
-              <div className="text-right">
-                <p className="text-gray-500">Total Amount</p>
-                <p className="text-lg font-bold font-mono text-gray-900">{formatCurrency(selectedPurchase.total_amount)}</p>
+              <div className="sm:text-right w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200">
+                <p className="text-slate-500 font-semibold uppercase tracking-wider text-[10px]">Total Order Amount</p>
+                <p className="text-xl font-bold font-mono text-slate-900 mt-0.5">{formatCurrency(selectedPurchase.total_amount)}</p>
               </div>
             </div>
 
