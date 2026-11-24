@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../hooks/useAuth'
 import { useSettings } from '../hooks/useSettings'
@@ -173,15 +173,6 @@ export default function LoginPage() {
         </button>
       </form>
 
-      {/* Register Link */}
-      <div className="mt-6 text-center border-t border-slate-100 pt-4">
-        <p className="text-xs text-slate-500">
-          Need a staff account?{' '}
-          <Link to="/register" className="font-semibold text-primary-600 hover:text-indigo-600 transition-colors">
-            Register here
-          </Link>
-        </p>
-      </div>
     </AuthLayout>
   )
 }
