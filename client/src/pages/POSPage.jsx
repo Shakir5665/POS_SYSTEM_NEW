@@ -98,19 +98,19 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
     <Modal isOpen={isOpen} onClose={onClose} title="Complete Payment" size="md">
       <div className="space-y-4">
         {/* Total Due & Customer Badge */}
-        <div className="bg-gradient-to-br from-primary-50/90 via-indigo-50/50 to-primary-50/40 border border-primary-200/80 rounded-2xl p-4 flex items-center justify-between shadow-xs">
+        <div className="relative flex items-center justify-between gap-3 overflow-hidden rounded-2xl border border-white/90 bg-gradient-to-br from-white/90 via-primary-50/85 to-indigo-100/70 p-4 shadow-[0_14px_32px_-22px_rgba(37,99,235,0.5),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-primary-100/70 backdrop-blur-md">
           <div>
-            <p className="text-3xs text-primary-700 font-bold uppercase tracking-wider">Amount Due</p>
-            <p className="text-3xl font-extrabold text-primary-950 tracking-tight mt-0.5">{formatCurrency(total)}</p>
+            <p className="text-3xs font-bold uppercase tracking-[0.16em] text-primary-700">Amount Due</p>
+            <p className="mt-1 text-3xl font-extrabold tracking-tight text-primary-950">{formatCurrency(total)}</p>
           </div>
           <div className="text-right">
             {customer ? (
-              <div className="bg-white/90 backdrop-blur-sm border border-primary-200/80 rounded-xl px-3 py-1.5 shadow-2xs">
+              <div className="rounded-xl border border-white/90 bg-white/75 px-3 py-2 shadow-[0_6px_18px_-12px_rgba(30,64,175,0.45),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
                 <p className="text-xs font-bold text-slate-900">{customer.name}</p>
                 <p className="text-3xs text-emerald-700 font-bold tracking-wide uppercase">Registered Customer</p>
               </div>
             ) : (
-              <div className="bg-slate-100/80 border border-slate-200/80 rounded-xl px-3 py-1.5">
+              <div className="rounded-xl border border-white/90 bg-white/65 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
                 <p className="text-xs font-semibold text-slate-700">Walk-in Customer</p>
                 <p className="text-3xs text-slate-400 font-medium">Credit disabled</p>
               </div>
@@ -119,14 +119,14 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
         </div>
 
         {/* Payment Method Tabs */}
-        <div className="flex border-b border-slate-200/80">
+        <div className="flex gap-1 rounded-xl border border-white/90 bg-slate-100/70 p-1 shadow-[inset_0_1px_2px_rgba(15,23,42,0.05)] backdrop-blur-sm">
           <button
             type="button"
             onClick={() => { setPaymentMethod('CASH'); setErrors({}) }}
-            className={`flex-1 py-2.5 text-sm font-bold border-b-2 transition ${
+            className={`flex-1 rounded-lg px-2 py-2.5 text-sm font-bold transition ${
               paymentMethod === 'CASH'
-                ? 'border-primary-600 text-primary-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-primary-700 shadow-[0_4px_12px_-8px_rgba(30,64,175,0.5),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-primary-100/80'
+                : 'text-slate-500 hover:bg-white/50 hover:text-slate-800'
             }`}
           >
             Cash / Partial Payment
@@ -134,10 +134,10 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
           <button
             type="button"
             onClick={() => { setPaymentMethod('CREDIT'); setErrors({}) }}
-            className={`flex-1 py-2.5 text-sm font-bold border-b-2 transition ${
+            className={`flex-1 rounded-lg px-2 py-2.5 text-sm font-bold transition ${
               paymentMethod === 'CREDIT'
-                ? 'border-primary-600 text-primary-700'
-                : 'border-transparent text-slate-500 hover:text-slate-800'
+                ? 'bg-white text-primary-700 shadow-[0_4px_12px_-8px_rgba(30,64,175,0.5),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-primary-100/80'
+                : 'text-slate-500 hover:bg-white/50 hover:text-slate-800'
             }`}
           >
             Customer Credit Sale
@@ -177,7 +177,7 @@ function PaymentModal({ isOpen, onClose, total, customer, onConfirm, onOpenQuick
               <button
                 type="button"
                 onClick={() => { setAmountPaid(String(total)); setErrors({}) }}
-                className="px-3 py-1.5 text-xs font-semibold text-primary-700 bg-primary-50/80 hover:bg-primary-100 rounded-xl border border-primary-200/80 transition shadow-2xs"
+              className="rounded-xl border border-white/90 bg-gradient-to-r from-primary-50/90 to-indigo-50/90 px-3 py-1.5 text-xs font-bold text-primary-700 shadow-[0_5px_14px_-10px_rgba(37,99,235,0.65),inset_0_1px_0_rgba(255,255,255,0.95)] transition hover:border-primary-200 hover:from-primary-100 hover:to-indigo-100"
               >
                 Exact Amount ({formatCurrency(total)})
               </button>
@@ -973,19 +973,19 @@ export function CartItem({
   return (
     <div
       id={`cart-item-${item.product_id}`}
-      className={`p-3 rounded-2xl border transition-all duration-200 ${
+      className={`relative overflow-hidden rounded-2xl border p-3 transition-all duration-200 ${
         isLastAdded
-          ? 'border-primary-400 bg-primary-50/70 shadow-glass-sm ring-2 ring-primary-400/30'
+          ? 'border-primary-400 bg-primary-50/70 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.55)] ring-2 ring-primary-400/25'
           : isSelected
-          ? 'border-primary-400 bg-primary-50/50 shadow-glass-sm'
-          : 'border-slate-200/80 bg-white/80 hover:bg-white hover:border-slate-300 shadow-2xs'
+          ? 'border-primary-300 bg-primary-50/55 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.45)] ring-1 ring-primary-300/35'
+          : 'border-slate-200/90 bg-white/90 shadow-[0_5px_16px_-14px_rgba(15,23,42,0.25),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-primary-200 hover:bg-white hover:shadow-[0_10px_20px_-18px_rgba(37,99,235,0.35)]'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-slate-900 truncate">{item.name}</p>
+          <p className="truncate text-sm font-extrabold tracking-tight text-slate-900">{item.name}</p>
 
-          <div className="mt-1.5 flex items-center justify-between text-xs bg-primary-50/60 border border-primary-100 rounded-xl px-2.5 py-1">
+          <div className="mt-1.5 flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50/65 px-2.5 py-1.5 text-xs">
             {/* Left: Discount Checkbox */}
             <div className="flex items-center gap-1.5 min-w-0">
               {hasPredefinedDiscount ? (
@@ -1054,7 +1054,7 @@ export function CartItem({
         </div>
         <button
           onClick={() => onRemove(item.product_id)}
-          className="text-slate-300 hover:text-danger-500 transition flex-shrink-0 p-1 rounded-lg hover:bg-danger-50/60"
+          className="flex-shrink-0 rounded-lg border border-transparent p-1 text-slate-400 transition hover:border-danger-100 hover:bg-danger-50/80 hover:text-danger-600"
           title="Remove item"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1063,16 +1063,16 @@ export function CartItem({
         </button>
       </div>
 
-      <div className="flex items-center justify-between mt-2.5 gap-2">
+      <div className="mt-2.5 flex items-center justify-between gap-2 border-t border-slate-100/90 pt-2.5">
         {/* Quantity control with - / + buttons and Our Price editing box */}
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center border border-slate-200/90 rounded-xl overflow-hidden bg-white shadow-2xs focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
+        <div className="flex min-w-0 flex-1 items-center gap-2 flex-wrap">
+          <div className="flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_2px_5px_-4px_rgba(15,23,42,0.25)] focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-500/20">
             <button
               type="button"
               id={`cart-qty-dec-${index}`}
               data-testid={`qty-dec-${item.product_id}`}
               onClick={handleDecrement}
-              className="w-7 h-7 flex items-center justify-center text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200 transition font-bold select-none text-sm"
+              className="flex h-8 w-8 select-none items-center justify-center text-sm font-bold text-slate-500 transition hover:bg-primary-50 hover:text-primary-700 active:bg-primary-100"
               title="Decrease quantity (−)"
               aria-label="Decrease quantity"
             >
@@ -1092,7 +1092,7 @@ export function CartItem({
               onBlur={handleQuantityBlur}
               placeholder="0"
               aria-label={`Quantity for ${item.name}`}
-              className="w-14 text-center text-sm font-bold text-slate-900 border-x border-slate-200/90 py-1 px-1 focus:outline-none bg-transparent"
+              className="w-14 border-x border-primary-100/80 bg-transparent px-1 py-1.5 text-center text-sm font-extrabold text-slate-900 focus:outline-none"
             />
             <button
               type="button"
@@ -1100,10 +1100,10 @@ export function CartItem({
               data-testid={`cart-qty-inc-${item.product_id}`}
               onClick={handleIncrement}
               disabled={isAtStockLimit}
-              className={`w-7 h-7 flex items-center justify-center transition font-bold select-none text-sm ${
+              className={`flex h-8 w-8 select-none items-center justify-center text-sm font-bold transition ${
                 isAtStockLimit
-                  ? 'text-slate-300 bg-slate-50 cursor-not-allowed'
-                  : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100 active:bg-slate-200'
+                  ? 'cursor-not-allowed bg-slate-50 text-slate-300'
+                  : 'text-slate-500 hover:bg-primary-50 hover:text-primary-700 active:bg-primary-100'
               }`}
               title={isAtStockLimit ? 'Stock limit reached' : 'Increase quantity (+)'}
               aria-label="Increase quantity"
@@ -1114,7 +1114,7 @@ export function CartItem({
 
           {/* Unit pill switchers for Weight / Volume */}
           {item.unit_category === 'WEIGHT' && (
-            <div className="flex rounded-xl border border-slate-200/90 overflow-hidden text-xs shadow-2xs">
+            <div className="flex overflow-hidden rounded-xl border border-white/90 text-xs shadow-[0_4px_12px_-10px_rgba(15,23,42,0.45)]">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'g')}
@@ -1133,7 +1133,7 @@ export function CartItem({
           )}
 
           {item.unit_category === 'VOLUME' && (
-            <div className="flex rounded-xl border border-slate-200/90 overflow-hidden text-xs shadow-2xs">
+            <div className="flex overflow-hidden rounded-xl border border-white/90 text-xs shadow-[0_4px_12px_-10px_rgba(15,23,42,0.45)]">
               <button
                 type="button"
                 onClick={() => onUnitChange(item.product_id, 'ml')}
@@ -1152,7 +1152,7 @@ export function CartItem({
           )}
 
           {item.unit_category === 'LENGTH' && (
-            <div className="flex rounded-xl border border-slate-200/90 overflow-hidden text-xs shadow-2xs">
+            <div className="flex overflow-hidden rounded-xl border border-white/90 text-xs shadow-[0_4px_12px_-10px_rgba(15,23,42,0.45)]">
               {['m', 'cm', 'yd'].map((u) => (
                 <button
                   key={u}
@@ -1171,8 +1171,8 @@ export function CartItem({
           )}
 
           {/* Our Price editing box directly next to the product count box */}
-          <div className="flex items-center gap-1 bg-white border border-slate-200/90 rounded-xl px-2 py-0.5 shadow-2xs focus-within:ring-2 focus-within:ring-primary-500/20 focus-within:border-primary-500">
-            <span className="text-xs text-slate-400 font-bold">@</span>
+          <div className="flex items-center gap-1 rounded-xl border border-slate-200 bg-white px-2 py-1 shadow-[0_2px_5px_-4px_rgba(15,23,42,0.25)] focus-within:border-primary-400 focus-within:ring-2 focus-within:ring-primary-500/20">
+            <span className="text-xs font-bold text-primary-500">@</span>
             <input
               ref={ourPriceInputRef}
               data-testid={`cart-our-price-${item.product_id}`}
@@ -1239,9 +1239,9 @@ export function CartItem({
                   qtyInputRef.current?.select?.()
                 }
               }}
-              className="w-14 text-right text-xs font-bold text-primary-900 bg-transparent focus:outline-none"
+              className="w-16 bg-transparent text-right text-xs font-extrabold text-primary-900 focus:outline-none"
             />
-            <span className="text-3xs text-slate-400 font-medium">/{item.pricing_unit || 'pcs'}</span>
+            <span className="text-3xs font-semibold text-slate-500">/{item.pricing_unit || 'pcs'}</span>
           </div>
 
           {/* Red Out of stock indicator beside the + button when stock limit is reached */}
@@ -1257,7 +1257,7 @@ export function CartItem({
 
         {/* Line total */}
         <div className="flex items-center gap-2.5">
-          <p className="text-sm font-extrabold text-slate-900 min-w-[70px] text-right tracking-tight">
+          <p className="min-w-[70px] text-right text-sm font-extrabold tracking-tight text-slate-900">
             {formatCurrency(fromPesewas(lineTotalPesewas(item)))}
           </p>
         </div>
@@ -1279,7 +1279,7 @@ export function CartItem({
 // ─── Main POSPage ──────────────────────────────────────────────────────────────
 export default function POSPage() {
   const { user, logout } = useAuth()
-  const { logo_url: logoUrl, pos_default_warehouse_id: configuredWarehouseId } = useSettings()
+  const { logo_url: logoUrl, store_name: storeName, pos_default_warehouse_id: configuredWarehouseId } = useSettings()
   const navigate = useNavigate()
   const [showLogoutModal, setShowLogoutModal] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
@@ -1811,7 +1811,9 @@ export default function POSPage() {
               className="h-9 w-auto object-contain hidden sm:block drop-shadow-xs"
             />
             <div>
-              <h1 className="text-lg font-extrabold text-slate-900 leading-tight tracking-tight">Point of Sale</h1>
+              <h1 className="max-w-[260px] truncate text-lg font-extrabold text-slate-900 leading-tight tracking-tight" title={storeName || 'Store'}>
+                {storeName || 'Store'}
+              </h1>
               {activeBranchName && (
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
@@ -1997,7 +1999,7 @@ export default function POSPage() {
           {showProductDropdown && searchDropdownResults.length > 0 && (
             <div
               data-testid="product-search-dropdown"
-              className="absolute left-0 right-0 top-full mt-2 z-50 bg-white/95 backdrop-blur-xl rounded-2xl shadow-glass-xl border border-white/90 divide-y divide-slate-100 max-h-80 overflow-y-auto"
+              className="absolute left-0 right-0 top-full mt-2 z-50 rounded-2xl border border-white/90 bg-white/82 p-1.5 shadow-glass-xl backdrop-blur-xl max-h-80 overflow-y-auto"
             >
               {searchDropdownResults.map((product, idx) => {
                 const isSelected = idx === dropdownSelectedIndex
@@ -2019,54 +2021,55 @@ export default function POSPage() {
                       setDropdownSelectedIndex(0)
                       searchRef.current?.focus()
                     }}
-                    className={`flex items-center justify-between px-4 py-2.5 cursor-pointer transition select-none ${
+                    className={`pos-search-suggestion relative flex items-center gap-3 rounded-xl border px-3 py-2.5 cursor-pointer transition-all duration-150 select-none ${
                       isSelected
-                        ? 'bg-primary-50/90 text-primary-950 border-l-4 border-primary-600 pl-[12px]'
-                        : 'hover:bg-slate-50/80 text-slate-800'
+                        ? 'border-blue-600/90 bg-gradient-to-r from-blue-50/95 to-indigo-50/70 text-primary-950 shadow-sm ring-1 ring-blue-100/80'
+                        : 'border-transparent text-slate-800 hover:border-slate-100 hover:bg-white/90 hover:shadow-sm'
                     }`}
                   >
                     {/* Left: Thumbnail/Icon + Product Info */}
-                    <div className="flex items-center gap-3 min-w-0 flex-1 mr-3">
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
                       {product.image_url ? (
                         <img
                           src={product.image_url}
                           alt=""
-                          className="w-10 h-10 object-cover rounded-xl border border-slate-100 flex-shrink-0 shadow-2xs"
+                          className="h-11 w-11 flex-shrink-0 rounded-xl border border-white object-cover shadow-sm"
                         />
                       ) : (
-                        <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center flex-shrink-0 text-slate-400">
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border border-white/90 bg-gradient-to-br from-blue-50 to-indigo-100/80 text-blue-400 shadow-sm">
+                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
                           </svg>
                         </div>
                       )}
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-bold text-sm truncate text-slate-900">
-                            {product.name} <span className="text-slate-400 font-normal text-xs">({product.sku || 'Product'})</span>
+                        <div className="flex min-w-0 items-center gap-2">
+                          <span className="truncate text-[13px] font-bold leading-5 text-slate-900">
+                            {product.name}
                           </span>
                           {product.unit_category && (
-                            <span className="text-3xs uppercase tracking-wider font-bold px-1.5 py-0.5 rounded-full bg-slate-100 text-slate-600 flex-shrink-0">
+                            <span className="flex-shrink-0 rounded-full border border-white bg-white/75 px-2 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.12em] text-slate-500 shadow-[0_1px_3px_rgba(15,23,42,0.05)]">
                               {product.base_unit || product.unit_category}
                             </span>
                           )}
                         </div>
-                        <div className="text-xs text-slate-400 truncate flex items-center gap-2 mt-0.5 font-medium">
-                          {product.barcode && <span>Barcode: {product.barcode}</span>}
+                        <div className="mt-0.5 flex min-w-0 items-center gap-2 truncate text-[10px] font-medium text-slate-400">
+                          <span className="truncate font-mono tracking-wide">({product.sku || 'Product'})</span>
+                          {product.barcode && <span className="truncate border-l border-slate-200 pl-2">Barcode: {product.barcode}</span>}
                         </div>
                       </div>
                     </div>
 
                     {/* Right: Stock Badge & Price */}
-                    <div className="flex items-center gap-3 flex-shrink-0 text-right">
-                      <div>
+                    <div className="flex flex-shrink-0 items-center gap-3 sm:gap-5 text-right">
+                      <div className="min-w-0 sm:min-w-[90px]">
                         {isOut ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-3xs font-bold bg-danger-50 text-danger-700 border border-danger-200">
+                          <span className="inline-flex items-center rounded-full border border-danger-200 bg-danger-50 px-2.5 py-1 text-[10px] font-bold text-danger-700">
                             Out of Stock
                           </span>
                         ) : (
                           <span
-                            className={`inline-flex items-center px-2 py-0.5 rounded-full text-3xs font-bold ${
+                            className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold ${
                               lowStock
                                 ? 'bg-amber-50 text-amber-800 border border-amber-200'
                                 : 'bg-emerald-50 text-emerald-800 border border-emerald-200'
@@ -2076,13 +2079,13 @@ export default function POSPage() {
                           </span>
                         )}
                       </div>
-                      <div className="min-w-[70px]">
+                      <div className="min-w-[84px] sm:min-w-[102px]">
                         {product.cost_price != null && product.cost_price !== '' && (
-                          <div className="text-3xs text-slate-400 font-medium leading-tight">
+                          <div className="text-[10px] font-medium leading-4 text-slate-400">
                             Cost: {formatCurrency(product.cost_price)}
                           </div>
                         )}
-                        <span className="text-sm font-extrabold text-primary-700 tracking-tight">
+                        <span className="text-sm font-extrabold tracking-tight text-blue-700">
                           {formatCurrency(currentPrice)}
                         </span>
                       </div>
@@ -2158,7 +2161,7 @@ export default function POSPage() {
                     data-testid={`product-card-${product.id}`}
                     onClick={() => handleAddProduct(product)}
                     disabled={isOut}
-                    className={`bg-white/85 backdrop-blur-md rounded-2xl p-3 text-left shadow-glass-sm border transition-all duration-200 hover:shadow-glass hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${
+                    className={`pos-product-card group relative bg-gradient-to-br from-white/95 via-white/84 to-blue-50/55 backdrop-blur-md rounded-2xl p-3.5 text-left shadow-glass-sm border transition-all duration-200 hover:shadow-glass hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0 ${
                       isSelected
                         ? 'border-primary-500 ring-2 ring-primary-500/30 ring-offset-2 ring-offset-slate-50'
                         : isOut
@@ -2166,35 +2169,41 @@ export default function POSPage() {
                         : 'border-white/90 hover:border-primary-200/80'
                     }`}
                   >
-                    {product.image_url ? (
-                      <img src={product.image_url} alt={product.name} className="w-full h-24 object-cover rounded-xl mb-2 border border-slate-100 shadow-2xs" />
-                    ) : (
-                      <div className="w-full h-24 bg-gradient-to-br from-slate-100 to-slate-50 rounded-xl mb-2 flex items-center justify-center border border-slate-100/80">
-                        <svg className="w-8 h-8 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                        </svg>
-                      </div>
-                    )}
-                    <p className="text-sm font-bold text-slate-900 truncate">{product.name}</p>
-                    <p className="text-xs font-mono text-slate-400">{product.sku}</p>
-                    <p className="text-2xs text-slate-400 mb-1 font-medium">
+                    <div className="pos-product-image relative w-full h-24 sm:h-28 overflow-hidden rounded-xl mb-3 border border-white shadow-inner">
+                      {product.image_url ? (
+                        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+                      ) : (
+                        <div className="w-full h-full bg-gradient-to-br from-blue-50 via-slate-50 to-indigo-100/80 flex items-center justify-center">
+                          <div className="w-12 h-12 rounded-2xl border border-white/90 bg-white/70 shadow-sm flex items-center justify-center">
+                            <svg className="w-7 h-7 text-blue-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.25}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                            </svg>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    <div className="min-h-[38px]">
+                      <p className="text-[13px] leading-4 font-bold tracking-tight text-slate-900 line-clamp-2">{product.name}</p>
+                      <p className="mt-1 text-[10px] font-mono font-medium tracking-wide text-slate-400 truncate">{product.sku}</p>
+                    </div>
+                    <p className="mt-2 min-h-[15px] text-[10px] leading-4 text-slate-500 font-medium truncate">
                       cost price: {product.cost_price != null && product.cost_price !== '' ? formatCurrency(product.cost_price) : '—'}
                     </p>
-                    <div className="mt-1.5 space-y-1">
-                      <div>
+                    <div className="mt-2.5 pt-2 border-t border-blue-100/70">
+                      <div className="flex min-h-4 items-center gap-1.5">
                         {Number(product.usual_price) > Number(product.our_price || product.price) && (
-                          <span className="text-xs text-slate-400 line-through mr-1 block font-medium">
+                          <span className="text-[10px] text-slate-400 line-through font-medium">
                             {formatCurrency(product.usual_price)}
                           </span>
                         )}
-                        <span className="text-sm font-extrabold text-primary-700 block tracking-tight">
+                      </div>
+                      <span className="mt-0.5 text-[15px] leading-5 font-extrabold text-blue-700 block tracking-tight truncate">
                           {formatCurrency(product.our_price || product.price)}
                           {product.pricing_unit && product.pricing_unit !== 'pcs' ? ` / ${product.pricing_unit}` : ''}
-                        </span>
-                      </div>
+                      </span>
 
                       {/* Existing Quantity below the price */}
-                      <div className="flex items-center justify-between text-xs pt-1.5 border-t border-slate-100">
+                      <div className="mt-2 flex items-center justify-between gap-2 rounded-lg border border-white/90 bg-white/55 px-2 py-1.5 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]">
                         <div className="flex items-center gap-1 text-slate-500">
                           <span className="font-normal text-slate-400 text-3xs">Qty:</span>
                           <span className={`font-bold text-xs ${isOut ? 'text-danger-600' : Number(product.quantity) <= Number(product.low_stock_threshold) ? 'text-amber-600' : 'text-slate-800'}`}>
@@ -2215,9 +2224,9 @@ export default function POSPage() {
       </div>
 
       {/* ── RIGHT PANEL: Cart + Payment ── */}
-      <div className="w-[460px] xl:w-[500px] flex-shrink-0 bg-white/90 backdrop-blur-xl border-l border-white/80 flex flex-col shadow-glass-xl relative z-20">
+      <div className="relative z-20 flex w-[clamp(460px,32.4vw,622px)] flex-shrink-0 flex-col border-l border-white/90 bg-white/90 shadow-glass-xl backdrop-blur-xl">
         {/* Cart header */}
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 bg-white/90 px-5 py-3.5">
           <div className="flex items-center gap-2">
             <div className="w-7 h-7 rounded-lg bg-primary-50 text-primary-600 flex items-center justify-center">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2243,7 +2252,7 @@ export default function POSPage() {
         </div>
 
         {/* Inline customer selector with Quick Register button */}
-        <div className="px-5 py-2.5 border-b border-slate-100 bg-slate-50/50 flex items-center gap-2">
+        <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50/80 px-5 py-2.5">
           <InlineCustomerSelector
             customer={customer}
             customersList={allCustomers}
@@ -2264,7 +2273,7 @@ export default function POSPage() {
         </div>
 
         {/* Cart items */}
-        <div ref={cartContainerRef} className="flex-1 overflow-y-auto px-4 py-2 space-y-2">
+        <div ref={cartContainerRef} className="flex-1 space-y-2 overflow-y-auto bg-gradient-to-b from-slate-50/75 via-white/80 to-primary-50/25 px-4 py-2.5">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-300 py-12">
               <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
@@ -2305,10 +2314,10 @@ export default function POSPage() {
         </div>
 
         {/* Totals + actions */}
-        <div className="border-t border-slate-100 px-5 py-3.5 space-y-3 bg-white/60 backdrop-blur-md">
+        <div className="space-y-3 border-t border-slate-200/80 bg-white/95 px-5 py-3.5 shadow-[0_-8px_20px_-20px_rgba(15,23,42,0.35)] backdrop-blur-xl">
           {/* Additional discount input */}
           <div className="flex items-center gap-3">
-            <label className="text-xs font-bold text-slate-700 whitespace-nowrap">Additional Discount</label>
+            <label className="whitespace-nowrap text-xs font-bold text-slate-700">Additional Discount</label>
             <input
               type="text"
               inputMode="decimal"
@@ -2355,12 +2364,12 @@ export default function POSPage() {
                   if (items.length > 0) handleOpenPayment()
                 }
               }}
-              className="flex-1 text-right border border-slate-200/90 rounded-xl py-1.5 px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 font-bold text-slate-900 bg-white/90 shadow-2xs transition-all"
+              className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-bold text-slate-900 shadow-[0_2px_8px_-6px_rgba(15,23,42,0.25)] transition-all focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
             />
           </div>
 
           {/* Breakdown summary */}
-          <div className="space-y-1 pt-1.5 border-t border-slate-100 text-xs font-semibold text-slate-600">
+          <div className="space-y-1 border-y border-slate-100 py-2 text-xs font-semibold text-slate-600">
             {Number(predefined_discounts || 0) > 0 && (
               <div className="flex justify-between text-emerald-700">
                 <span>Discount</span>
@@ -2368,7 +2377,7 @@ export default function POSPage() {
               </div>
             )}
             {(parseFloat(cartDiscount) || 0) > 0 && (
-              <div className="flex justify-between text-danger-600">
+              <div className="flex justify-between text-emerald-700">
                 <span>Additional Discount</span>
                 <span className="font-bold">-{formatCurrency(cartDiscount)}</span>
               </div>
@@ -2382,21 +2391,21 @@ export default function POSPage() {
           </div>
 
           {/* Total */}
-          <div className="flex justify-between items-center pt-2.5 border-t border-slate-100">
+          <div className="flex items-center justify-between gap-3 px-0 py-1">
             <div>
-              <span className="text-base font-extrabold text-slate-900 block leading-tight tracking-tight">Grand Total</span>
-              <span className="text-xs text-slate-400 font-medium">
+              <span className="block text-lg font-extrabold leading-tight tracking-tight text-slate-900">Grand Total</span>
+              <span className="text-sm font-medium text-slate-400">
                 {distinct_items || items.length} distinct item{(distinct_items || items.length) !== 1 ? 's' : ''} ({total_quantity || items.reduce((s, i) => s + Number(i.quantity || 0), 0)} units)
               </span>
             </div>
-            <span className="text-3xl font-extrabold text-primary-700 tracking-tight">{formatCurrency(total)}</span>
+            <span className="whitespace-nowrap text-3xl font-extrabold tracking-tight text-primary-700 sm:text-4xl">{formatCurrency(total)}</span>
           </div>
 
           {/* Charge button */}
           <Button
             variant="success"
             size="lg"
-            className="w-full text-base font-bold shadow-glass-md py-3.5"
+            className="w-full py-4 text-lg font-bold shadow-[0_10px_24px_-12px_rgba(5,150,105,0.5)]"
             disabled={items.length === 0}
             onClick={handleOpenPayment}
           >
