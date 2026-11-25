@@ -959,40 +959,40 @@ export default function SalesPage() {
           const computedItems = receiptModel.items || []
           const receiptSummary = receiptModel.summary || {}
           return (
-            <div className="space-y-5 text-xs max-h-[80vh] overflow-y-auto pr-1">
+            <div className="space-y-5 text-xs text-slate-700">
               {/* Header info bar */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-gray-50 p-3 rounded-lg border border-gray-200">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 rounded-2xl border border-white/90 bg-gradient-to-br from-white/85 via-blue-50/55 to-indigo-50/45 p-3 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
                 <div>
-                  <span className="text-gray-500">Transaction ID:</span>
-                  <p className="font-mono font-bold text-gray-900">{detailsSale.transaction_id}</p>
+                  <span className="text-slate-500">Transaction ID:</span>
+                  <p className="font-mono font-bold text-slate-900">{detailsSale.transaction_id}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Sale Date:</span>
-                  <p className="font-semibold text-gray-900">
+                  <span className="text-slate-500">Sale Date:</span>
+                  <p className="font-semibold text-slate-900">
                     {new Date(detailsSale.sale_date || detailsSale.created_at).toLocaleString()}
                   </p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Customer:</span>
-                  <p className="font-semibold text-gray-900">{detailsSale.customer?.name || 'Walk-in'}</p>
+                  <span className="text-slate-500">Customer:</span>
+                  <p className="font-semibold text-slate-900">{detailsSale.customer?.name || 'Walk-in'}</p>
                   {detailsSale.customer?.phone && (
-                    <p className="text-3xs text-gray-500">{detailsSale.customer.phone}</p>
+                    <p className="text-3xs text-slate-500">{detailsSale.customer.phone}</p>
                   )}
                 </div>
                 <div>
-                  <span className="text-gray-500">Cashier:</span>
-                  <p className="font-semibold text-gray-900">{detailsSale.user?.full_name || 'Staff'}</p>
+                  <span className="text-slate-500">Cashier:</span>
+                  <p className="font-semibold text-slate-900">{detailsSale.user?.full_name || 'Staff'}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Warehouse:</span>
-                  <p className="font-semibold text-gray-900">{detailsSale.warehouse?.name || 'Main Warehouse'}</p>
+                  <span className="text-slate-500">Warehouse:</span>
+                  <p className="font-semibold text-slate-900">{detailsSale.warehouse?.name || 'Main Warehouse'}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Payment Method:</span>
-                  <p className="font-semibold text-gray-900">{PAYMENT_METHOD_LABELS[detailsSale.payment_method] || detailsSale.payment_method}</p>
+                  <span className="text-slate-500">Payment Method:</span>
+                  <p className="font-semibold text-slate-900">{PAYMENT_METHOD_LABELS[detailsSale.payment_method] || detailsSale.payment_method}</p>
                 </div>
                 <div>
-                  <span className="text-gray-500">Payment Status:</span>
+                  <span className="text-slate-500">Payment Status:</span>
                   <div>
                     {detailsSale.is_cancelled ? (
                       <Badge variant="danger">CANCELLED</Badge>
@@ -1003,7 +1003,7 @@ export default function SalesPage() {
                 </div>
                 {detailsSale.is_cancelled && (
                   <div>
-                    <span className="text-gray-500">Cancellation Reason:</span>
+                    <span className="text-slate-500">Cancellation Reason:</span>
                     <p className="text-danger-700 italic">{detailsSale.cancellation_reason || 'Cancelled'}</p>
                   </div>
                 )}
@@ -1011,39 +1011,39 @@ export default function SalesPage() {
 
               {/* Order Items Table */}
               <div>
-                <h3 className="font-semibold text-gray-800 text-sm mb-2">Order Items</h3>
-                <div className="border border-gray-200 rounded-lg overflow-hidden">
-                  <table className="min-w-full divide-y divide-gray-200 text-xs">
-                    <thead className="bg-gray-50">
+                <h3 className="font-semibold text-slate-800 text-sm mb-2">Order Items</h3>
+                <div className="overflow-hidden rounded-xl border border-white/90 bg-white/65 shadow-[0_6px_18px_-16px_rgba(15,23,42,0.35)] backdrop-blur-md">
+                  <table className="min-w-full divide-y divide-slate-200/80 text-xs">
+                    <thead className="bg-gradient-to-r from-slate-50/95 via-blue-50/75 to-indigo-50/65">
                       <tr>
                         <th className="px-3 py-2 text-left font-medium text-gray-600">Product</th>
                         <th className="px-2 py-2 text-center font-medium text-gray-600">Qty</th>
-                        <th className="px-2 py-2 text-right font-medium text-gray-600">Unit Price (සා.මිල)</th>
+                        <th className="px-2 py-2 text-right font-medium text-gray-600">සා.මිල</th>
                         
-                        <th className="px-2 py-2 text-right font-medium text-gray-600">Net Price (අපේ මිල)</th>
+                        <th className="px-2 py-2 text-right font-medium text-gray-600">අපේ මිල</th>
                         <th className="px-3 py-2 text-right font-medium text-gray-600">Subtotal</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-gray-200 bg-white">
+                    <tbody className="divide-y divide-slate-100 bg-white/75">
                       {computedItems.map((rItem, idx) => {
                         const origItem = (detailsSale.items || [])[idx] || {}
                         const ret = parseFloat(origItem.returned_quantity || 0)
                         return (
                           <tr key={origItem.id || idx}>
                             <td className="px-3 py-2">
-                              <p className="font-semibold text-gray-900">{rItem.name}</p>
-                              <p className="text-2xs font-mono text-gray-400">{origItem.product?.sku || origItem.product_sku || ''}</p>
+                              <p className="font-semibold text-slate-900">{rItem.name}</p>
+                              <p className="text-2xs font-mono text-slate-400">{origItem.product?.sku || origItem.product_sku || ''}</p>
                               {ret > 0 && (
                                 <span className="text-3xs text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-medium">
                                   {ret} returned
                                 </span>
                               )}
                             </td>
-                            <td className="px-2 py-2 text-center font-mono font-bold text-gray-800">{rItem.qty}{rItem.unitLabel}</td>
-                            <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(rItem.unitMarketPrice)}</td>
+                            <td className="px-2 py-2 text-center font-mono font-bold text-primary-800 ">{rItem.qty}{rItem.unitLabel}</td>
+                            <td className="px-2 py-2 text-right font-mono text-slate-600">{rItem.unitMarketPrice}.00</td>
                             
-                            <td className="px-2 py-2 text-right font-mono font-bold text-gray-900">{fmt(rItem.unitOurPrice)}</td>
-                            <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">{fmt(rItem.lineTotal)}</td>
+                            <td className="px-2 py-2 text-right font-mono font-bold text-primary-800">{rItem.unitOurPrice}.00</td>
+                            <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">{rItem.lineTotal}.00</td>
                           </tr>
                         )
                       })}
@@ -1055,23 +1055,23 @@ export default function SalesPage() {
               {/* Financial Summary & Payment Breakdown */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Payment transactions snapshot */}
-                <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/50">
-                  <h4 className="font-semibold text-gray-800 text-xs mb-2">Payment Records</h4>
+                <div className="rounded-xl border border-white/90 bg-gradient-to-br from-white/80 via-slate-50/70 to-blue-50/45 p-3 shadow-[0_6px_18px_-16px_rgba(15,23,42,0.3),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
+                  <h4 className="font-semibold text-slate-800 text-xs mb-2">Payment Records</h4>
                   {detailsSale.payments && detailsSale.payments.length > 0 ? (
                     <div className="space-y-1.5">
                       {detailsSale.payments.map((p) => (
                         <div
                           key={p.id}
                           className={`p-2 rounded border text-2xs flex justify-between items-center ${
-                            p.is_void ? 'bg-danger-50/50 border-danger-200 text-danger-700' : 'bg-white border-gray-200 text-gray-800'
+                            p.is_void ? 'bg-rose-50/80 border-rose-200 text-rose-700' : 'bg-white/85 border-white/90 text-slate-800 shadow-sm'
                           }`}
                         >
                           <div>
                             <p className="font-semibold">
                               {PAYMENT_METHOD_LABELS[p.payment_method] || p.payment_method}
-                              {p.reference && <span className="font-mono text-gray-500 font-normal ml-1">({p.reference})</span>}
+                              {p.reference && <span className="font-mono text-slate-500 font-normal ml-1">({p.reference})</span>}
                             </p>
-                            <p className="text-gray-400">{new Date(p.created_at).toLocaleTimeString()}</p>
+                            <p className="text-slate-400">{new Date(p.created_at).toLocaleTimeString()}</p>
                           </div>
                           <div className="text-right">
                             <p className="font-mono font-bold">{fmt(p.amount)}</p>
@@ -1085,13 +1085,13 @@ export default function SalesPage() {
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-400 italic">No direct payment records found.</p>
+                    <p className="text-slate-400 italic">No direct payment records found.</p>
                   )}
                 </div>
 
                 {/* Financial Totals */}
-                <div className="border border-gray-200 rounded-lg p-3 space-y-2 bg-gray-50">
-                  <div className="flex justify-between text-gray-600">
+                <div className="rounded-xl border border-white/90 bg-gradient-to-br from-white/85 via-blue-50/55 to-indigo-50/50 p-3 space-y-2 shadow-[0_6px_18px_-16px_rgba(37,99,235,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
+                  <div className="flex justify-between text-slate-600">
                     <span>Subtotal:</span>
                     <span className="font-mono">{fmt(receiptSummary.marketSubtotal ?? (detailsSale.subtotal_amount || detailsSale.total_amount))}</span>
                   </div>
@@ -1102,16 +1102,16 @@ export default function SalesPage() {
                     </div>
                   )}
                   {parseFloat(detailsSale.tax_amount || 0) > 0 && (
-                    <div className="flex justify-between text-gray-600">
+                    <div className="flex justify-between text-slate-600">
                       <span>Tax:</span>
                       <span className="font-mono">+{fmt(detailsSale.tax_amount)}</span>
                     </div>
                   )}
-                  <div className="border-t border-gray-300 pt-1.5 flex justify-between font-bold text-gray-900 text-sm">
+                  <div className="border-t border-slate-200 pt-1.5 flex justify-between font-bold text-slate-900 text-sm">
                     <span>Grand Total (එකතුව):</span>
                     <span className="font-mono">{fmt(detailsSale.total_amount)}</span>
                   </div>
-                  <div className="flex justify-between text-gray-700">
+                  <div className="flex justify-between text-slate-700">
                     <span>Amount Paid:</span>
                     <span className="font-mono font-semibold text-success-800">{fmt(detailsSale.amount_paid ?? detailsSale.total_amount)}</span>
                   </div>
@@ -1122,7 +1122,7 @@ export default function SalesPage() {
                     </div>
                   )}
                   {parseFloat(detailsSale.change_amount || 0) > 0 && (
-                    <div className="flex justify-between text-gray-500">
+                  <div className="flex justify-between text-slate-500">
                       <span>Change Given:</span>
                       <span className="font-mono">{fmt(detailsSale.change_amount)}</span>
                     </div>
@@ -1131,7 +1131,7 @@ export default function SalesPage() {
               </div>
 
               {/* Modal Actions */}
-              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-200">
+              <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-200/80">
                 <div className="flex gap-2">
                   <Button
                     size="sm"
@@ -1172,15 +1172,15 @@ export default function SalesPage() {
         size="lg"
       >
         {editSaleTarget && (
-          <form onSubmit={handleSaveSaleEdit} className="space-y-4 text-xs max-h-[80vh] overflow-y-auto pr-1">
-            <div className="p-2.5 bg-amber-50 border border-amber-200 rounded-lg text-amber-800 text-2xs">
+          <form onSubmit={handleSaveSaleEdit} className="space-y-4 text-xs text-slate-700">
+            <div className="rounded-xl border border-amber-200/80 bg-gradient-to-r from-amber-50/90 via-white/75 to-orange-50/60 p-2.5 text-amber-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-sm text-2xs">
               <span className="font-bold">Inventory & Price Notice:</span> Adjusting quantities here will calculate net stock diffs and automatically adjust warehouse stock with audit logs. Quantities cannot be reduced below already returned quantities.
             </div>
 
             {/* Editable items table */}
-            <div className="border border-gray-200 rounded-lg overflow-hidden">
-              <table className="min-w-full divide-y divide-gray-200 text-xs">
-                <thead className="bg-gray-50">
+            <div className="overflow-hidden rounded-xl border border-white/90 bg-white/65 shadow-[0_6px_18px_-16px_rgba(15,23,42,0.35)] backdrop-blur-md">
+              <table className="min-w-full divide-y divide-slate-200/80 text-xs">
+                <thead className="bg-gradient-to-r from-slate-50/95 via-blue-50/75 to-indigo-50/65">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium text-gray-600">Product</th>
                     <th className="px-2 py-2 text-right font-medium text-gray-600">Unit Price</th>
@@ -1189,21 +1189,21 @@ export default function SalesPage() {
                     <th className="px-3 py-2 text-right font-medium text-gray-600">Subtotal</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
+                <tbody className="divide-y divide-slate-100 bg-white/75">
                   {editItems.map((it) => {
                     const lineSub = it.quantity * it.unit_price - (it.discount_amount || 0)
                     return (
                       <tr key={it.sale_item_id}>
                         <td className="px-3 py-2">
-                          <p className="font-semibold text-gray-900">{it.product_name}</p>
-                          <p className="text-2xs font-mono text-gray-400">{it.sku}</p>
+                          <p className="font-semibold text-slate-900">{it.product_name}</p>
+                          <p className="text-2xs font-mono text-slate-400">{it.sku}</p>
                           {it.returned_quantity > 0 && (
                             <span className="text-3xs text-amber-700 bg-amber-50 px-1 py-0.5 rounded border border-amber-200 font-medium">
                               Min allowed: {it.returned_quantity} (returned)
                             </span>
                           )}
                         </td>
-                        <td className="px-2 py-2 text-right font-mono text-gray-600">{fmt(it.unit_price)}</td>
+                        <td className="px-2 py-2 text-right font-mono text-slate-600">{fmt(it.unit_price)}</td>
                         <td className="px-3 py-2 text-center">
                           <input
                             type="number"
@@ -1211,13 +1211,13 @@ export default function SalesPage() {
                             step="any"
                             value={it.quantity}
                             onChange={(e) => handleEditItemQtyChange(it.sale_item_id, e.target.value)}
-                            className="w-full px-2 py-1 text-center font-mono font-bold border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                            className="w-full rounded-lg border border-slate-200 bg-white/90 px-2 py-1 text-center font-mono font-bold text-slate-900 shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                           />
                         </td>
-                        <td className="px-2 py-2 text-right font-mono text-gray-500">
+                        <td className="px-2 py-2 text-right font-mono text-slate-500">
                           {fmt(it.discount_amount || 0)}
                         </td>
-                        <td className="px-3 py-2 text-right font-mono font-bold text-gray-900">
+                        <td className="px-3 py-2 text-right font-mono font-bold text-slate-900">
                           {fmt(lineSub)}
                         </td>
                       </tr>
@@ -1230,52 +1230,52 @@ export default function SalesPage() {
             {/* Discount and Notes */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Order Discount Amount</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Order Discount Amount</label>
                 <input
                   type="number"
                   min="0"
                   step="0.01"
                   value={editDiscount}
                   onChange={(e) => setEditDiscount(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 font-mono"
+                  className="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-xs text-slate-900 shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-700 mb-1">Invoice Notes</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Invoice Notes</label>
                 <input
                   type="text"
                   placeholder="Special instructions or edit notes..."
                   value={editNotes}
                   onChange={(e) => setEditNotes(e.target.value)}
-                  className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500"
+                  className="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-1.5 text-xs text-slate-900 shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                 />
               </div>
             </div>
 
             {/* Payment Method & Terms */}
-            <div className="border border-gray-200 rounded-lg p-3 bg-gray-50/70 space-y-3">
+            <div className="space-y-3 rounded-2xl border border-white/90 bg-gradient-to-br from-white/80 via-blue-50/50 to-indigo-50/45 p-3 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
               <div className="flex items-center justify-between">
-                <span className="font-semibold text-gray-800 text-xs">Payment Method & Terms</span>
+                <span className="font-semibold text-slate-800 text-xs">Payment Method & Terms</span>
                 {editSaleTarget.customer ? (
                   <span className="inline-flex items-center gap-1 text-2xs font-medium text-success-800 bg-success-50 border border-success-200 px-2 py-0.5 rounded-full">
                     <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clipRule="evenodd" /></svg>
                     Registered Customer: {editSaleTarget.customer.name}
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 text-2xs font-medium text-gray-600 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded-full">
+                  <span className="inline-flex items-center gap-1 text-2xs font-medium text-slate-700 bg-white/80 border border-white/90 px-2 py-0.5 rounded-full shadow-sm">
                     Walk-in Customer (Credit & Partial Payment disabled)
                   </span>
                 )}
               </div>
 
-              <div className="flex border-b border-gray-200">
+              <div className="flex border-b border-slate-200/80">
                 <button
                   type="button"
                   onClick={() => setEditPaymentMethod('CASH')}
                   className={`flex-1 py-2 text-xs font-semibold border-b-2 transition ${
                     editPaymentMethod === 'CASH'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary-600 text-primary-700'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   Cash / Partial Payment
@@ -1292,10 +1292,10 @@ export default function SalesPage() {
                   disabled={!editSaleTarget.customer}
                   className={`flex-1 py-2 text-xs font-semibold border-b-2 transition ${
                     !editSaleTarget.customer
-                      ? 'border-transparent text-gray-300 cursor-not-allowed'
+                      ? 'border-transparent text-slate-300 cursor-not-allowed'
                       : editPaymentMethod === 'CREDIT'
-                      ? 'border-primary-600 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
+                      ? 'border-primary-600 text-primary-700'
+                      : 'border-transparent text-slate-500 hover:text-slate-800'
                   }`}
                 >
                   Customer Credit Sale
@@ -1305,13 +1305,13 @@ export default function SalesPage() {
               {editPaymentMethod === 'CASH' && (
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="block text-xs font-medium text-gray-700">
+                    <label className="block text-xs font-medium text-slate-700">
                       Cash Received ({settings.currency_symbol || 'LKR'})
                     </label>
                     <button
                       type="button"
                       onClick={() => setEditAmountPaid(String(editNewGrandTotal.toFixed(2)))}
-                      className="text-2xs text-primary-600 hover:text-primary-800 font-medium underline"
+                    className="text-2xs text-primary-700 hover:text-primary-900 font-semibold underline"
                     >
                       Exact Amount ({fmt(editNewGrandTotal)})
                     </button>
@@ -1322,7 +1322,7 @@ export default function SalesPage() {
                     min="0"
                     value={editAmountPaid}
                     onChange={(e) => setEditAmountPaid(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 font-mono font-bold"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-xs font-bold text-slate-900 shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                     placeholder={editNewGrandTotal.toFixed(2)}
                   />
                   {(() => {
@@ -1330,14 +1330,14 @@ export default function SalesPage() {
                     if (paid < editNewGrandTotal) {
                       const bal = editNewGrandTotal - paid
                       return (
-                        <p className="text-2xs text-amber-700 bg-amber-50 border border-amber-200 rounded p-1.5 font-medium">
+                        <p className="rounded-lg border border-amber-200/80 bg-amber-50/80 p-1.5 text-2xs font-medium text-amber-800">
                           Partial Payment: Balance due of {fmt(bal)} will remain on the customer account.
                         </p>
                       )
                     } else if (paid > editNewGrandTotal) {
                       const change = paid - editNewGrandTotal
                       return (
-                        <p className="text-2xs text-success-700 bg-success-50 border border-success-200 rounded p-1.5 font-medium">
+                        <p className="rounded-lg border border-emerald-200/80 bg-emerald-50/80 p-1.5 text-2xs font-medium text-emerald-800">
                           Change to give: {fmt(change)}
                         </p>
                       )
@@ -1350,21 +1350,21 @@ export default function SalesPage() {
               {editPaymentMethod === 'CREDIT' && (
                 <div className="space-y-2 pt-1">
                   <div className="flex items-center justify-between">
-                    <label className="block text-xs font-medium text-gray-700">
+                    <label className="block text-xs font-medium text-slate-700">
                       Deposit Paid ({settings.currency_symbol || 'LKR'})
                     </label>
                     <div className="flex gap-2">
                       <button
                         type="button"
                         onClick={() => setEditAmountPaid('0')}
-                        className="text-2xs text-primary-600 hover:text-primary-800 font-medium underline"
+                        className="text-2xs text-primary-700 hover:text-primary-900 font-semibold underline"
                       >
                         Zero Deposit (Full Credit)
                       </button>
                       <button
                         type="button"
                         onClick={() => setEditAmountPaid(String(editNewGrandTotal.toFixed(2)))}
-                        className="text-2xs text-primary-600 hover:text-primary-800 font-medium underline"
+                        className="text-2xs text-primary-700 hover:text-primary-900 font-semibold underline"
                       >
                         Exact Total
                       </button>
@@ -1377,14 +1377,14 @@ export default function SalesPage() {
                     max={editNewGrandTotal}
                     value={editAmountPaid}
                     onChange={(e) => setEditAmountPaid(e.target.value)}
-                    className="w-full px-3 py-1.5 text-xs border border-gray-300 rounded focus:ring-1 focus:ring-primary-500 font-mono font-bold"
+                    className="w-full rounded-xl border border-slate-200 bg-white/90 px-3 py-1.5 font-mono text-xs font-bold text-slate-900 shadow-sm focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
                     placeholder="0.00"
                   />
                   {(() => {
                     const deposit = parseFloat(editAmountPaid) || 0
                     const creditBal = Math.max(0, editNewGrandTotal - deposit)
                     return (
-                      <p className="text-2xs text-primary-800 bg-primary-50 border border-primary-200 rounded p-1.5 font-medium">
+                      <p className="rounded-lg border border-primary-200/80 bg-primary-50/80 p-1.5 text-2xs font-medium text-primary-900">
                         Credit Sale: Outstanding balance of {fmt(creditBal)} will be charged to {editSaleTarget.customer?.name}.
                       </p>
                     )
@@ -1394,8 +1394,8 @@ export default function SalesPage() {
             </div>
 
             {/* Live totals preview banner */}
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 space-y-1">
-              <div className="flex justify-between text-gray-600">
+            <div className="space-y-1 rounded-2xl border border-white/90 bg-gradient-to-br from-white/85 via-blue-50/55 to-indigo-50/45 p-3 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
+              <div className="flex justify-between text-slate-600">
                 <span>Subtotal:</span>
                 <span className="font-mono">{fmt(editSubtotal)}</span>
               </div>
@@ -1406,20 +1406,20 @@ export default function SalesPage() {
                 </div>
               )}
               {editTaxAmount > 0 && (
-                <div className="flex justify-between text-gray-600">
+                <div className="flex justify-between text-slate-600">
                   <span>Tax:</span>
                   <span className="font-mono">+{fmt(editTaxAmount)}</span>
                 </div>
               )}
-              <div className="border-t border-gray-300 pt-1 flex justify-between font-bold text-gray-900 text-sm">
+              <div className="border-t border-slate-200 pt-1 flex justify-between font-bold text-slate-900 text-sm">
                 <span>New Grand Total:</span>
                 <span className="font-mono text-primary-700">{fmt(editNewGrandTotal)}</span>
               </div>
-              <div className="flex justify-between text-gray-700">
+              <div className="flex justify-between text-slate-700">
                 <span>Payment Method:</span>
                 <span className="font-semibold">{editPaymentMethod === 'CREDIT' ? 'Customer Credit' : 'Cash / Partial'}</span>
               </div>
-              <div className="flex justify-between text-gray-700">
+              <div className="flex justify-between text-slate-700">
                 <span>Amount Paid / Deposit:</span>
                 <span className="font-mono font-semibold text-success-800">{fmt(parseFloat(editAmountPaid) || 0)}</span>
               </div>

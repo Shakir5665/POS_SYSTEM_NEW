@@ -203,9 +203,6 @@ async function generateInvoicePdf(saleId, format = 'a4') {
     const colUnitMarketX = margin + 215
     const colUnitMarketW = 80
 
-    const colDiscountX = margin + 300
-    const colDiscountW = 65
-
     const colNetPriceX = margin + 370
     const colNetPriceW = 80
 
@@ -254,7 +251,7 @@ async function generateInvoicePdf(saleId, format = 'a4') {
       doc.text(formatMoney(item.unitOurPrice, ''), colNetPriceX, rowY, { width: colNetPriceW, align: 'right' })
       doc.text(formatMoney(item.lineTotal, ''), colTotalX, rowY, { width: colTotalW, align: 'right' })
 
-      doc.moveDown(0.5)
+      doc.moveDown(1.5)
     })
 
     doc.moveDown(0.3)
