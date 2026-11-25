@@ -33,8 +33,15 @@ const systemAdminRoutes = require('./routes/systemAdmin')
 
 const app = express()
 
-// Security headers
-app.use(helmet())
+// Keep Helmet's default protections while permitting store logos from Cloudinary.
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'img-src': ["'self'", 'data:', 'https://res.cloudinary.com'],
+    },
+  },
+}))
 
 // CORS — allow frontend origin with credentials (for cookies)
 app.use(
