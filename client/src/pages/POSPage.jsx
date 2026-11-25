@@ -713,6 +713,15 @@ export function InlineCustomerSelector({ customer, customersList = [], onSelect,
 }
 
 // ─── Cart Item Row ─────────────────────────────────────────────────────────────
+function scrollCartItemToTop(input) {
+  const container = document.querySelector('[data-cart-scroll-container]')
+  const row = input?.closest('[data-cart-item]')
+  if (!container || !row) return
+
+  const rowTop = row.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop
+  container.scrollTo({ top: Math.max(0, rowTop - 8), behavior: 'smooth' })
+}
+
 export function CartItem({
   item,
   index = 0,
@@ -941,9 +950,11 @@ export function CartItem({
         const prevInput = allQtyInputs[currentIndex - 1]
         prevInput?.focus()
         prevInput?.select?.()
+        if (currentIndex === 1) scrollCartItemToTop(prevInput)
       } else {
         qtyInputRef.current?.focus()
         qtyInputRef.current?.select?.()
+        scrollCartItemToTop(qtyInputRef.current)
       }
       return
     }
@@ -969,6 +980,7 @@ export function CartItem({
   return (
     <div
       id={`cart-item-${item.product_id}`}
+      data-cart-item
       className={`relative overflow-hidden rounded-2xl border p-3 transition-all duration-200 ${
         isLastAdded
           ? 'border-primary-400 bg-primary-50/70 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.55)] ring-2 ring-primary-400/25'
@@ -1200,9 +1212,11 @@ export function CartItem({
                     const prevInput = allPriceInputs[currentIndex - 1]
                     prevInput?.focus()
                     prevInput?.select?.()
+                    if (currentIndex === 1) scrollCartItemToTop(prevInput)
                   } else {
                     ourPriceInputRef.current?.focus()
                     ourPriceInputRef.current?.select?.()
+                    scrollCartItemToTop(ourPriceInputRef.current)
                   }
                   return
                 }
@@ -2265,7 +2279,7 @@ export default function POSPage() {
         </div>
 
         {/* Cart items */}
-        <div ref={cartContainerRef} className="flex-1 space-y-2 overflow-y-auto bg-gradient-to-b from-slate-50/75 via-white/80 to-primary-50/25 px-4 py-2.5">
+        <div ref={cartContainerRef} data-cart-scroll-container className="flex-1 space-y-2 overflow-y-auto bg-gradient-to-b from-slate-50/75 via-white/80 to-primary-50/25 px-4 py-2.5">
           {items.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-300 py-12">
               <div className="w-16 h-16 rounded-2xl bg-slate-50 border border-slate-100 flex items-center justify-center mb-3">
