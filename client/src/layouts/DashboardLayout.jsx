@@ -259,7 +259,7 @@ export function DashboardLayout({ children }) {
   const isManager = user?.role === 'MANAGER' || isAdmin
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50/70">
+    <div className="app-shell flex h-screen overflow-hidden">
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
@@ -270,7 +270,7 @@ export function DashboardLayout({ children }) {
 
       {/* Floating Glass Sidebar */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-white/85 backdrop-blur-2xl border-r border-slate-200/80 shadow-glass-md flex flex-col transition-transform duration-200 lg:static lg:translate-x-0
+        className={`app-sidebar fixed inset-y-0 left-0 z-50 w-64 bg-white/85 backdrop-blur-2xl border-r border-slate-200/80 shadow-glass-md flex flex-col transition-transform duration-200 lg:static lg:translate-x-0
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Brand Header */}
@@ -465,7 +465,7 @@ export function DashboardLayout({ children }) {
       {/* Main content area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile topbar */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-md border-b border-slate-200/80 z-20">
+        <header className="app-topbar lg:hidden flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-md border-b border-slate-200/80 z-20">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}

@@ -101,6 +101,41 @@
   }
 }
 
+/* Shared system canvas: login-inspired blue and indigo ambient light. */
+.app-shell {
+  position: relative;
+  isolation: isolate;
+  background-color: #edf3ff;
+  background-image:
+    radial-gradient(ellipse 50% 72% at 0% 100%, rgba(147, 197, 253, 0.34) 0%, rgba(191, 219, 254, 0.18) 46%, transparent 78%),
+    radial-gradient(ellipse 46% 68% at 46% 0%, rgba(199, 210, 254, 0.31) 0%, rgba(224, 231, 255, 0.14) 49%, transparent 78%),
+    radial-gradient(ellipse 42% 70% at 100% 100%, rgba(165, 180, 252, 0.28) 0%, rgba(199, 210, 254, 0.15) 48%, transparent 80%),
+    linear-gradient(135deg, #eff5ff 0%, #edf1ff 52%, #f1f0ff 100%);
+}
+
+.app-sidebar {
+  background: rgba(255, 255, 255, 0.78) !important;
+  border-color: rgba(255, 255, 255, 0.84) !important;
+  box-shadow: 12px 0 36px rgba(55, 84, 145, 0.08), inset -1px 0 rgba(255, 255, 255, 0.75) !important;
+  backdrop-filter: blur(20px) saturate(1.06);
+  -webkit-backdrop-filter: blur(20px) saturate(1.06);
+}
+
+.app-topbar {
+  background: rgba(255, 255, 255, 0.76) !important;
+  border-color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.app-shell .glass-panel {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.86), rgba(239, 245, 255, 0.76));
+  border-color: rgba(255, 255, 255, 0.9);
+}
+
+.app-shell .glass-card {
+  background: linear-gradient(140deg, rgba(255, 255, 255, 0.9), rgba(239, 245, 255, 0.78));
+  border-color: rgba(255, 255, 255, 0.92);
+}
+
 /* Reduced motion accessibility support */
 @media (prefers-reduced-motion: reduce) {
   *,

@@ -11,7 +11,7 @@ import {
   PieChart,
   Pie,
   Cell,
-  Legend,
+  Label,
 } from 'recharts'
 import { DashboardLayout } from '../layouts/DashboardLayout'
 import { reportsService } from '../services/reports'
@@ -20,18 +20,37 @@ import { formatCurrency, formatCompactCurrency } from '../utils/formatCurrency'
 import { useSettings } from '../hooks/useSettings'
 import { subscribeRealtimeEvents } from '../utils/realtime'
 
-// High-contrast, vibrant opposing colors (complementary & triadic wheel opposites)
-// Ensures neighboring slices always have maximum contrast and visual distinction
+// Distinct, restrained jewel tones keep neighboring product slices easy to compare.
 const PIE_COLORS = [
-  '#2563EB', // Vibrant Royal Blue
-  '#F97316', // High-contrast Vivid Orange (opposite of Blue)
-  '#10B981', // Crisp Emerald Green
-  '#E11D48', // Deep Rose / Crimson (opposite of Green)
-  '#8B5CF6', // Electric Purple
-  '#EAB308', // Solar Amber / Gold (opposite of Purple)
-  '#06B6D4', // Tropical Cyan
-  '#F43F5E', // Bright Coral / Neon Ruby (opposite of Cyan)
+  '#3267D8', // Blue
+  '#138A78', // Teal
+  '#D99624', // Amber
+  '#D6536D', // Rose
+  '#7656C9', // Violet
+  '#1686A3', // Cyan
+  '#B85D3B', // Terracotta
+  '#56864A', // Leaf green
 ]
+
+function ProductPieLabel({ name, label, percent, x, y, cx }) {
+  const productName = String(name || label || 'Product')
+  const compactName = productName.length > 13 ? `${productName.slice(0, 12)}…` : productName
+  const share = `${Math.round((percent || 0) * 100)}%`
+
+  return (
+    <text
+      x={x}
+      y={y}
+      textAnchor={x >= cx ? 'start' : 'end'}
+      dominantBaseline="central"
+      fill="#52627a"
+      fontSize={9}
+      fontWeight={600}
+    >
+      {`${compactName} ${share}`}
+    </text>
+  )
+}
 
 function SkeletonCard() {
   return (
@@ -48,7 +67,7 @@ function SkeletonCard() {
   )
 }
 
-function KpiCard({ title, value, subtitle, icon, iconBg, tooltip, to }) {
+function KpiCard({ title, value, subtitle, icon, iconBg, valueColor = 'text-slate-900', tooltip, to }) {
   const displayTooltip =
     tooltip !== undefined
       ? tooltip
@@ -74,7 +93,7 @@ function KpiCard({ title, value, subtitle, icon, iconBg, tooltip, to }) {
             {title}
           </p>
           <p
-            className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 mt-2 truncate"
+            className={`text-2xl sm:text-3xl font-bold tracking-tight ${valueColor} mt-2 truncate`}
             title={displayTooltip}
           >
             {value}
@@ -374,6 +393,7 @@ export default function DashboardPage() {
                 value={formatCompactCurrency(todayRevenue)}
                 tooltip={formatCurrency(todayRevenue)}
                 subtitle="Daily gross sales performance"
+                valueColor="text-blue-700"
                 iconBg="bg-blue-50 text-blue-600 border border-blue-100"
                 to={`/sales?startDate=${today}&endDate=${today}`}
                 icon={
@@ -387,6 +407,7 @@ export default function DashboardPage() {
                 value={formatCompactCurrency(totalSalesAllTime)}
                 tooltip={formatCurrency(totalSalesAllTime)}
                 subtitle="All-time gross sales turnover"
+                valueColor="text-emerald-700"
                 iconBg="bg-emerald-50 text-emerald-600 border border-emerald-100"
                 to="/sales"
                 icon={
@@ -400,6 +421,7 @@ export default function DashboardPage() {
                 value={formatCompactCurrency(salesReturnsAllTime)}
                 tooltip={formatCurrency(salesReturnsAllTime)}
                 subtitle="Customer refunds & return credits"
+                valueColor="text-rose-700"
                 iconBg="bg-rose-50 text-rose-600 border border-rose-100"
                 to="/sale-return"
                 icon={
@@ -413,6 +435,7 @@ export default function DashboardPage() {
                 value={formatCompactCurrency(customerReceivables)}
                 tooltip={formatCurrency(customerReceivables)}
                 subtitle="Outstanding credit due from customers"
+                valueColor="text-amber-700"
                 iconBg="bg-amber-50 text-amber-600 border border-amber-100"
                 to="/customers"
                 icon={
@@ -436,7 +459,8 @@ export default function DashboardPage() {
                 value={formatCompactCurrency(totalPurchasesAllTime)}
                 tooltip={formatCurrency(totalPurchasesAllTime)}
                 subtitle="All-time inventory procurement"
-                iconBg="bg-indigo-50 text-indigo-600 border border-indigo-100"
+                valueColor="text-teal-700"
+                iconBg="bg-teal-50 text-teal-700 border border-teal-100"
                 to="/purchases"
                 icon={
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -449,7 +473,8 @@ export default function DashboardPage() {
                 value={formatCompactCurrency(purchaseReturnsAllTime)}
                 tooltip={formatCurrency(purchaseReturnsAllTime)}
                 subtitle="Goods returned to suppliers"
-                iconBg="bg-violet-50 text-violet-600 border border-violet-100"
+                valueColor="text-fuchsia-700"
+                iconBg="bg-fuchsia-50 text-fuchsia-700 border border-fuchsia-100"
                 to="/purchases?tab=returns"
                 icon={
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -462,7 +487,8 @@ export default function DashboardPage() {
                 value={formatCompactCurrency(supplierPayables)}
                 tooltip={formatCurrency(supplierPayables)}
                 subtitle="Outstanding payables due to vendors"
-                iconBg="bg-purple-50 text-purple-600 border border-purple-100"
+                valueColor="text-cyan-800"
+                iconBg="bg-cyan-50 text-cyan-700 border border-cyan-100"
                 to="/suppliers"
                 icon={
                   <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -474,6 +500,7 @@ export default function DashboardPage() {
                 title="Low Stock Alerts"
                 value={loadingInventory ? '...' : dashboardMetrics?.low_stock_alerts ?? lowStockItems.length}
                 subtitle="Products below reorder threshold"
+                valueColor="text-orange-700"
                 iconBg="bg-orange-50 text-orange-600 border border-orange-100"
                 to="/inventory?tab=low"
                 icon={
@@ -554,7 +581,7 @@ export default function DashboardPage() {
                 No product sales recorded
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={240}>
+              <ResponsiveContainer width="100%" height={260}>
                 <PieChart>
                   <Pie
                     data={productSales}
@@ -562,17 +589,18 @@ export default function DashboardPage() {
                     nameKey="label"
                     cx="50%"
                     cy="50%"
-                    outerRadius={80}
-                    innerRadius={48}
-                    paddingAngle={3}
-                    labelLine={false}
+                    outerRadius={66}
+                    innerRadius={42}
+                    paddingAngle={2.5}
+                    labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
+                    label={ProductPieLabel}
                   >
                     {productSales.map((_, index) => (
                       <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
                     ))}
+                    <Label value="PRODUCTS" position="center" fill="#94a3b8" fontSize={8} fontWeight={700} />
                   </Pie>
                   <Tooltip formatter={(v) => formatCurrency(v, currencySymbol)} />
-                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: '#475569' }} />
                 </PieChart>
               </ResponsiveContainer>
             )}
