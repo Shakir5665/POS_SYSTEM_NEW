@@ -2,6 +2,26 @@ const { Prisma } = require('@prisma/client')
 const prisma = require('../utils/prismaClient')
 const { NotFoundError } = require('../utils/errors')
 
+const BUSINESS_TIME_ZONE_OFFSET_MINUTES = 330
+const BUSINESS_TIME_ZONE_OFFSET_MS = BUSINESS_TIME_ZONE_OFFSET_MINUTES * 60 * 1000
+
+function getBusinessDateParts(value = new Date()) {
+  const shifted = new Date(new Date(value).getTime() + BUSINESS_TIME_ZONE_OFFSET_MS)
+  return {
+    year: shifted.getUTCFullYear(),
+    month: shifted.getUTCMonth() + 1,
+    day: shifted.getUTCDate(),
+  }
+}
+
+function makeBusinessDateBoundary({ year, month, day }, isEnd = false) {
+  const hour = isEnd ? 23 : 0
+  const minute = isEnd ? 59 : 0
+  const second = isEnd ? 59 : 0
+  const millisecond = isEnd ? 999 : 0
+  return new Date(Date.UTC(year, month - 1, day, hour, minute, second, millisecond) - BUSINESS_TIME_ZONE_OFFSET_MS)
+}
+
 async function ensureWarehouseExists(warehouseId) {
   if (!warehouseId) return
   const wh = await prisma.warehouse.findUnique({ where: { id: warehouseId } })
@@ -12,32 +32,18 @@ async function ensureWarehouseExists(warehouseId) {
 
 function parseDateBoundary(dateStr, isEnd = false) {
   if (!dateStr) return null
-  if (dateStr instanceof Date) {
-    const d = new Date(dateStr)
-    if (isEnd) d.setHours(23, 59, 59, 999)
-    else d.setHours(0, 0, 0, 0)
-    return d
-  }
-  const str = String(dateStr).trim()
-  if (str.includes('T')) {
-    const d = new Date(str)
-    if (isEnd) d.setHours(23, 59, 59, 999)
-    return d
-  }
-  // YYYY-MM-DD local calendar date
-  const parts = str.split('-').map(Number)
-  if (parts.length === 3 && !isNaN(parts[0]) && !isNaN(parts[1]) && !isNaN(parts[2])) {
-    const [y, m, d] = parts
-    return new Date(y, m - 1, d, isEnd ? 23 : 0, isEnd ? 59 : 0, isEnd ? 59 : 0, isEnd ? 999 : 0)
-  }
-  const parsed = new Date(str)
-  if (isEnd) parsed.setHours(23, 59, 59, 999)
-  else parsed.setHours(0, 0, 0, 0)
-  return parsed
+  const str = dateStr instanceof Date ? null : String(dateStr).trim()
+  const dateOnly = str?.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  const parsed = dateStr instanceof Date ? dateStr : (dateOnly ? null : new Date(str))
+  const parts = dateOnly
+    ? { year: Number(dateOnly[1]), month: Number(dateOnly[2]), day: Number(dateOnly[3]) }
+    : getBusinessDateParts(parsed)
+  return makeBusinessDateBoundary(parts, isEnd)
 }
 
 function dateRange(start_date, end_date) {
-  const start = parseDateBoundary(start_date, false) || new Date(new Date().setDate(new Date().getDate() - 30))
+  const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+  const start = parseDateBoundary(start_date, false) || makeBusinessDateBoundary(getBusinessDateParts(thirtyDaysAgo))
   const end = parseDateBoundary(end_date, true) || new Date()
   return { gte: start, lte: end }
 }
@@ -322,15 +328,12 @@ async function getSalesByDay({ start_date, end_date, warehouse_id, is_legacy_imp
     orderBy: { created_at: 'asc' },
   })
 
-  // Group by local business date
+  // Group by the configured GMT+05:30 business date, independent of host timezone.
   const dayMap = {}
   for (const s of rawSales) {
     const rawDate = s.sale_date || s.created_at
-    const d = new Date(rawDate)
-    const y = d.getFullYear()
-    const m = String(d.getMonth() + 1).padStart(2, '0')
-    const day = String(d.getDate()).padStart(2, '0')
-    const label = `${y}-${m}-${day}`
+    const { year, month, day } = getBusinessDateParts(rawDate)
+    const label = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
     if (!dayMap[label]) {
       dayMap[label] = { label, value: 0, transactions: 0 }
@@ -727,10 +730,9 @@ async function getFinancialStatement({ start_date, end_date, warehouse_id, is_le
 
 async function getDashboardSummary({ warehouse_id } = {}) {
   await ensureWarehouseExists(warehouse_id)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayEnd = new Date()
-  todayEnd.setHours(23, 59, 59, 999)
+  const businessToday = getBusinessDateParts()
+  const today = makeBusinessDateBoundary(businessToday)
+  const todayEnd = makeBusinessDateBoundary(businessToday, true)
 
   const todaySalesWhere = {
     payment_status: { not: 'REFUNDED' },

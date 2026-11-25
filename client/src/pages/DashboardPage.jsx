@@ -201,16 +201,26 @@ const ProductSalesPie = memo(function ProductSalesPie({ productSales, loadingCha
   )
 })
 
-function getLocalDateString(d = new Date()) {
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
+function getBusinessDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en', {
+    timeZone: 'Asia/Colombo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const value = Object.fromEntries(parts.map(({ type, value: part }) => [type, part]))
+  return `${value.year}-${value.month}-${value.day}`
+}
+
+function shiftBusinessDate(dateString, days) {
+  const [year, month, day] = dateString.split('-').map(Number)
+  const shifted = new Date(Date.UTC(year, month - 1, day + days))
+  return `${shifted.getUTCFullYear()}-${String(shifted.getUTCMonth() + 1).padStart(2, '0')}-${String(shifted.getUTCDate()).padStart(2, '0')}`
 }
 
 export default function DashboardPage() {
   const { currency_symbol: currencySymbol = 'LKR' } = useSettings()
-  const today = getLocalDateString(new Date())
+  const today = getBusinessDateString()
 
   const [summary, setSummary] = useState(null)
   const [allTimeSales, setAllTimeSales] = useState(null)
@@ -242,10 +252,8 @@ export default function DashboardPage() {
     loadWarehouses()
   }, [])
 
-  // Compute last-7-days range using local calendar dates
-  const sevenDaysAgo = new Date()
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6)
-  const sevenDaysAgoStr = getLocalDateString(sevenDaysAgo)
+  // Compute last-7-days range using the business calendar (Asia/Colombo).
+  const sevenDaysAgoStr = shiftBusinessDate(today, -6)
 
   const fetchSummary = useCallback(async (isBackground = false) => {
     try {
@@ -381,6 +389,7 @@ export default function DashboardPage() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">Dashboard</h1>
             <p className="text-xs font-medium text-slate-500 mt-1">
               {new Date().toLocaleDateString('en-GH', {
+                timeZone: 'Asia/Colombo',
                 weekday: 'long',
                 year: 'numeric',
                 month: 'long',
