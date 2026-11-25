@@ -1,0 +1,220 @@
+.nextill-splash {
+  position: fixed;
+  z-index: 10000;
+  inset: 0;
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  isolation: isolate;
+  color: #f8fafc;
+  background:
+    radial-gradient(ellipse 46% 42% at 50% 43%, rgba(37, 99, 235, 0.2), transparent 72%),
+    radial-gradient(ellipse 58% 68% at 50% 100%, rgba(20, 43, 73, 0.52), transparent 72%),
+    linear-gradient(145deg, #070d18 0%, #0b1526 52%, #101d32 100%);
+  opacity: 1;
+  transition: opacity 260ms ease, visibility 260ms ease;
+}
+
+.nextill-splash--exiting {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.nextill-splash-grid {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.13;
+  background-image:
+    linear-gradient(rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px);
+  background-size: 52px 52px;
+  mask-image: radial-gradient(ellipse at center, #000 10%, transparent 78%);
+}
+
+.nextill-splash-ring {
+  position: absolute;
+  z-index: -1;
+  top: 50%;
+  left: 50%;
+  width: min(66vmin, 580px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(139, 227, 255, 0.1);
+  border-radius: 50%;
+  box-shadow: inset 0 0 42px rgba(37, 99, 235, 0.035), 0 0 42px rgba(37, 99, 235, 0.035);
+  transform: translate(-50%, -50%);
+  animation: nextill-ring-breathe 7s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.nextill-splash-ring--two {
+  width: min(48vmin, 420px);
+  border-color: rgba(139, 227, 255, 0.08);
+  animation-delay: -3.5s;
+}
+
+.nextill-splash-content {
+  display: flex;
+  width: min(100% - 40px, 420px);
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transform: translateY(-2vh);
+}
+
+.nextill-splash-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.nextill-splash-logo-window {
+  width: 112px;
+  height: 50px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.72);
+  border-radius: 16px;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.98), rgba(238, 244, 255, 0.92));
+  box-shadow: 0 12px 34px rgba(0, 0, 0, 0.24), 0 0 28px rgba(37, 99, 235, 0.14), inset 0 1px 0 #fff;
+  animation: nextill-logo-reveal 620ms cubic-bezier(0.2, 0.75, 0.25, 1) both;
+}
+
+.nextill-splash-logo-window img {
+  display: block;
+  width: 112px;
+  height: auto;
+  max-width: none;
+}
+
+.nextill-splash-wordmark {
+  margin: 17px 0 0;
+  color: #f8fafc;
+  font-size: clamp(29px, 6vw, 36px);
+  font-weight: 750;
+  letter-spacing: -0.055em;
+  line-height: 1.05;
+  animation: nextill-wordmark-reveal 480ms 130ms ease-out both;
+}
+
+.nextill-splash-tagline {
+  margin: 8px 0 0;
+  color: #a8b8cd;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.025em;
+  animation: nextill-wordmark-reveal 480ms 230ms ease-out both;
+}
+
+.nextill-splash-loader {
+  position: relative;
+  width: min(190px, 54vw);
+  height: 3px;
+  overflow: hidden;
+  margin-top: 34px;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.16);
+}
+
+.nextill-splash-loader span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: -38%;
+  width: 38%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, transparent, #2563eb 40%, #8be3ff 100%);
+  box-shadow: 0 0 14px rgba(37, 99, 235, 0.52);
+  animation: nextill-loader-travel 1.45s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.nextill-splash-status {
+  min-height: 20px;
+  margin: 13px 0 0;
+  color: #94a3b8;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.015em;
+}
+
+.nextill-splash-message {
+  max-width: 360px;
+  margin-top: 13px;
+  animation: nextill-wordmark-reveal 300ms ease-out both;
+}
+
+.nextill-splash-message h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.nextill-splash-message p {
+  margin: 7px 0 0;
+  color: #a8b8cd;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.nextill-splash-retry {
+  min-height: 40px;
+  margin-top: 18px;
+  padding: 0 18px;
+  border: 1px solid rgba(139, 227, 255, 0.24);
+  border-radius: 12px;
+  color: #eff6ff;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.72), rgba(30, 64, 175, 0.78));
+  box-shadow: 0 8px 24px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.nextill-splash-retry:hover {
+  border-color: rgba(139, 227, 255, 0.48);
+  transform: translateY(-1px);
+}
+
+.nextill-splash-retry:focus-visible {
+  outline: 2px solid #8be3ff;
+  outline-offset: 3px;
+}
+
+@keyframes nextill-ring-breathe {
+  0%, 100% { opacity: 0.48; transform: translate(-50%, -50%) scale(0.98); }
+  50% { opacity: 0.9; transform: translate(-50%, -50%) scale(1.025); }
+}
+
+@keyframes nextill-logo-reveal {
+  from { opacity: 0; transform: translateY(7px) scale(0.94); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes nextill-wordmark-reveal {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes nextill-loader-travel {
+  from { transform: translateX(0); }
+  to { transform: translateX(440%); }
+}
+
+@media (max-width: 480px) {
+  .nextill-splash-content { transform: translateY(-1vh); }
+  .nextill-splash-ring { width: 82vmin; }
+  .nextill-splash-ring--two { width: 60vmin; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nextill-splash *,
+  .nextill-splash *::before,
+  .nextill-splash *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

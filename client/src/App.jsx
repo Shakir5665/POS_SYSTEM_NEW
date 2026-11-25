@@ -1,5 +1,7 @@
+import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
+import AppSplashScreen from './components/loading/AppSplashScreen'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import POSPage from './pages/POSPage'
@@ -25,24 +27,10 @@ import WarehousesPage from './pages/WarehousesPage'
 import TransfersPage from './pages/TransfersPage'
 import MigrationPage from './pages/MigrationPage'
 
-function LoadingScreen() {
-  return (
-    <div className="min-h-screen flex items-center justify-center p-4">
-      <div className="bg-white/80 backdrop-blur-xl border border-white/90 shadow-glass rounded-2xl p-6 flex flex-col items-center gap-3">
-        <svg className="animate-spin h-8 w-8 text-primary-600" fill="none" viewBox="0 0 24 24">
-          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-        </svg>
-        <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Loading...</span>
-      </div>
-    </div>
-  )
-}
-
 function ProtectedRoute({ children, roles }) {
-  const { isAuthenticated, isLoading, user } = useAuth()
+  const { isAuthenticated, isLoading, initializationError, user } = useAuth()
 
-  if (isLoading) return <LoadingScreen />
+  if (isLoading || initializationError) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
   if (roles && !roles.includes(user.role)) return <Navigate to="/pos" replace />
 
@@ -50,9 +38,9 @@ function ProtectedRoute({ children, roles }) {
 }
 
 function PublicRoute({ children }) {
-  const { isAuthenticated, isLoading, user } = useAuth()
+  const { isAuthenticated, isLoading, initializationError, user } = useAuth()
 
-  if (isLoading) return <LoadingScreen />
+  if (isLoading || initializationError) return null
   if (isAuthenticated) {
     return <Navigate to={['ADMIN', 'MANAGER'].includes(user.role) ? '/dashboard' : '/pos'} replace />
   }
@@ -61,7 +49,39 @@ function PublicRoute({ children }) {
 }
 
 export default function App() {
+  const {
+    isLoading,
+    initializationError,
+    initializationAttempt,
+    retryInitialization,
+  } = useAuth()
+  const [slowAttempt, setSlowAttempt] = useState(null)
+  const [fadeCompleteAttempt, setFadeCompleteAttempt] = useState(null)
+
+  const isSlow = isLoading && !initializationError && slowAttempt === initializationAttempt
+  const isSplashExiting = !isLoading && !initializationError && fadeCompleteAttempt !== initializationAttempt
+  const splashVisible = isLoading || initializationError || isSplashExiting
+
+  useEffect(() => {
+    window.__nextillBootHandoff?.()
+  }, [])
+
+  useEffect(() => {
+    if (!isLoading || initializationError) {
+      return undefined
+    }
+    const timer = window.setTimeout(() => setSlowAttempt(initializationAttempt), 8000)
+    return () => window.clearTimeout(timer)
+  }, [isLoading, initializationError, initializationAttempt])
+
+  useEffect(() => {
+    if (isLoading || initializationError) return undefined
+    const timer = window.setTimeout(() => setFadeCompleteAttempt(initializationAttempt), 260)
+    return () => window.clearTimeout(timer)
+  }, [isLoading, initializationError, initializationAttempt])
+
   return (
+    <>
     <Routes>
       {/* Public */}
       <Route
@@ -359,5 +379,14 @@ export default function App() {
       <Route path="/" element={<Navigate to="/pos" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
+    {splashVisible && (
+      <AppSplashScreen
+        isSlow={isSlow}
+        hasError={initializationError}
+        isExiting={isSplashExiting}
+        onRetry={retryInitialization}
+      />
+    )}
+    </>
   )
 }

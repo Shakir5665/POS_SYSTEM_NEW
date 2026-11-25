@@ -8,10 +8,74 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <link rel="icon" type="image/png" href="/logo.png" />
     <title>NexTill — Point of Sale & Retail Management</title>
+    <style>
+      html, body { min-height: 100%; margin: 0; background: #070d18; }
+      #nextill-boot {
+        position: fixed; z-index: 10000; inset: 0; display: grid; overflow: hidden; place-items: center;
+        color: #f8fafc; background: radial-gradient(ellipse 46% 42% at 50% 43%, rgba(37,99,235,.2), transparent 72%),
+        radial-gradient(ellipse 58% 68% at 50% 100%, rgba(20,43,73,.52), transparent 72%),
+        linear-gradient(145deg, #070d18 0%, #0b1526 52%, #101d32 100%);
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif; transition: opacity 260ms ease, visibility 260ms ease;
+      }
+      #nextill-boot::before {
+        position: absolute; inset: 0; content: ""; pointer-events: none; opacity: .13;
+        background-image: linear-gradient(rgba(148,163,184,.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,.12) 1px, transparent 1px);
+        background-size: 52px 52px; mask-image: radial-gradient(ellipse at center, #000 10%, transparent 78%);
+      }
+      #nextill-boot::after {
+        position: absolute; top: 50%; left: 50%; width: min(66vmin, 580px); aspect-ratio: 1; content: ""; pointer-events: none;
+        border: 1px solid rgba(139,227,255,.1); border-radius: 50%; box-shadow: 0 0 42px rgba(37,99,235,.035); transform: translate(-50%,-50%);
+      }
+      #nextill-boot .boot-content { position: relative; display: flex; width: min(100% - 40px, 420px); flex-direction: column; align-items: center; text-align: center; transform: translateY(-2vh); }
+      #nextill-boot .boot-mark { width: 112px; height: 50px; overflow: hidden; border: 1px solid rgba(255,255,255,.72); border-radius: 16px; background: linear-gradient(145deg,rgba(255,255,255,.98),rgba(238,244,255,.92)); box-shadow: 0 12px 34px rgba(0,0,0,.24),0 0 28px rgba(37,99,235,.14),inset 0 1px 0 #fff; animation: boot-reveal 620ms cubic-bezier(.2,.75,.25,1) both; }
+      #nextill-boot .boot-mark img { display: block; width: 112px; height: auto; max-width: none; }
+      #nextill-boot h1 { margin: 17px 0 0; color: #f8fafc; font-size: clamp(29px,6vw,36px); font-weight: 750; letter-spacing: -.055em; line-height: 1.05; animation: boot-reveal 480ms 130ms ease-out both; }
+      #nextill-boot .boot-tagline { margin: 8px 0 0; color: #a8b8cd; font-size: 13px; font-weight: 500; letter-spacing: .025em; animation: boot-reveal 480ms 230ms ease-out both; }
+      #nextill-boot .boot-loader { position: relative; width: min(190px,54vw); height: 3px; overflow: hidden; margin-top: 34px; border-radius: 999px; background: rgba(148,163,184,.16); }
+      #nextill-boot .boot-loader::after { position: absolute; top: 0; bottom: 0; left: -38%; width: 38%; content: ""; border-radius: inherit; background: linear-gradient(90deg,transparent,#2563eb 40%,#8be3ff); box-shadow: 0 0 14px rgba(37,99,235,.52); animation: boot-loader 1.45s cubic-bezier(.4,0,.2,1) infinite; }
+      #nextill-boot .boot-status { margin: 13px 0 0; color: #94a3b8; font-size: 12px; font-weight: 500; }
+      #nextill-boot .boot-fallback { max-width: 360px; margin-top: 14px; color: #a8b8cd; font-size: 12px; line-height: 1.55; }
+      #nextill-boot .boot-fallback[hidden] { display: none; }
+      #nextill-boot .boot-retry { min-height: 40px; margin-top: 12px; padding: 0 18px; border: 1px solid rgba(139,227,255,.24); border-radius: 12px; color: #eff6ff; background: linear-gradient(135deg,rgba(37,99,235,.72),rgba(30,64,175,.78)); font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+      #nextill-boot.boot-out { opacity: 0; pointer-events: none; }
+      @keyframes boot-reveal { from { opacity: 0; transform: translateY(7px) scale(.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @keyframes boot-loader { from { transform: translateX(0); } to { transform: translateX(440%); } }
+      @media (prefers-reduced-motion: reduce) { #nextill-boot *, #nextill-boot::before, #nextill-boot::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; } }
+    </style>
   </head>
   <body>
+    <div id="nextill-boot" role="status" aria-live="polite" aria-busy="true">
+      <div class="boot-content">
+        <div class="boot-mark" aria-hidden="true"><img src="/logo.png" width="112" height="75" fetchpriority="high" decoding="async" alt="" /></div>
+        <h1>NexTill</h1>
+        <p class="boot-tagline">Business. Simplified.</p>
+        <div class="boot-loader" aria-hidden="true"></div>
+        <p class="boot-status">Initializing NexTill...</p>
+        <div id="nextill-boot-fallback" class="boot-fallback" role="alert" hidden>
+          <p>NexTill is taking longer to start. Check your internet connection and try again.</p>
+          <button id="nextill-boot-retry" class="boot-retry" type="button">Reload NexTill</button>
+        </div>
+      </div>
+    </div>
     <div id="root"></div>
     <div id="print-root"></div>
+    <script>
+      (() => {
+        const splash = document.getElementById('nextill-boot')
+        const fallback = document.getElementById('nextill-boot-fallback')
+        const retry = document.getElementById('nextill-boot-retry')
+        const fallbackTimer = window.setTimeout(() => {
+          if (fallback) fallback.hidden = false
+        }, 15000)
+        retry?.addEventListener('click', () => window.location.reload())
+        window.__nextillBootHandoff = () => {
+          window.clearTimeout(fallbackTimer)
+          if (!splash) return
+          splash.classList.add('boot-out')
+          window.setTimeout(() => splash.remove(), 280)
+        }
+      })()
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
