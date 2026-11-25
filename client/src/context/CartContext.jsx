@@ -123,8 +123,6 @@ function cartReducer(state, action) {
           i.product_id === action.payload.product_id ? { ...i, discount: action.payload.discount } : i
         ),
       }
-    case 'SET_CART_DISCOUNT':
-      return { ...state, cartDiscount: action.payload }
     case 'SET_CUSTOMER':
       return { ...state, customer: action.payload }
     case 'CLEAR_CART':
@@ -136,7 +134,6 @@ function cartReducer(state, action) {
 
 const initialState = {
   items: [],
-  cartDiscount: '',
   customer: null,
 }
 
@@ -149,12 +146,11 @@ export function CartProvider({ children }) {
     usual_subtotal,
     predefined_discounts,
     subtotal,
-    discount,
     tax,
     total,
     distinct_items,
     total_quantity,
-  } = cartTotals(state.items, state.cartDiscount, settings.tax_rate)
+  } = cartTotals(state.items, settings.tax_rate)
 
   function addItem(product, initialQuantity = 1) {
     dispatch({
@@ -184,7 +180,6 @@ export function CartProvider({ children }) {
   function updateUnit(product_id, newUnit) { dispatch({ type: 'UPDATE_UNIT', payload: { product_id, newUnit } }) }
   function updateDiscount(product_id, discount) { dispatch({ type: 'UPDATE_DISCOUNT', payload: { product_id, discount } }) }
   function updateOurPrice(product_id, our_price) { dispatch({ type: 'UPDATE_OUR_PRICE', payload: { product_id, our_price } }) }
-  function setCartDiscount(amount) { dispatch({ type: 'SET_CART_DISCOUNT', payload: amount }) }
   function setCustomer(customer) { dispatch({ type: 'SET_CUSTOMER', payload: customer }) }
   function clearCart() { dispatch({ type: 'CLEAR_CART' }) }
 
@@ -195,7 +190,6 @@ export function CartProvider({ children }) {
         usual_subtotal,
         predefined_discounts,
         subtotal,
-        discount,
         tax,
         total,
         distinct_items,
@@ -208,7 +202,6 @@ export function CartProvider({ children }) {
         updateUnit,
         updateDiscount,
         updateOurPrice,
-        setCartDiscount,
         setCustomer,
         clearCart,
       }}

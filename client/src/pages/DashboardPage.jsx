@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { memo, useState, useEffect, useCallback, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ResponsiveContainer,
@@ -154,6 +154,52 @@ function CustomTooltip({ active, payload, label, currencySymbol }) {
   }
   return null
 }
+
+const ProductSalesPie = memo(function ProductSalesPie({ productSales, loadingCharts, currencySymbol }) {
+  return (
+    <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-sm font-bold tracking-tight text-slate-900">Sales by Product</h2>
+        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
+          Revenue Share
+        </span>
+      </div>
+      {loadingCharts ? (
+        <div className="h-60 bg-slate-100/60 rounded-xl animate-pulse" />
+      ) : productSales.length === 0 ? (
+        <div className="h-60 flex items-center justify-center text-slate-400 text-xs font-medium">
+          No product sales recorded
+        </div>
+      ) : (
+        <ResponsiveContainer width="100%" height={260}>
+          <PieChart>
+            <Pie
+              data={productSales}
+              dataKey="value"
+              nameKey="label"
+              cx="50%"
+              cy="50%"
+              outerRadius={66}
+              innerRadius={42}
+              paddingAngle={2.5}
+              isAnimationActive="auto"
+              animationDuration={750}
+              animationEasing="ease-out"
+              labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
+              label={ProductPieLabel}
+            >
+              {productSales.map((_, index) => (
+                <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
+              ))}
+              <Label value="PRODUCTS" position="center" fill="#94a3b8" fontSize={8} fontWeight={700} />
+            </Pie>
+            <Tooltip formatter={(v) => formatCurrency(v, currencySymbol)} />
+          </PieChart>
+        </ResponsiveContainer>
+      )}
+    </div>
+  )
+})
 
 function getLocalDateString(d = new Date()) {
   const y = d.getFullYear()
@@ -567,44 +613,11 @@ export default function DashboardPage() {
           </div>
 
           {/* Product pie chart */}
-          <div className="bg-white/85 backdrop-blur-md rounded-2xl border border-white/90 shadow-glass-sm p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-bold tracking-tight text-slate-900">Sales by Product</h2>
-              <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100">
-                Revenue Share
-              </span>
-            </div>
-            {loadingCharts ? (
-              <div className="h-60 bg-slate-100/60 rounded-xl animate-pulse" />
-            ) : productSales.length === 0 ? (
-              <div className="h-60 flex items-center justify-center text-slate-400 text-xs font-medium">
-                No product sales recorded
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={260}>
-                <PieChart>
-                  <Pie
-                    data={productSales}
-                    dataKey="value"
-                    nameKey="label"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={66}
-                    innerRadius={42}
-                    paddingAngle={2.5}
-                    labelLine={{ stroke: '#94a3b8', strokeWidth: 1 }}
-                    label={ProductPieLabel}
-                  >
-                    {productSales.map((_, index) => (
-                      <Cell key={index} fill={PIE_COLORS[index % PIE_COLORS.length]} stroke="#ffffff" strokeWidth={2} />
-                    ))}
-                    <Label value="PRODUCTS" position="center" fill="#94a3b8" fontSize={8} fontWeight={700} />
-                  </Pie>
-                  <Tooltip formatter={(v) => formatCurrency(v, currencySymbol)} />
-                </PieChart>
-              </ResponsiveContainer>
-            )}
-          </div>
+          <ProductSalesPie
+            productSales={productSales}
+            loadingCharts={loadingCharts}
+            currencySymbol={currencySymbol}
+          />
         </div>
 
         {/* Bottom row */}

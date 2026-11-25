@@ -76,29 +76,25 @@ export function lineTotalPesewas(item) {
 }
 
 /**
- * Cart totals in LKR. Tax is charged on (subtotal − cart discount) and
+ * Cart totals in LKR. Tax is charged on subtotal and
  * rounded once, to the nearest pesewa, halves up.
  * @param {Array<{price, usual_price, our_price, quantity, discount, apply_predefined_discount}>} items
- * @param {number} cartDiscount - LKR (Additional Cart Discount)
  * @param {number|string} taxRate - percent, e.g. 12.5
  */
-export function cartTotals(items, cartDiscount, taxRate) {
+export function cartTotals(items, taxRate) {
   const usualSubtotal = items.reduce((sum, item) => sum + lineUsualGrossPesewas(item), 0)
   const predefinedDiscounts = items.reduce((sum, item) => sum + linePredefinedDiscountPesewas(item), 0)
   const subtotal = items.reduce((sum, item) => sum + lineTotalPesewas(item), 0)
-  const discount = Math.min(toPesewas(cartDiscount), Math.max(0, subtotal))
-  const taxable = Math.max(0, subtotal - discount)
   const rateHundredths = Math.round(Number(taxRate || 0) * 100) // 12.5% → 1250
-  const tax = rateHundredths > 0 ? divideRoundHalfUp(taxable * rateHundredths, 10000) : 0
+  const tax = rateHundredths > 0 ? divideRoundHalfUp(subtotal * rateHundredths, 10000) : 0
   const totalQuantity = items.reduce((sum, item) => sum + Number(item.quantity || 0), 0)
 
   return {
     usual_subtotal: fromPesewas(usualSubtotal),
     predefined_discounts: fromPesewas(predefinedDiscounts),
     subtotal: fromPesewas(subtotal),
-    discount: fromPesewas(discount),
     tax: fromPesewas(tax),
-    total: fromPesewas(taxable + tax),
+    total: fromPesewas(subtotal + tax),
     distinct_items: items.length,
     total_quantity: Number(totalQuantity.toFixed(3)),
   }

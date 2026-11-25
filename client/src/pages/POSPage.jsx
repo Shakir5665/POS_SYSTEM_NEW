@@ -960,12 +960,8 @@ export function CartItem({
         }
       }
 
-      // If this is the LAST product line in the cart, advance focus to Additional Discount
-      const cartDiscountInput = document.querySelector('[data-testid="additional-cart-discount-input"]')
-      if (cartDiscountInput) {
-        cartDiscountInput.focus()
-        cartDiscountInput.select?.()
-      }
+      // If this is the LAST product line in the cart, advance focus to Charge.
+      document.querySelector('[data-testid="pos-charge-button"]')?.focus()
       return
     }
   }
@@ -978,14 +974,14 @@ export function CartItem({
           ? 'border-primary-400 bg-primary-50/70 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.55)] ring-2 ring-primary-400/25'
           : isSelected
           ? 'border-primary-300 bg-primary-50/55 shadow-[0_8px_22px_-18px_rgba(37,99,235,0.45)] ring-1 ring-primary-300/35'
-          : 'border-slate-200/90 bg-white/90 shadow-[0_5px_16px_-14px_rgba(15,23,42,0.25),inset_0_1px_0_rgba(255,255,255,0.95)] hover:border-primary-200 hover:bg-white hover:shadow-[0_10px_20px_-18px_rgba(37,99,235,0.35)]'
+          : 'border-white/90 bg-gradient-to-br from-white/90 via-white/80 to-blue-50/60 shadow-[0_7px_18px_-14px_rgba(15,23,42,0.28),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md hover:border-blue-200 hover:from-white hover:to-indigo-50/70 hover:shadow-[0_10px_22px_-16px_rgba(37,99,235,0.35)]'
       }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex-1 min-w-0">
           <p className="truncate text-sm font-extrabold tracking-tight text-slate-900">{item.name}</p>
 
-          <div className="mt-1.5 flex items-center justify-between gap-2 rounded-xl border border-blue-100 bg-blue-50/65 px-2.5 py-1.5 text-xs">
+          <div className="mt-1.5 flex items-center justify-between gap-2 rounded-xl border border-blue-100/90 bg-gradient-to-r from-blue-50/85 via-white/70 to-indigo-50/65 px-2.5 py-1.5 text-xs shadow-[inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-sm">
             {/* Left: Discount Checkbox */}
             <div className="flex items-center gap-1.5 min-w-0">
               {hasPredefinedDiscount ? (
@@ -1241,7 +1237,7 @@ export function CartItem({
               }}
               className="w-16 bg-transparent text-right text-xs font-extrabold text-primary-900 focus:outline-none"
             />
-            <span className="text-3xs font-semibold text-slate-500">/{item.pricing_unit || 'pcs'}</span>
+            <span className="text-xs font-semibold text-slate-500">/{item.pricing_unit || 'pcs'}</span>
           </div>
 
           {/* Red Out of stock indicator beside the + button when stock limit is reached */}
@@ -1322,10 +1318,8 @@ export default function POSPage() {
   }
   const {
     items,
-    cartDiscount,
     customer,
     predefined_discounts,
-    subtotal,
     tax,
     total,
     distinct_items,
@@ -1338,7 +1332,6 @@ export default function POSPage() {
     updateUnit,
     updateDiscount,
     updateOurPrice,
-    setCartDiscount,
     setCustomer,
     clearCart,
   } = useCart()
@@ -1764,7 +1757,6 @@ export default function POSPage() {
         customer_id: customer?.id || null,
         payment_method: 'CASH',
         amount_paid,
-        discount_amount: parseFloat(cartDiscount) || 0,
         warehouse_id: configuredWarehouseId || undefined,
       }
       const res = await salesService.create(payload)
@@ -2314,72 +2306,13 @@ export default function POSPage() {
         </div>
 
         {/* Totals + actions */}
-        <div className="space-y-3 border-t border-slate-200/80 bg-white/95 px-5 py-3.5 shadow-[0_-8px_20px_-20px_rgba(15,23,42,0.35)] backdrop-blur-xl">
-          {/* Additional discount input */}
-          <div className="flex items-center gap-3">
-            <label className="whitespace-nowrap text-xs font-bold text-slate-700">Additional Discount</label>
-            <input
-              type="text"
-              inputMode="decimal"
-              data-testid="additional-cart-discount-input"
-              value={cartDiscount}
-              onChange={(e) => {
-                let val = e.target.value
-                if (val === '') {
-                  setCartDiscount('')
-                  return
-                }
-                if (val.includes('-')) {
-                  val = val.replace(/-/g, '')
-                  if (val === '') {
-                    setCartDiscount('')
-                    return
-                  }
-                }
-                val = val.replace(/[^\d.]/g, '')
-                const parts = val.split('.')
-                if (parts.length > 2) val = parts[0] + '.' + parts.slice(1).join('')
-                if (parts.length === 2 && parts[1].length > 2) val = parts[0] + '.' + parts[1].slice(0, 2)
-                const num = parseFloat(val)
-                if (isNaN(num)) {
-                  setCartDiscount('')
-                } else {
-                  setCartDiscount(String(Math.min(Math.max(0, num), subtotal)))
-                }
-              }}
-              placeholder="0.00"
-              onKeyDown={(e) => {
-                if (e.key === 'ArrowUp') {
-                  e.preventDefault()
-                  const allQtyInputs = Array.from(document.querySelectorAll('input[data-field="qty"]'))
-                  const targetInput = (lastAddedId && document.querySelector(`[data-testid="cart-qty-${lastAddedId}"]`)) || allQtyInputs[allQtyInputs.length - 1]
-                  if (targetInput) {
-                    targetInput.focus()
-                    targetInput.select?.()
-                  }
-                  return
-                }
-                if (e.key === 'Enter') {
-                  e.preventDefault()
-                  if (items.length > 0) handleOpenPayment()
-                }
-              }}
-              className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-right text-sm font-bold text-slate-900 shadow-[0_2px_8px_-6px_rgba(15,23,42,0.25)] transition-all focus:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20"
-            />
-          </div>
-
+        <div className="space-y-3 border-t border-white/90 bg-gradient-to-br from-white/90 via-white/80 to-blue-50/55 px-5 py-3.5 shadow-[0_-8px_20px_-20px_rgba(37,99,235,0.32)] backdrop-blur-xl">
           {/* Breakdown summary */}
           <div className="space-y-1 border-y border-slate-100 py-2 text-xs font-semibold text-slate-600">
             {Number(predefined_discounts || 0) > 0 && (
               <div className="flex justify-between text-emerald-700">
                 <span>Discount</span>
                 <span className="font-bold">-{formatCurrency(predefined_discounts)}</span>
-              </div>
-            )}
-            {(parseFloat(cartDiscount) || 0) > 0 && (
-              <div className="flex justify-between text-emerald-700">
-                <span>Additional Discount</span>
-                <span className="font-bold">-{formatCurrency(cartDiscount)}</span>
               </div>
             )}
             {tax > 0 && (
@@ -2391,21 +2324,22 @@ export default function POSPage() {
           </div>
 
           {/* Total */}
-          <div className="flex items-center justify-between gap-3 px-0 py-1">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-white/90 bg-gradient-to-r from-white/85 via-blue-50/60 to-indigo-50/55 px-3 py-2 shadow-[0_7px_18px_-16px_rgba(37,99,235,0.5),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-md">
             <div>
-              <span className="block text-lg font-extrabold leading-tight tracking-tight text-slate-900">Grand Total</span>
-              <span className="text-sm font-medium text-slate-400">
+              <span className="block text-base font-extrabold leading-tight tracking-tight text-slate-900">Grand Total</span>
+              <span className="text-xs font-medium text-slate-500">
                 {distinct_items || items.length} distinct item{(distinct_items || items.length) !== 1 ? 's' : ''} ({total_quantity || items.reduce((s, i) => s + Number(i.quantity || 0), 0)} units)
               </span>
             </div>
-            <span className="whitespace-nowrap text-3xl font-extrabold tracking-tight text-primary-700 sm:text-4xl">{formatCurrency(total)}</span>
+            <span className="whitespace-nowrap text-2xl font-extrabold tracking-tight text-primary-700 sm:text-3xl">{formatCurrency(total)}</span>
           </div>
 
           {/* Charge button */}
           <Button
-            variant="success"
+            variant="primary"
             size="lg"
-            className="w-full py-4 text-lg font-bold shadow-[0_10px_24px_-12px_rgba(5,150,105,0.5)]"
+            data-testid="pos-charge-button"
+            className="w-full border border-white/15 !bg-gradient-to-r !from-slate-950 !via-blue-950 !to-indigo-950 py-4 text-lg font-bold !text-white !shadow-[0_14px_30px_-12px_rgba(15,23,42,0.62),inset_0_1px_0_rgba(255,255,255,0.2)] !ring-1 !ring-white/15 backdrop-blur-xl transition hover:-translate-y-0.5 hover:!from-slate-900 hover:!via-blue-900 hover:!to-indigo-900 active:translate-y-0 focus:!ring-blue-300"
             disabled={items.length === 0}
             onClick={handleOpenPayment}
           >
