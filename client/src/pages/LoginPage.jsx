@@ -33,7 +33,9 @@ export default function LoginPage() {
     try {
       const user = await login(form.username.trim(), form.password)
       toast.success(`Welcome back, ${user.full_name}!`)
-      if (user.role === 'ADMIN') {
+      if (user.role === 'SUPERADMIN') {
+        navigate('/system-admin', { replace: true })
+      } else if (user.role === 'ADMIN') {
         navigate('/dashboard', { replace: true })
       } else {
         navigate('/pos', { replace: true })

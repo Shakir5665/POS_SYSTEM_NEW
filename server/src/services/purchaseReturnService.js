@@ -8,7 +8,7 @@ const generatePurchaseReturnNumber = require('../utils/generatePurchaseReturnNum
  * Check if user is authorized to perform purchase returns
  */
 function assertPurchaseReturnPermission(user) {
-  if (!user || !['ADMIN', 'MANAGER'].includes(user.role)) {
+  if (!user || !['ADMIN', 'MANAGER', 'SUPERADMIN'].includes(user.role)) {
     throw new ForbiddenError('Purchase returns require administrative authorization')
   }
 }

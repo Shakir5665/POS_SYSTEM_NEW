@@ -4,6 +4,8 @@ Base URL: `http://localhost:3001/api`
 
 All endpoints (except `/auth/login`) require a valid JWT access token in the `Authorization: Bearer <token>` header.
 
+Superadmin inherits the permissions of all existing roles. User management, registration, and migration endpoints are Superadmin-only.
+
 ---
 
 ## Standard Response Format
@@ -275,7 +277,7 @@ Profit report using `cost_price` on products.
 
 ## Users
 
-**Roles:** ADMIN only for all user management endpoints.
+**Roles:** Superadmin only for all user management endpoints.
 
 ### GET /api/users
 List users. **Query params:** `page`, `per_page`, `search`
@@ -293,6 +295,28 @@ Update user (full_name, email, role, is_active).
 
 ### POST /api/users/:id/unlock
 Unlock a locked account and reset failed login attempts.
+
+### POST /api/auth/register
+Create a staff account. **Roles:** Superadmin only.
+
+---
+
+## System Control
+
+**Roles:** Superadmin only.
+
+### GET /api/system-admin/status
+Read whether staff access is enabled and when it was last changed.
+
+### PUT /api/system-admin/access
+Pause or restore staff access.
+
+**Body:** `{ "access_enabled": false }`
+
+### PATCH /api/system-admin/account
+Change the current Superadmin username, password, or both. The current password is required. New passwords must be at least 12 characters; changing credentials ends other active sessions.
+
+**Body:** `{ "current_password": "<current>", "username": "<new username>", "password": "<new password>" }`
 
 ---
 

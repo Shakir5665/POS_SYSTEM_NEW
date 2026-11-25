@@ -8,32 +8,35 @@ datasource db {
 }
 
 model User {
-  id                    String             @id @default(uuid())
-  username              String             @unique
-  email                 String             @unique
-  password_hash         String
-  full_name             String
-  role                  Role               @default(CASHIER)
-  is_active             Boolean            @default(true)
-  failed_login_attempts Int                @default(0)
-  locked_until          DateTime?
-  created_at            DateTime           @default(now())
-  updated_at            DateTime           @updatedAt
-  warehouse_id          String?
-  auth_logs             AuthLog[]
-  customer_payments     CustomerPayment[]
-  expenses              Expense[]
-  inventory_logs        InventoryLog[]
-  owner_transactions    OwnerTransaction[]
-  purchases             Purchase[]
-  purchase_returns      PurchaseReturn[]
-  sales                 Sale[]
-  sales_returns         SalesReturn[]
-  stock_adjustments     StockAdjustment[]
-  transfers_created     StockTransfer[]    @relation("TransferCreator")
-  transfers_received    StockTransfer[]    @relation("TransferReceiver")
-  supplier_payments     SupplierPayment[]
-  assigned_warehouse    Warehouse?         @relation("UserAssignedWarehouse", fields: [warehouse_id], references: [id], onDelete: SetNull)
+  id                     String             @id @default(uuid())
+  username               String             @unique
+  email                  String             @unique
+  password_hash          String
+  full_name              String
+  role                   Role               @default(CASHIER)
+  is_active              Boolean            @default(true)
+  token_version          Int                @default(0)
+  failed_login_attempts  Int                @default(0)
+  locked_until           DateTime?
+  created_at             DateTime           @default(now())
+  updated_at             DateTime           @updatedAt
+  warehouse_id           String?
+  auth_logs              AuthLog[]
+  system_control_owner   SystemControl?     @relation("SystemOwner")
+  system_control_updates SystemControl[]    @relation("SystemControlUpdater")
+  customer_payments      CustomerPayment[]
+  expenses               Expense[]
+  inventory_logs         InventoryLog[]
+  owner_transactions     OwnerTransaction[]
+  purchases              Purchase[]
+  purchase_returns       PurchaseReturn[]
+  sales                  Sale[]
+  sales_returns          SalesReturn[]
+  stock_adjustments      StockAdjustment[]
+  transfers_created      StockTransfer[]    @relation("TransferCreator")
+  transfers_received     StockTransfer[]    @relation("TransferReceiver")
+  supplier_payments      SupplierPayment[]
+  assigned_warehouse     Warehouse?         @relation("UserAssignedWarehouse", fields: [warehouse_id], references: [id], onDelete: SetNull)
 }
 
 model Category {
@@ -265,6 +268,17 @@ model Settings {
   value      String
   created_at DateTime @default(now())
   updated_at DateTime @updatedAt
+}
+
+model SystemControl {
+  id                 String   @id @default("global")
+  access_enabled     Boolean  @default(true)
+  owner_user_id      String?  @unique
+  updated_by_user_id String?
+  created_at         DateTime @default(now())
+  updated_at         DateTime @updatedAt
+  owner              User?    @relation("SystemOwner", fields: [owner_user_id], references: [id], onDelete: Restrict)
+  updated_by         User?    @relation("SystemControlUpdater", fields: [updated_by_user_id], references: [id], onDelete: SetNull)
 }
 
 model PaystackPayment {
@@ -786,6 +800,7 @@ enum Role {
   ADMIN
   MANAGER
   CASHIER
+  SUPERADMIN
 }
 
 enum PaymentMethod {

@@ -2,8 +2,8 @@ import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import AppSplashScreen from './components/loading/AppSplashScreen'
+import SystemLockedPage from './pages/SystemLockedPage'
 import LoginPage from './pages/LoginPage'
-import RegisterPage from './pages/RegisterPage'
 import POSPage from './pages/POSPage'
 import ProductsPage from './pages/ProductsPage'
 import ProductFormPage from './pages/ProductFormPage'
@@ -26,13 +26,14 @@ import SettingsPage from './pages/SettingsPage'
 import WarehousesPage from './pages/WarehousesPage'
 import TransfersPage from './pages/TransfersPage'
 import MigrationPage from './pages/MigrationPage'
+import SystemAdminPage from './pages/SystemAdminPage'
 
 function ProtectedRoute({ children, roles }) {
   const { isAuthenticated, isLoading, initializationError, user } = useAuth()
 
   if (isLoading || initializationError) return null
   if (!isAuthenticated) return <Navigate to="/login" replace />
-  if (roles && !roles.includes(user.role)) return <Navigate to="/pos" replace />
+  if (roles && user.role !== 'SUPERADMIN' && !roles.includes(user.role)) return <Navigate to="/pos" replace />
 
   return children
 }
@@ -42,7 +43,10 @@ function PublicRoute({ children }) {
 
   if (isLoading || initializationError) return null
   if (isAuthenticated) {
-    return <Navigate to={['ADMIN', 'MANAGER'].includes(user.role) ? '/dashboard' : '/pos'} replace />
+    const destination = user.role === 'SUPERADMIN'
+      ? '/system-admin'
+      : (['ADMIN', 'MANAGER'].includes(user.role) ? '/dashboard' : '/pos')
+    return <Navigate to={destination} replace />
   }
 
   return children
@@ -54,6 +58,7 @@ export default function App() {
     initializationError,
     initializationAttempt,
     retryInitialization,
+    systemLocked,
   } = useAuth()
   const [slowAttempt, setSlowAttempt] = useState(null)
   const [fadeCompleteAttempt, setFadeCompleteAttempt] = useState(null)
@@ -80,6 +85,8 @@ export default function App() {
     return () => window.clearTimeout(timer)
   }, [isLoading, initializationError, initializationAttempt])
 
+  if (systemLocked) return <SystemLockedPage onRetry={retryInitialization} />
+
   return (
     <>
     <Routes>
@@ -94,11 +101,7 @@ export default function App() {
       />
       <Route
         path="/register"
-        element={
-          <PublicRoute>
-            <RegisterPage />
-          </PublicRoute>
-        }
+        element={<Navigate to="/login" replace />}
       />
 
       {/* Cashier + above */}
@@ -353,7 +356,7 @@ export default function App() {
       <Route
         path="/users"
         element={
-          <ProtectedRoute roles={['ADMIN']}>
+        <ProtectedRoute roles={['ADMIN', 'SUPERADMIN']}>
             <UsersPage />
           </ProtectedRoute>
         }
@@ -369,8 +372,16 @@ export default function App() {
       <Route
         path="/migration"
         element={
-          <ProtectedRoute roles={['ADMIN']}>
+          <ProtectedRoute roles={['SUPERADMIN']}>
             <MigrationPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/system-admin"
+        element={
+          <ProtectedRoute roles={['SUPERADMIN']}>
+            <SystemAdminPage />
           </ProtectedRoute>
         }
       />

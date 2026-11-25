@@ -2,7 +2,7 @@ const express = require('express')
 const { body } = require('express-validator')
 const rateLimit = require('express-rate-limit')
 const authController = require('../controllers/authController')
-const { authenticate } = require('../middleware/auth')
+const { authenticate, authorize } = require('../middleware/auth')
 const validate = require('../middleware/validate')
 
 const router = express.Router()
@@ -33,10 +33,10 @@ const registerValidation = [
   body('email').isEmail().withMessage('Valid email required'),
   body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters'),
   body('full_name').notEmpty().trim().withMessage('Full name is required'),
-  body('role').optional().isIn(['ADMIN', 'MANAGER', 'CASHIER']).withMessage('Valid role required'),
+  body('role').isIn(['ADMIN', 'MANAGER', 'CASHIER']).withMessage('Valid role required'),
 ]
 
-router.post('/register', authLimiter, registerValidation, validate, authController.register)
+router.post('/register', authenticate, authorize(['SUPERADMIN']), authLimiter, registerValidation, validate, authController.register)
 router.post('/login', authLimiter, loginValidation, validate, authController.login)
 router.post('/logout', authenticate, authController.logout)
 router.post('/refresh', authLimiter, authController.refresh)

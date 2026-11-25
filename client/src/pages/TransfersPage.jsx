@@ -58,7 +58,7 @@ function TransferStatusBadge({ status }) {
 
 export default function TransfersPage() {
   const { user } = useAuth()
-  const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'MANAGER'
+  const isAdminOrManager = ['ADMIN', 'MANAGER', 'SUPERADMIN'].includes(user?.role)
 
   // Transfers list state
   const [transfers, setTransfers] = useState([])

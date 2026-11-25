@@ -9,7 +9,7 @@ import toast from 'react-hot-toast'
 
 export default function WarehousesPage() {
   const { user } = useAuth()
-  const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'MANAGER'
+  const isAdminOrManager = ['ADMIN', 'MANAGER', 'SUPERADMIN'].includes(user?.role)
 
   const [warehouses, setWarehouses] = useState([])
   const [loading, setLoading] = useState(true)
@@ -178,16 +178,7 @@ export default function WarehousesPage() {
           )}
         </div>
 
-        {/* Architectural Notice */}
-        <div className="bg-blue-50/80 border border-blue-100 rounded-2xl p-4 text-xs text-blue-900 leading-relaxed shadow-glass-sm flex items-start gap-3">
-          <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <span className="font-bold block text-blue-950 mb-0.5">Authoritative Inventory Balance Architecture</span>
-            NexTill utilizes <code className="bg-blue-100/90 text-blue-900 px-1.5 py-0.5 rounded-md font-mono text-2xs font-semibold">Product.quantity</code> as the authoritative global inventory balance synchronized with real-time per-branch stock balances (<code className="bg-blue-100/90 text-blue-900 px-1.5 py-0.5 rounded-md font-mono text-2xs font-semibold">WarehouseStock</code>). Warehouse attribution connects sales, purchase orders, returns, operating expenses, and inter-branch stock transfers to physical locations.
-          </div>
-        </div>
+        
         <div className="bg-white/80 backdrop-blur-md p-4 rounded-2xl border border-white/90 shadow-glass-sm flex flex-col sm:flex-row gap-4 justify-between items-center">
           <div className="relative w-full sm:w-80">
             <input

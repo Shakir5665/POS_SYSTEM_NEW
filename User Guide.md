@@ -43,10 +43,11 @@ With NexTill, you can:
 3. Click **Sign In**.
 
 ### User Roles Explained:
-NexTill has three simple levels of access:
+NexTill has four levels of access:
 - **Cashier**: Can bill customers, search products, print receipts, and view their own shift sales.
 - **Manager**: Can do everything a cashier does, plus add new products, restock inventory, process refunds, and view all sales.
-- **Admin (Store Owner)**: Has complete access, including store settings (store name, phone number, address on receipt), staff accounts, and business profit reports.
+- **Admin**: Can manage business features and store settings. Staff accounts and migration tools are reserved for the Superadmin.
+- **Superadmin (System Owner)**: Has access to all POS features, manages staff accounts and migration tools, and can pause or restore staff access.
 
 ---
 
@@ -205,7 +206,7 @@ Click **Sales** on the left menu to view your sales log.
 
 ## 9. Business Reports & Dashboard
 
-*(Available to Store Owners & Admins)*
+*(Available to Admins and Superadmins)*
 
 Click **Dashboard** or **Reports** to understand how your business is performing without doing any manual math:
 
@@ -219,7 +220,7 @@ Click **Dashboard** or **Reports** to understand how your business is performing
 
 ## 10. Store Settings & Staff Accounts
 
-*(Available to Store Owners & Admins)*
+*(Available to Admins and Superadmins)*
 
 ### Store Settings (Click "Settings" in the menu):
 Here you can personalize your store:
@@ -229,13 +230,17 @@ Here you can personalize your store:
 - **Receipt Footer Note**: A warm message to your shoppers (e.g. *"Thank you for shopping with us! Please come again."*).
 - **Tax Rate**: Set your local sales tax percentage (leave `0` if you don't charge separate tax).
 
-### Adding Staff Accounts (Click "Users" in the menu):
+### Adding Staff Accounts (Superadmin only):
 1. Click **+ Add User**.
 2. Enter the employee's **Full Name**, **Username**, and a secure **Password**.
 3. Choose their role:
    - **Cashier** for front-desk billing staff.
    - **Manager** for shop floor supervisors.
 4. Click **Create User**. Each staff member will now have their own login, keeping your sales history accountable and secure.
+
+### System Access and Owner Account (Superadmin only):
+- Open **System control** to pause staff access or restore it later.
+- Change the owner username or password from the **Owner account** section. The current password is required.
 
 ---
 

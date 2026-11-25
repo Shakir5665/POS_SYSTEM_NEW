@@ -1,6 +1,7 @@
 const jwt = require('jsonwebtoken')
 const prisma = require('../utils/prismaClient')
 const { UnauthorizedError, ForbiddenError } = require('../utils/errors')
+const { assertAccessEnabled } = require('../services/systemControlService')
 
 async function authenticate(req, res, next) {
   try {
@@ -21,12 +22,20 @@ async function authenticate(req, res, next) {
         full_name: true,
         role: true,
         is_active: true,
+        token_version: true,
       },
     })
 
     if (!user || !user.is_active) {
       throw new UnauthorizedError('User not found or inactive')
     }
+
+    const tokenVersion = Number.isInteger(payload.tokenVersion) ? payload.tokenVersion : 0
+    if (user.token_version !== tokenVersion) {
+      throw new UnauthorizedError('Session is no longer valid')
+    }
+
+    await assertAccessEnabled(user)
 
     req.user = user
     next()
@@ -41,7 +50,7 @@ function authorize(roles) {
     if (!req.user) {
       return next(new UnauthorizedError('Not authenticated'))
     }
-    if (!allowed.includes(req.user.role)) {
+    if (req.user.role !== 'SUPERADMIN' && !allowed.includes(req.user.role)) {
       return next(new ForbiddenError('Insufficient permissions'))
     }
     next()

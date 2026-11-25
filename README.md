@@ -1,6 +1,6 @@
 # NexTill — Point of Sale & Retail Management System
 
-A full-featured, modern web-based Point of Sale and retail management system. Supports multi-role access (Admin, Manager, Cashier), real-time inventory tracking, sales processing, customer loyalty, receipt printing, and business analytics.
+A full-featured, modern web-based Point of Sale and retail management system. Supports role-based access (Superadmin, Admin, Manager, Cashier), real-time inventory tracking, sales processing, customer loyalty, receipt printing, and business analytics.
 
 ---
 
@@ -12,7 +12,8 @@ A full-featured, modern web-based Point of Sale and retail management system. Su
 - **Customer Management** — Customer registration, purchase history, automatic loyalty points
 - **Sales & Refunds** — Atomic transactions with full rollback; refund restores stock and reverses loyalty points
 - **Reporting & Analytics** — Daily sales charts, top products, category performance, cashier performance, profit report
-- **User Management** — Role-based access control (Admin, Manager, Cashier), account lockout after 5 failed attempts
+- **User Management** — Superadmin-managed staff accounts and role-based access, account lockout after 5 failed attempts
+- **System Control** — Superadmin can pause and restore access for staff accounts
 - **Settings** — Configurable store name, address, tax rate, currency symbol, loyalty rate, receipt footer
 - **Security** — JWT auth (15 min access + 7 day refresh tokens), bcrypt password hashing, rate limiting, audit logging
 
@@ -162,6 +163,8 @@ npm run dev   # starts on http://localhost:5173
 | Admin | `admin` | `admin123` |
 | Manager | `manager` | `manager123` |
 | Cashier | `cashier` | `cashier123` |
+
+These are sample development accounts. The system owner account is provisioned separately and its credentials are not included in seed data. See [System Administration](docs/SYSTEM_ADMINISTRATION.md).
 
 ---
 

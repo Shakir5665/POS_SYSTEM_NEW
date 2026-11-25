@@ -15,6 +15,7 @@
     "db:seed:products": "node prisma/seed-products.js",
     "db:studio": "npx prisma studio",
     "db:backup": "node scripts/backup.js",
+    "superadmin:bootstrap": "node scripts/bootstrap-superadmin.js",
     "lint": "eslint src/",
     "migration:readiness": "node scripts/migration/check-readiness.js",
     "migration:run": "node scripts/migration/run-migration.js",

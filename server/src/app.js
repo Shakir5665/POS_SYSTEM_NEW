@@ -29,6 +29,7 @@ const migrationRoutes = require('./routes/migration')
 const brandRoutes = require('./routes/brands')
 const variationRoutes = require('./routes/variations')
 const transferRoutes = require('./routes/transferRoutes')
+const systemAdminRoutes = require('./routes/systemAdmin')
 
 const app = express()
 
@@ -101,6 +102,7 @@ app.get(['/health/ready', '/api/health/ready'], async (req, res) => {
 
 // API Routes
 app.use('/api/auth', authRoutes)
+app.use('/api/system-admin', systemAdminRoutes)
 app.use('/api/products', productRoutes)
 app.use('/api/inventory', inventoryRoutes)
 app.use('/api/sales', salesRoutes)

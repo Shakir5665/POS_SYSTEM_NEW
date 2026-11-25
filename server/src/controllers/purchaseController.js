@@ -57,7 +57,7 @@ async function create(req, res, next) {
       notes,
       status,
       warehouse_id,
-      purchase_date: req.user && req.user.role === 'ADMIN' && purchase_date ? purchase_date : null,
+      purchase_date: req.user && ['ADMIN', 'SUPERADMIN'].includes(req.user.role) && purchase_date ? purchase_date : null,
       is_legacy_import: false, // Server-enforced: live purchases are never legacy imports
       user_id: req.user.id, // Strictly authenticated user identity
     })

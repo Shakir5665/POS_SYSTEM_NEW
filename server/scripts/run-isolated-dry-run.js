@@ -48,6 +48,17 @@ async function main() {
 
   const prisma = new PrismaClient({ datasources: { db: { url: ISOLATED_DB_URL } } });
 
+  const systemControl = await prisma.systemControl.findUnique({ where: { id: 'global' } });
+  if (systemControl?.owner_user_id) {
+    throw new Error('Refusing to reset a database with a configured system owner.');
+  }
+  if (systemControl) {
+    await prisma.systemControl.update({
+      where: { id: 'global' },
+      data: { access_enabled: true, updated_by_user_id: null },
+    });
+  }
+
   // 2. Parse & Validate authentic workbook
   console.log('\n[2/7] Parsing and validating authentic repaired workbook...');
   const tParse0 = Date.now();

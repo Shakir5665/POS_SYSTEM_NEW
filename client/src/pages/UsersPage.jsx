@@ -11,10 +11,10 @@ import { usersService } from '../services/users'
 import { warehouseService } from '../services/warehouses'
 import { useAuth } from '../hooks/useAuth'
 
-const ROLE_BADGE = {
-  ADMIN: 'danger',
-  MANAGER: 'warning',
-  CASHIER: 'success',
+const ROLE_STYLES = {
+  ADMIN: 'border-indigo-200/90 bg-indigo-50/80 text-indigo-700',
+  MANAGER: 'border-sky-200/90 bg-sky-50/80 text-sky-700',
+  CASHIER: 'border-slate-200 bg-slate-50/90 text-slate-600',
 }
 
 const ROLES = ['ADMIN', 'MANAGER', 'CASHIER']
@@ -37,7 +37,8 @@ function validate(form, mode) {
 
 export default function UsersPage() {
   const { user: currentUser } = useAuth()
-  const isAdmin = currentUser?.role === 'ADMIN'
+  const canManageUsers = ['ADMIN', 'SUPERADMIN'].includes(currentUser?.role)
+  const canCreateUsers = currentUser?.role === 'SUPERADMIN'
 
   const [users, setUsers] = useState([])
   const [meta, setMeta] = useState({ page: 1, total_pages: 1 })
@@ -271,7 +272,11 @@ export default function UsersPage() {
     {
       key: 'role',
       label: 'Role',
-      render: (v) => <Badge variant={ROLE_BADGE[v] || 'default'}>{v}</Badge>,
+      render: (v) => (
+        <span className={`inline-flex items-center gap-1.5 rounded-xl border px-2.5 py-1 text-[11px] font-semibold tracking-wide ${ROLE_STYLES[v] || 'border-slate-200 bg-slate-50 text-slate-600'}`}>
+          {v}
+        </span>
+      ),
     },
     {
       key: 'is_active',
@@ -295,7 +300,7 @@ export default function UsersPage() {
         const isLocked = row.locked_until && new Date(row.locked_until) > new Date()
         return (
           <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
-            {isLocked && isAdmin && (
+            {isLocked && canManageUsers && (
               <Button
                 size="sm"
                 variant="ghost"
@@ -309,12 +314,12 @@ export default function UsersPage() {
             <Button size="sm" variant="secondary" onClick={() => openEdit(row)}>
               Edit
             </Button>
-            {isAdmin && (
+            {canManageUsers && (
               <Button size="sm" variant="ghost" onClick={() => openReset(row)}>
-                Reset PW
+                Reset Password
               </Button>
             )}
-            {isAdmin && !isSelf && (
+            {canManageUsers && !isSelf && (
               <Button size="sm" variant="ghost" className="text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setDeleteTarget(row)}>
                 Delete
               </Button>
@@ -334,7 +339,7 @@ export default function UsersPage() {
             <h1 className="text-2xl font-bold tracking-tight text-slate-900">User Management</h1>
             <p className="text-xs font-medium text-slate-500 mt-1">Configure user accounts, roles, access levels, and security settings.</p>
           </div>
-          {isAdmin && (
+          {canCreateUsers && (
             <Button variant="primary" onClick={openCreate} className="flex items-center gap-2">
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
@@ -345,7 +350,9 @@ export default function UsersPage() {
         </div>
 
         {/* Table */}
-        <Table columns={columns} data={users} isLoading={loading} emptyMessage="No users found." />
+        <div className="rounded-2xl bg-white/45 p-1.5 ring-1 ring-white/70">
+          <Table columns={columns} data={users} isLoading={loading} emptyMessage="No users found." />
+        </div>
 
         {meta.total_pages > 1 && (
           <div className="flex items-center justify-between pt-1">

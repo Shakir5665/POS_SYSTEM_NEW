@@ -228,6 +228,7 @@ const icons = {
 }
 
 const roleBadge = {
+  SUPERADMIN: 'bg-violet-50 text-violet-700 border border-violet-200/80',
   ADMIN: 'bg-rose-50 text-rose-700 border border-rose-200/80',
   MANAGER: 'bg-amber-50 text-amber-700 border border-amber-200/80',
   CASHIER: 'bg-emerald-50 text-emerald-700 border border-emerald-200/80',
@@ -255,7 +256,8 @@ export function DashboardLayout({ children }) {
     }
   }
 
-  const isAdmin = user?.role === 'ADMIN'
+  const isSuperAdmin = user?.role === 'SUPERADMIN'
+  const isAdmin = user?.role === 'ADMIN' || isSuperAdmin
   const isManager = user?.role === 'MANAGER' || isAdmin
 
   return (
@@ -417,20 +419,14 @@ export function DashboardLayout({ children }) {
               <div className="pt-4 pb-1 px-3">
                 <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">Administration</p>
               </div>
-              <NavItem
-                to="/users"
-                icon={icons.users}
-                label="Users & Access"
-                iconColor="text-rose-600 bg-rose-50/90 border-rose-200/80"
-                onClick={() => setSidebarOpen(false)}
-              />
-              <NavItem
-                to="/settings"
-                icon={icons.settings}
-                label="Settings"
-                iconColor="text-slate-600 bg-slate-100/90 border-slate-200/80"
-                onClick={() => setSidebarOpen(false)}
-              />
+            </>
+          )}
+          {isAdmin && (
+            <>
+              {isSuperAdmin && <div className="pt-4 pb-1 px-3"><p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-widest">System owner</p></div>}
+              {isSuperAdmin && <NavItem to="/system-admin" icon={icons.settings} label="System control" iconColor="text-indigo-600 bg-indigo-50/90 border-indigo-200/80" onClick={() => setSidebarOpen(false)} />}
+              <NavItem to="/users" icon={icons.users} label="Users & Access" iconColor="text-rose-600 bg-rose-50/90 border-rose-200/80" onClick={() => setSidebarOpen(false)} />
+              {isSuperAdmin && <>
               <NavItem
                 to="/migration"
                 icon={icons.migration}
@@ -438,9 +434,22 @@ export function DashboardLayout({ children }) {
                 iconColor="text-fuchsia-600 bg-fuchsia-50/90 border-fuchsia-200/80"
                 onClick={() => setSidebarOpen(false)}
               />
+              </>}
             </>
           )}
         </nav>
+
+        {isAdmin && (
+          <div className="border-t border-slate-100/90 px-3 py-2">
+            <NavItem
+              to="/settings"
+              icon={icons.settings}
+              label="Settings"
+              iconColor="text-violet-900 bg-slate-100/90 border-violet-200/80"
+              onClick={() => setSidebarOpen(false)}
+            />
+          </div>
+        )}
 
         {/* User profile card at bottom */}
         <div className="border-t border-slate-100/90 p-3 bg-white/50 backdrop-blur-sm">

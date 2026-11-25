@@ -16,7 +16,7 @@ import { useAuth } from '../hooks/useAuth'
 export default function ProductsPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
-  const isAdmin = user?.role === 'ADMIN'
+  const isAdmin = ['ADMIN', 'SUPERADMIN'].includes(user?.role)
 
   const [products, setProducts] = useState([])
   const [categories, setCategories] = useState([])

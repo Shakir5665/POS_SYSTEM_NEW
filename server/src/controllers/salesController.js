@@ -35,7 +35,7 @@ async function createSale(req, res, next) {
         notes,
         reference,
         warehouse_id,
-        sale_date: req.user && req.user.role === 'ADMIN' && sale_date ? sale_date : null,
+        sale_date: req.user && ['ADMIN', 'SUPERADMIN'].includes(req.user.role) && sale_date ? sale_date : null,
         is_legacy_import: false, // Server-enforced: live checkout is never a legacy import
       },
       req.user.id

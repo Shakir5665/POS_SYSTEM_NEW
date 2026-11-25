@@ -14,6 +14,14 @@ async function main() {
     return
   }
 
+  const systemControl = await prisma.systemControl.findUnique({ where: { id: 'global' } })
+  const ownerCount = await prisma.user.count({ where: { role: 'SUPERADMIN' } })
+  if (systemControl?.owner_user_id || ownerCount > 0) {
+    console.error('Refusing to seed: a system owner is configured. Sample seeding deletes user accounts.')
+    process.exitCode = 1
+    return
+  }
+
   console.log(`Seeding ${describeDatabase(process.env.DATABASE_URL)}`)
   console.log('This deletes ALL existing data (users, products, customers, sales, settings) and inserts sample data.')
 
@@ -39,6 +47,10 @@ async function main() {
   await prisma.category.deleteMany()
   await prisma.user.deleteMany()
   await prisma.settings.deleteMany()
+  await prisma.systemControl.update({
+    where: { id: 'global' },
+    data: { access_enabled: true, updated_by_user_id: null },
+  })
 
   // Settings
   await prisma.settings.createMany({

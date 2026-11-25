@@ -220,7 +220,7 @@ async function getMigrationStatus(req, res, next) {
 }
 
 /**
- * Clear all database contents except the User table and Prisma migrations
+ * Clear business data while preserving User, SystemControl, and Prisma migrations
  * POST /api/migration/clear-database
  */
 async function clearDatabase(req, res, next) {
@@ -236,13 +236,13 @@ async function clearDatabase(req, res, next) {
       });
     }
 
-    // Find all base tables in the public schema except User and _prisma_migrations
+    // Keep system owner/access-control state alongside users and Prisma migrations.
     const tables = await prisma.$queryRaw`
       SELECT table_name 
       FROM information_schema.tables 
       WHERE table_schema = 'public' 
         AND table_type = 'BASE TABLE'
-        AND table_name NOT IN ('User', '_prisma_migrations')
+        AND table_name NOT IN ('User', 'SystemControl', '_prisma_migrations')
       ORDER BY table_name;
     `;
 
@@ -313,7 +313,7 @@ async function clearDatabase(req, res, next) {
 
     res.json({
       success: true,
-      message: 'Database contents cleared successfully, preserving user accounts',
+      message: 'Business data cleared successfully, preserving user accounts and system access controls',
       data: {
         truncated_tables_count: tableNames.length,
         truncated_tables: tableNames,

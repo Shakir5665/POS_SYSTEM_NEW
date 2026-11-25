@@ -32,7 +32,7 @@ function StockStatusBadge({ quantity, threshold }) {
 
 export default function InventoryPage() {
   const { user } = useAuth()
-  const isAdminOrManager = user?.role === 'ADMIN' || user?.role === 'MANAGER'
+  const isAdminOrManager = ['ADMIN', 'MANAGER', 'SUPERADMIN'].includes(user?.role)
 
   // Top-level mode: 'balances' | 'adjustments'
   const [viewMode, setViewMode] = useState('balances')

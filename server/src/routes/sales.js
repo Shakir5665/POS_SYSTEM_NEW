@@ -38,7 +38,7 @@ const saleValidation = [
   body('customer_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Customer ID must be a valid ID'),
   body('warehouse_id').optional({ nullable: true }).isString().trim().notEmpty().withMessage('Warehouse ID must be a valid ID'),
   body('sale_date').optional({ nullable: true }).isISO8601().withMessage('Sale date must be a valid ISO 8601 date').custom((val, { req }) => {
-    if (val && req.user && req.user.role !== 'ADMIN') {
+    if (val && req.user && !['ADMIN', 'SUPERADMIN'].includes(req.user.role)) {
       throw new Error('Backdating sales transactions requires ADMIN authorization')
     }
     return true

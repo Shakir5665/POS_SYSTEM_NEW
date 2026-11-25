@@ -294,7 +294,7 @@ export default function SettingsPage() {
                   </option>
                 ))}
               </select>
-              <p className="text-2xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-400 mt-1">
                 Sales checked out at the POS terminal will automatically connect to this warehouse behind the scenes for stock audit and inventory tracking.
               </p>
             </div>

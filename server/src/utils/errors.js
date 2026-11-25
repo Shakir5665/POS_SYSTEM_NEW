@@ -45,6 +45,12 @@ class ConflictError extends AppError {
   }
 }
 
+class SystemAccessPausedError extends AppError {
+  constructor(message = 'System access is temporarily paused. Please contact your system administrator.') {
+    super(message, 423, 'SYSTEM_ACCESS_PAUSED')
+  }
+}
+
 module.exports = {
   AppError,
   ValidationError,
@@ -53,4 +59,5 @@ module.exports = {
   NotFoundError,
   ConflictError,
   BadRequestError,
+  SystemAccessPausedError,
 }

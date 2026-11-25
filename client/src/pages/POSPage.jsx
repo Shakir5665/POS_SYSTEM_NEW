@@ -1818,7 +1818,7 @@ export default function POSPage() {
            
           </div>
           <div className="flex items-center gap-3">
-            {['ADMIN', 'MANAGER'].includes(user?.role) && (
+            {['ADMIN', 'MANAGER', 'SUPERADMIN'].includes(user?.role) && (
               <button
                 onClick={() => navigate('/dashboard')}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-white/90 bg-white/80 backdrop-blur-md hover:border-primary-200 hover:bg-white text-slate-700 hover:text-primary-700 transition-all text-xs font-bold shadow-glass-sm hover:shadow-glass"

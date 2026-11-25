@@ -48,7 +48,7 @@ async function wipeDatabase() {
     FROM information_schema.tables 
     WHERE table_schema = 'public' 
       AND table_type = 'BASE TABLE'
-      AND table_name NOT IN ('User', '_prisma_migrations')
+      AND table_name NOT IN ('User', 'SystemControl', '_prisma_migrations')
     ORDER BY table_name;
   `;
 
@@ -84,7 +84,7 @@ async function wipeDatabase() {
     const countRes = await prisma.$queryRawUnsafe(`SELECT count(*)::int as count FROM "${t.table_name}"`);
     const count = countRes[0].count;
     console.log(`${t.table_name}: ${count} rows`);
-    if (t.table_name !== 'User' && t.table_name !== '_prisma_migrations') {
+    if (t.table_name !== 'User' && t.table_name !== 'SystemControl' && t.table_name !== '_prisma_migrations') {
       totalNonUsersRows += count;
     }
   }
@@ -97,7 +97,7 @@ async function wipeDatabase() {
 
   console.log('--------------------------------------------------');
   if (totalNonUsersRows === 0 && usersAfter.length === usersBefore.length) {
-    console.log('SUCCESS: All data wiped from DASHPOS except users table.');
+    console.log('SUCCESS: Business data wiped while users and system access controls were preserved.');
   } else {
     console.error(`INCONSISTENCY: totalNonUsersRows=${totalNonUsersRows}, usersAfter=${usersAfter.length}`);
   }

@@ -7,12 +7,12 @@ const userController = require('../controllers/userController')
 const router = express.Router()
 
 router.use(authenticate)
-router.use(authorize(['ADMIN']))
 
-router.get('/', userController.listUsers)
+router.get('/', authorize(['ADMIN', 'SUPERADMIN']), userController.listUsers)
 
 router.post(
   '/',
+  authorize(['SUPERADMIN']),
   [
     body('username').notEmpty().trim().withMessage('Username is required'),
     body('email').isEmail().withMessage('Valid email required'),
@@ -27,6 +27,7 @@ router.post(
 // Update role, active status, full_name, email
 router.put(
   '/:id',
+  authorize(['ADMIN', 'SUPERADMIN']),
   [
     param('id').isString().trim().notEmpty().withMessage('Invalid user ID'),
     body('role').optional().isIn(['ADMIN', 'MANAGER', 'CASHIER']),
@@ -41,14 +42,15 @@ router.put(
 // Reset password (also unlocks the account)
 router.post(
   '/:id/reset-password',
+  authorize(['ADMIN', 'SUPERADMIN']),
   [param('id').isString().trim().notEmpty().withMessage('Invalid user ID'), body('password').isLength({ min: 6 }).withMessage('Password must be at least 6 characters')],
   validate,
   userController.resetPassword
 )
 
-router.post('/:id/unlock', [param('id').isString().trim().notEmpty().withMessage('Invalid user ID')], validate, userController.unlockUser)
+router.post('/:id/unlock', authorize(['ADMIN', 'SUPERADMIN']), [param('id').isString().trim().notEmpty().withMessage('Invalid user ID')], validate, userController.unlockUser)
 
-// Permanently delete user (ADMIN only)
-router.delete('/:id', [param('id').isString().trim().notEmpty().withMessage('Invalid user ID')], validate, userController.deleteUser)
+// Permanently delete staff user (Superadmin only)
+router.delete('/:id', authorize(['ADMIN', 'SUPERADMIN']), [param('id').isString().trim().notEmpty().withMessage('Invalid user ID')], validate, userController.deleteUser)
 
 module.exports = router

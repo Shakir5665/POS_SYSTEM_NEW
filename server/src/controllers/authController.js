@@ -1,6 +1,5 @@
 const authService = require('../services/authService')
 const userService = require('../services/userService')
-const prisma = require('../utils/prismaClient')
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -71,14 +70,12 @@ async function refresh(req, res, next) {
 async function register(req, res, next) {
   try {
     const { username, email, password, full_name, role } = req.body
-    const count = await prisma.user.count()
-    const assignedRole = count === 0 ? 'ADMIN' : (role && ['CASHIER', 'MANAGER', 'ADMIN'].includes(role) ? role : 'CASHIER')
     const user = await userService.createUser({
       username: username.trim(),
       email: email.trim().toLowerCase(),
       password,
       full_name: full_name.trim(),
-      role: assignedRole,
+      role,
     })
 
     res.status(201).json({

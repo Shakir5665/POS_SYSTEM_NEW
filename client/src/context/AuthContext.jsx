@@ -9,6 +9,7 @@ const initialState = {
   isLoading: true,
   initializationError: false,
   initializationAttempt: 0,
+  systemLocked: false,
 }
 
 function authReducer(state, action) {
@@ -20,6 +21,7 @@ function authReducer(state, action) {
         isLoading: false,
         initializationError: false,
         initializationAttempt: state.initializationAttempt,
+        systemLocked: false,
       }
     case 'LOGOUT':
       return {
@@ -28,18 +30,30 @@ function authReducer(state, action) {
         isLoading: false,
         initializationError: false,
         initializationAttempt: state.initializationAttempt,
+        systemLocked: false,
       }
     case 'AUTH_CHECKED':
       return {
         ...state,
         isLoading: false,
         initializationError: false,
+        systemLocked: false,
+      }
+    case 'SYSTEM_LOCKED':
+      return {
+        ...state,
+        user: null,
+        isAuthenticated: false,
+        isLoading: false,
+        initializationError: false,
+        systemLocked: true,
       }
     case 'AUTH_INIT_FAILED':
       return {
         ...state,
         isLoading: false,
         initializationError: true,
+        systemLocked: false,
       }
     case 'AUTH_RETRY':
       return {
@@ -47,6 +61,7 @@ function authReducer(state, action) {
         isLoading: true,
         initializationError: false,
         initializationAttempt: state.initializationAttempt + 1,
+        systemLocked: false,
       }
     default:
       return state
@@ -56,6 +71,16 @@ function authReducer(state, action) {
 export function AuthProvider({ children }) {
   const [state, dispatch] = useReducer(authReducer, initialState)
   const requestControllerRef = useRef(null)
+
+  useEffect(() => {
+    function handleSystemPaused() {
+      clearAccessToken()
+      dispatch({ type: 'SYSTEM_LOCKED' })
+    }
+
+    window.addEventListener('system-access-paused', handleSystemPaused)
+    return () => window.removeEventListener('system-access-paused', handleSystemPaused)
+  }, [])
 
   // On app load: try silent refresh using the httpOnly cookie.
   useEffect(() => {
@@ -81,6 +106,11 @@ export function AuthProvider({ children }) {
         if (!isActive || controller.signal.aborted) return
 
         const status = error.response?.status
+        if (status === 423) {
+          clearAccessToken()
+          dispatch({ type: 'SYSTEM_LOCKED' })
+          return
+        }
         const connectionFailed =
           !error.response ||
           error.code === 'ECONNABORTED' ||
@@ -118,9 +148,9 @@ export function AuthProvider({ children }) {
     return user
   }
 
-  async function register(payload) {
-    const { data } = await api.post('/auth/register', payload)
-    return data
+  function updateSession(user, accessToken) {
+    setAccessToken(accessToken)
+    dispatch({ type: 'LOGIN_SUCCESS', payload: { user } })
   }
 
   async function logout() {
@@ -133,7 +163,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ ...state, login, logout, register, retryInitialization }}>
+    <AuthContext.Provider value={{ ...state, login, logout, updateSession, retryInitialization }}>
       {children}
     </AuthContext.Provider>
   )

@@ -8,7 +8,7 @@ const generateSalesReturnNumber = require('../utils/generateSalesReturnNumber')
  * Check if user is authorized to perform returns
  */
 function assertReturnPermission(user) {
-  if (!user || !['ADMIN', 'MANAGER'].includes(user.role)) {
+  if (!user || !['ADMIN', 'MANAGER', 'SUPERADMIN'].includes(user.role)) {
     throw new ForbiddenError('Sales returns require administrative authorization')
   }
 }

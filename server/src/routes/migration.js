@@ -11,7 +11,7 @@ const uploadExcel = require('../middleware/uploadExcel');
 const router = express.Router();
 
 router.use(authenticate);
-router.use(authorize(['ADMIN']));
+router.use(authorize(['SUPERADMIN']));
 
 // ---------------------------------------------------------------------------
 // Universal Single-Table Excel Migration Endpoints (Section 16)
