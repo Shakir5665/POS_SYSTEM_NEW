@@ -2,12 +2,10 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import { useAuth } from '../hooks/useAuth'
-import { useSettings } from '../hooks/useSettings'
 import { AuthLayout } from '../layouts/AuthLayout'
 
 export default function LoginPage() {
   const { login } = useAuth()
-  const { logo_url: logoUrl } = useSettings()
   const navigate = useNavigate()
   const [form, setForm] = useState({ username: '', password: '' })
   const [errors, setErrors] = useState({})
@@ -60,7 +58,7 @@ export default function LoginPage() {
       <div className="text-center mb-7">
         <div className="inline-flex p-3 rounded-2xl bg-white/60 border border-white/80 shadow-2xs mb-3">
           <img
-            src={logoUrl || '/logo.png'}
+            src="/logo.png"
             alt="Store Logo"
             className="h-14 w-auto max-w-[190px] object-contain drop-shadow-xs"
           />

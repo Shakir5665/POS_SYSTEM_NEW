@@ -235,7 +235,7 @@ const roleBadge = {
 
 export function DashboardLayout({ children }) {
   const { user, logout } = useAuth()
-  const { logo_url: logoUrl } = useSettings()
+  const { logo_url: logoUrl, store_name: storeName } = useSettings()
   const navigate = useNavigate()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [showLogoutModal, setShowLogoutModal] = useState(false)
@@ -274,12 +274,19 @@ export function DashboardLayout({ children }) {
           ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}
       >
         {/* Brand Header */}
-        <div className="flex items-center gap-3 px-5 py-5 border-b border-slate-100/90 bg-white/50 backdrop-blur-sm">
+        <div className="flex items-center px-1 py-1 border-b border-slate-100/90 bg-white/50 backdrop-blur-sm">
           <img
             src={logoUrl || '/logo.png'}
             alt="Store Logo"
-            className="h-9 w-auto max-w-[160px] object-contain drop-shadow-xs"
+            className="h-9 w-[70px] max-w-[70px] object-contain drop-shadow-xs flex-shrink-0"
           />
+          <span className="h-5 w-px flex-shrink-0 bg-gradient-to-b from-transparent via-blue-200 to-transparent" />
+          <div className="min-w-0 flex-1">
+            <p className="mt-0.5 truncate text-[12px] font-bold uppercase tracking-[0.14em] text-blue-800" title={storeName || 'Store'}>
+              {storeName || 'Store'}
+            </p>
+            
+          </div>
         </div>
 
         {/* Navigation list */}
@@ -466,7 +473,7 @@ export function DashboardLayout({ children }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Mobile topbar */}
         <header className="app-topbar lg:hidden flex items-center justify-between px-4 py-3 bg-white/80 backdrop-blur-md border-b border-slate-200/80 z-20">
-          <div className="flex items-center gap-3">
+          <div className="flex min-w-0 items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
               className="p-2 rounded-xl hover:bg-slate-100 text-slate-600 focus:outline-none"
@@ -476,7 +483,11 @@ export function DashboardLayout({ children }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>
-            <img src={logoUrl || '/logo.png'} alt="Store Logo" className="h-7 w-auto object-contain" />
+            <img src={logoUrl || '/logo.png'} alt="Store Logo" className="h-7 w-auto max-w-[84px] object-contain flex-shrink-0" />
+            <span className="h-7 w-px flex-shrink-0 bg-gradient-to-b from-transparent via-blue-200 to-transparent" />
+            <span className="min-w-0 truncate text-sm font-bold tracking-tight text-slate-900" title={storeName || 'Store'}>
+              {storeName || 'Store'}
+            </span>
           </div>
         </header>
 
