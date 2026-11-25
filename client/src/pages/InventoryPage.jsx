@@ -27,7 +27,7 @@ function StockStatusBadge({ quantity, threshold }) {
   const t = Number(threshold || 0)
   if (q === 0) return <Badge variant="danger">Out of Stock</Badge>
   if (q <= t) return <Badge variant="warning">Low Stock</Badge>
-  return <Badge variant="success">OK</Badge>
+  return <Badge variant="success">Active</Badge>
 }
 
 export default function InventoryPage() {
